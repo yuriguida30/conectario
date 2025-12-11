@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { X, MapPin, Clock, FileText, Check, Copy } from 'lucide-react';
 import { Coupon } from '../types';
@@ -90,7 +91,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
                  
                  <div className="bg-slate-100 border-2 border-dashed border-slate-300 rounded-xl p-6 w-full mb-6 relative group cursor-pointer" onClick={() => navigator.clipboard.writeText(coupon.code)}>
                      <p className="text-3xl font-mono font-bold text-ocean-900 tracking-widest">{coupon.code}</p>
-                     <p className="text-[10px] text-slate-400 mt-2 uppercase">Toque para copiar</p>
+                     <p className="text-left md:text-center text-[10px] text-slate-400 mt-2 uppercase">Toque para copiar</p>
                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400">
                         <Copy size={16}/>
                      </div>
@@ -108,7 +109,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
             {step === 'details' ? (
                 <button 
                     onClick={handleRedeemClick}
-                    className="w-full bg-gradient-to-r from-ocean-500 to-ocean-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-ocean-500/20 active:scale-[0.98] transition-all"
+                    className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-all"
                 >
                     PEGAR CUPOM
                 </button>

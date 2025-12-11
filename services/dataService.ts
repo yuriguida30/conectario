@@ -57,7 +57,7 @@ const setupRealtimeListener = (collectionName: string, storageKey: string, defau
              }
         }
     }, (error) => {
-        console.error(`Erro no listener de ${collectionName}:`, error);
+        console.warn(`Aviso: Firestore não configurado ou offline (${collectionName}). Usando dados locais.`);
     });
 
     unsubscribers.push(unsub);
@@ -70,14 +70,16 @@ export const initFirebaseData = async () => {
     // --- SEED ADMIN PASSWORD (LOCAL FALLBACK) ---
     try {
         const localAuth = JSON.parse(localStorage.getItem(LOCAL_AUTH_KEY) || '{}');
+        // Senha padrão '123456' em base64
+        const defaultPass = btoa('123456');
+        
         if (!localAuth['admin@conectario.com']) {
-            localAuth['admin@conectario.com'] = btoa('123456'); 
-            localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify(localAuth));
+            localAuth['admin@conectario.com'] = defaultPass; 
         }
         if (!localAuth['empresa@email.com']) {
-            localAuth['empresa@email.com'] = btoa('123456'); 
-            localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify(localAuth));
+            localAuth['empresa@email.com'] = defaultPass; 
         }
+        localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify(localAuth));
     } catch (e) {
         console.error("Erro ao configurar senhas padrão:", e);
     }
@@ -97,22 +99,25 @@ export const initFirebaseData = async () => {
                      if(doc.id === 'app_config') setStored('app_config', doc.data());
                      if(doc.id === 'featured_config') setStored('arraial_featured_config', doc.data());
                  });
-            });
+            }, (err) => console.warn("Firestore System offline"));
 
+            // Seed inicial se local estiver vazio
             setTimeout(() => {
                  const localBiz = getStored<any[]>('arraial_businesses', []);
                  if (localBiz.length === 0) {
-                     MOCK_BUSINESSES.forEach(b => syncToFirebase('businesses', b.id, b));
-                     MOCK_COUPONS.forEach(c => syncToFirebase('coupons', c.id, c));
-                     MOCK_USERS.forEach(u => syncToFirebase('users', u.id, u));
-                     MOCK_POSTS.forEach(p => syncToFirebase('posts', p.id, p));
+                     // Se não tem nada local, carrega mocks para memória
+                     setStored('arraial_businesses', MOCK_BUSINESSES);
+                     setStored('arraial_coupons', MOCK_COUPONS);
+                     setStored('arraial_users_list', MOCK_USERS);
+                     setStored('arraial_blog_posts', MOCK_POSTS);
                  }
-            }, 2000);
+            }, 1000);
 
         } catch (e) {
             console.error("Erro ao iniciar listeners:", e);
         }
     } else {
+        // Fallback total se não houver objeto DB
         const existingBiz = getStored<BusinessProfile[]>('arraial_businesses', []);
         if (existingBiz.length < 2) {
             setStored('arraial_businesses', MOCK_BUSINESSES);
@@ -276,13 +281,23 @@ export const getCoupons = async (): Promise<Coupon[]> => {
 };
 
 export const saveCoupon = async (coupon: Coupon): Promise<void> => {
-    const current = getStored<Coupon[]>('arraial_coupons', []);
-    const index = current.findIndex(c => c.id === coupon.id);
-    if (index >= 0) current[index] = coupon;
-    else current.unshift(coupon);
-    setStored('arraial_coupons', current);
-    
-    await syncToFirebase('coupons', coupon.id, coupon);
+    // Tenta salvar no Firebase, mas não bloqueia se falhar (quota/tamanho)
+    try {
+        await syncToFirebase('coupons', coupon.id, coupon);
+    } catch (e) {
+        console.warn("Falha ao salvar cupom no Firebase, salvando apenas localmente.");
+    }
+
+    // Salva Localmente com segurança de cota
+    try {
+        const current = getStored<Coupon[]>('arraial_coupons', []);
+        const index = current.findIndex(c => c.id === coupon.id);
+        if (index >= 0) current[index] = coupon;
+        else current.unshift(coupon);
+        setStored('arraial_coupons', current);
+    } catch (e) {
+        alert("⚠️ Memória cheia! Não foi possível salvar este cupom. Tente usar imagens menores.");
+    }
 };
 
 export const deleteCoupon = async (id: string): Promise<void> => {
@@ -325,8 +340,9 @@ export const registerUser = async (name: string, email: string, password: string
         return newUser;
 
     } catch (error: any) {
-        if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed' || error.message === 'no_auth_service') {
-            console.warn("⚠️ Firebase Auth indisponível. Usando Auth Local.");
+        // Códigos de erro que indicam problema no Firebase, mas não erro do usuário
+        if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed' || error.message === 'no_auth_service' || error.code === 'auth/internal-error') {
+            console.warn("⚠️ Firebase Auth indisponível ou mal configurado. Usando Auth Local.");
             
             const users = getAllUsers();
             if (users.find(u => u.email === email)) {
@@ -379,6 +395,7 @@ export const login = async (email: string, password?: string): Promise<User | nu
                 } catch(e) { console.warn("Erro ao buscar perfil extra:", e) }
             }
             
+            // Fallback se logou no auth mas nao tem doc
             const fallbackUser: User = {
                 id: uid,
                 name: userCredential.user.displayName || email.split('@')[0],
@@ -392,6 +409,10 @@ export const login = async (email: string, password?: string): Promise<User | nu
             return fallbackUser;
 
         } catch (error: any) {
+            console.warn("Login Firebase falhou, tentando fallback local...", error.code);
+
+            // FALLBACK ROBUSTO
+            // 1. Tenta login com banco de dados local (contas criadas recentemente)
             const localAuth = JSON.parse(localStorage.getItem(LOCAL_AUTH_KEY) || '{}');
             const storedPass = localAuth[email];
 
@@ -404,6 +425,27 @@ export const login = async (email: string, password?: string): Promise<User | nu
                     return user;
                 }
             }
+
+            // 2. Tenta login HARDCODED para contas de demonstração (caso LocalStorage tenha sido limpo)
+            // Isso resolve o problema de 'auth/configuration-not-found' para as contas demo
+            if (email === 'empresa@email.com' && password === '123456') {
+                 const user = MOCK_USERS.find(u => u.email === email);
+                 if (user) {
+                     currentUser = user;
+                     localStorage.setItem('arraial_user', JSON.stringify(user));
+                     return user;
+                 }
+            }
+            if (email === 'admin@conectario.com' && password === '123456') {
+                 const user = MOCK_USERS.find(u => u.email === email);
+                 if (user) {
+                     currentUser = user;
+                     localStorage.setItem('arraial_user', JSON.stringify(user));
+                     return user;
+                 }
+            }
+
+            // Se nada funcionou, repassa o erro original
             throw error;
         }
     }
@@ -486,13 +528,10 @@ const checkIsOpen = (hours: { [key: string]: string } | undefined): boolean => {
 
     // Handle overnight (e.g., 18:00 - 02:00)
     if (endMinutes < startMinutes) {
-        // If current time is after start, or early morning before end
-        // Simplification: treat 'next day' end time as (endMinutes + 1440)
         const extendedEnd = endMinutes + 1440;
         if (currentMinutes >= startMinutes) {
             return true; // We are in the evening part
         }
-        // Check if we are in the early morning part (e.g. 01:00 am)
         if (currentMinutes < endMinutes) {
              return true; 
         }
@@ -511,14 +550,23 @@ export const getBusinesses = (): BusinessProfile[] => {
     }));
 };
 
-export const saveBusiness = (business: BusinessProfile): void => {
-    const current = getStored<BusinessProfile[]>('arraial_businesses', []);
-    const index = current.findIndex(b => b.id === business.id);
-    if (index >= 0) current[index] = business;
-    else current.push(business);
-    setStored('arraial_businesses', current);
+export const saveBusiness = async (business: BusinessProfile): Promise<void> => {
+    // Tenta salvar localmente primeiro com try/catch para cota
+    try {
+        const current = getStored<BusinessProfile[]>('arraial_businesses', []);
+        const index = current.findIndex(b => b.id === business.id);
+        if (index >= 0) current[index] = business;
+        else current.push(business);
+        setStored('arraial_businesses', current);
+    } catch (e) {
+        alert("⚠️ Memória local cheia! Não foi possível salvar o perfil completo.");
+        return;
+    }
     
-    syncToFirebase('businesses', business.id, business);
+    // Tenta Firebase sem bloquear
+    try {
+        await syncToFirebase('businesses', business.id, business);
+    } catch(e) {}
 };
 
 export const addBusinessReview = (businessId: string, user: User, rating: number, comment: string) => {

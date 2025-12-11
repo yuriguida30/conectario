@@ -1,11 +1,15 @@
 import { GoogleGenAI } from "@google/genai";
 import { Coupon } from "../types";
 
-const apiKey = process.env.API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+const getAIClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) return null;
+  return new GoogleGenAI({ apiKey });
+};
 
 export const generateCouponDescription = async (title: string, category: string, companyName: string): Promise<string> => {
-  if (!apiKey) {
+  const ai = getAIClient();
+  if (!ai) {
     console.warn("API Key is missing. Returning mock description.");
     return `Experimente o incrível ${title} no ${companyName}. Uma oferta imperdível na categoria ${category}! Venha conferir.`;
   }
@@ -25,7 +29,7 @@ export const generateCouponDescription = async (title: string, category: string,
       contents: prompt,
     });
 
-    return response.text.trim();
+    return response.text?.trim() || `Venha aproveitar ${title} no ${companyName}!`;
   } catch (error) {
     console.error("Gemini generation error:", error);
     return `Aproveite ${title} com um super desconto no ${companyName}!`;
@@ -33,7 +37,8 @@ export const generateCouponDescription = async (title: string, category: string,
 };
 
 export const suggestCouponIdea = async (companyCategory: string): Promise<{ title: string; description: string }> => {
-  if (!apiKey) {
+  const ai = getAIClient();
+  if (!ai) {
       return {
           title: "Oferta Especial de Verão",
           description: "Desconto exclusivo para aproveitar o melhor de Arraial do Cabo."
@@ -47,8 +52,6 @@ export const suggestCouponIdea = async (companyCategory: string): Promise<{ titl
       Não use markdown.
     `;
     
-    // We use JSON mode roughly by parsing result, but let's keep it simple text parsing if schema fails or just asking for text.
-    // Ideally use schema, but for simplicity here we parse manually or ask for simple format.
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
@@ -57,7 +60,7 @@ export const suggestCouponIdea = async (companyCategory: string): Promise<{ titl
         }
     });
     
-    const text = response.text;
+    const text = response.text || '{}';
     return JSON.parse(text);
 
   } catch (error) {

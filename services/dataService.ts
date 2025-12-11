@@ -6,6 +6,8 @@ import { collection, setDoc, doc, deleteDoc, onSnapshot, getDoc } from 'firebase
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
 
 // --- HELPERS BÁSICOS ---
+const LOCAL_AUTH_KEY = 'arraial_local_auth_db';
+
 const getStored = <T>(key: string, defaultData: T): T => {
     try {
         const data = localStorage.getItem(key);
@@ -274,7 +276,7 @@ export const deleteCoupon = async (id: string): Promise<void> => {
     await deleteFromFirebase('coupons', id);
 };
 
-// --- AUTH (REAL IMPLEMENTATION) ---
+// --- AUTH (HYBRID REAL + FALLBACK) ---
 let currentUser: User | null = null;
 
 export const getCurrentUser = (): User | null => {
@@ -284,18 +286,16 @@ export const getCurrentUser = (): User | null => {
     return currentUser;
 };
 
-// Nova função para Cadastro
+// Nova função para Cadastro com Fallback
 export const registerUser = async (name: string, email: string, password: string): Promise<User | null> => {
-    if (!auth) throw new Error("Serviço de autenticação indisponível.");
-    
     try {
-        // 1. Criar no Firebase Auth
+        if (!auth) throw new Error("no_auth_service");
+        // Tenta criar no Firebase Oficial
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
 
-        // 2. Criar objeto User da aplicação
         const newUser: User = {
-            id: firebaseUser.uid, // Usa o UID do Firebase
+            id: firebaseUser.uid,
             name: name,
             email: email,
             role: UserRole.CUSTOMER,
@@ -304,40 +304,72 @@ export const registerUser = async (name: string, email: string, password: string
             favorites: { coupons: [], businesses: [] }
         };
 
-        // 3. Salvar no Firestore e LocalStorage
         await syncToFirebase('users', newUser.id, newUser);
-        setStored('arraial_user', newUser); // Cache
-        createUser(newUser); // Atualiza lista local de usuarios
-
+        setStored('arraial_user', newUser); 
+        createUser(newUser);
         currentUser = newUser;
         return newUser;
+
     } catch (error: any) {
+        // Se o Firebase não estiver configurado/habilitado, usa Fallback Local Seguro
+        if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed' || error.message === 'no_auth_service') {
+            console.warn("⚠️ Firebase Auth indisponível. Usando Auth Local.");
+            
+            const users = getAllUsers();
+            if (users.find(u => u.email === email)) {
+                const e = new Error("email-already-in-use");
+                (e as any).code = "auth/email-already-in-use";
+                throw e;
+            }
+
+            // Armazena senha (hash simples para demo) localmente
+            const localAuth = JSON.parse(localStorage.getItem(LOCAL_AUTH_KEY) || '{}');
+            localAuth[email] = btoa(password); 
+            localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify(localAuth));
+
+            const newUser: User = {
+                id: 'local_' + Date.now(),
+                name: name,
+                email: email,
+                role: UserRole.CUSTOMER,
+                savedAmount: 0,
+                history: [],
+                favorites: { coupons: [], businesses: [] }
+            };
+            createUser(newUser);
+            currentUser = newUser;
+            localStorage.setItem('arraial_user', JSON.stringify(newUser));
+            return newUser;
+        }
+        
         console.error("Erro no cadastro:", error);
         throw error;
     }
 };
 
-// Função Login atualizada para checar senha
+// Função Login com Fallback
 export const login = async (email: string, password?: string): Promise<User | null> => {
-    // Se tiver auth e senha, usa o Firebase Auth
-    if (auth && password) {
+    if (password) {
         try {
+            if (!auth) throw new Error("no_auth_service");
+            // Tenta Login no Firebase
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const uid = userCredential.user.uid;
             
-            // Buscar dados extras no Firestore
+            // Tenta buscar perfil completo
             if (db) {
-                const docRef = doc(db, 'users', uid);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const userData = docSnap.data() as User;
-                    currentUser = userData;
-                    localStorage.setItem('arraial_user', JSON.stringify(userData));
-                    return userData;
-                }
+                try {
+                    const docRef = doc(db, 'users', uid);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        const userData = docSnap.data() as User;
+                        currentUser = userData;
+                        localStorage.setItem('arraial_user', JSON.stringify(userData));
+                        return userData;
+                    }
+                } catch(e) { console.warn("Erro ao buscar perfil extra:", e) }
             }
             
-            // Fallback se não achar no banco mas logou no Auth (ex: user antigo)
             const fallbackUser: User = {
                 id: uid,
                 name: userCredential.user.displayName || email.split('@')[0],
@@ -347,29 +379,34 @@ export const login = async (email: string, password?: string): Promise<User | nu
                 favorites: { coupons: [], businesses: [] }
             };
             currentUser = fallbackUser;
+            localStorage.setItem('arraial_user', JSON.stringify(fallbackUser));
             return fallbackUser;
 
         } catch (error: any) {
-            console.error("Login Error:", error.code);
+            // Se falhar, verifica se existe no sistema Local (Fallback)
+            const localAuth = JSON.parse(localStorage.getItem(LOCAL_AUTH_KEY) || '{}');
+            const storedPass = localAuth[email];
+
+            if (storedPass && storedPass === btoa(password)) {
+                const allUsers = getAllUsers();
+                const user = allUsers.find(u => u.email === email);
+                if (user) {
+                    currentUser = user;
+                    localStorage.setItem('arraial_user', JSON.stringify(user));
+                    return user;
+                }
+            }
+            
+            // Se não for auth local e for erro de senha do firebase, lança erro real
             throw error;
         }
-    }
-
-    // Fallback Legacy (Mock/Sem senha para dev environment simples se Auth falhar)
-    // Mantém compatibilidade com código antigo se Firebase não estiver configurado
-    const allUsers = getAllUsers();
-    let user = allUsers.find(u => u.email === email);
-    if (user) {
-        currentUser = user;
-        localStorage.setItem('arraial_user', JSON.stringify(user));
-        return user;
     }
     return null;
 };
 
 export const logout = async () => {
     if (auth) {
-        await signOut(auth);
+        try { await signOut(auth); } catch {}
     }
     currentUser = null;
     localStorage.removeItem('arraial_user');

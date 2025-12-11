@@ -10,7 +10,7 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [mode, setMode] = useState<'LOGIN' | 'REGISTER_USER' | 'REGISTER_COMPANY'>('LOGIN');
-  const [role, setRole] = useState<UserRole>(UserRole.CUSTOMER); // Role logic preserved for login context if needed later
+  const [role, setRole] = useState<UserRole>(UserRole.CUSTOMER);
   
   // Login State
   const [email, setEmail] = useState('');
@@ -102,7 +102,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           if (err.code === 'auth/email-already-in-use') {
               setError('Este email já está cadastrado.');
           } else {
-              setError('Erro ao criar conta: ' + err.message);
+              setError('Erro ao criar conta. Tente novamente.');
           }
       } finally {
           setLoading(false);
@@ -147,7 +147,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <h2 className="text-2xl font-bold text-ocean-950 mb-1">Cadastrar Empresa</h2>
                 <p className="text-slate-500 text-sm mb-6">Solicite sua entrada no {config.appName} {config.appNameHighlight}.</p>
                 <form onSubmit={handleCompanyRegisterSubmit} className="space-y-4">
-                    {/* (Existing company form fields - keeping structure simple for brevity, assumed unchanged logic) */}
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                         <h3 className="text-xs font-bold text-ocean-900 uppercase mb-3">Dados Principais</h3>
                         <div className="space-y-4">

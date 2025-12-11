@@ -91,6 +91,12 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
       }
   };
 
+  // Helper para imagem quebrada
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+      e.currentTarget.src = 'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?auto=format&fit=crop&q=80&w=1200'; // Fallback elegante
+      e.currentTarget.onerror = null; // Previne loop infinito
+  };
+
   const getCatalogLabel = (cat: string) => {
       const c = cat.toLowerCase();
       if (c.includes('gastronomia') || c.includes('restaurante')) return 'Cardápio';
@@ -116,7 +122,12 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
         
         {/* NEW HEADER DESIGN (More App-Like) */}
         <div className="relative h-[45vh] md:h-[50vh] w-full overflow-hidden bg-slate-900">
-            <img src={business.coverImage} className="w-full h-full object-cover opacity-90" alt={business.name} />
+            <img 
+                src={business.coverImage || 'https://via.placeholder.com/1200x800'} 
+                className="w-full h-full object-cover opacity-90" 
+                alt={business.name}
+                onError={handleImageError}
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent" />
             
             {/* Top Nav */}
@@ -214,7 +225,11 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
                         <div className="overflow-x-auto hide-scrollbar flex gap-3 pb-2">
                              {business.gallery.map((img, idx) => (
                                  <div key={idx} className="w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-xl overflow-hidden shadow-sm border border-slate-100 cursor-pointer hover:opacity-90 transition-opacity">
-                                     <img src={img} className="w-full h-full object-cover" />
+                                     <img 
+                                        src={img} 
+                                        className="w-full h-full object-cover" 
+                                        onError={handleImageError}
+                                     />
                                  </div>
                              ))}
                              <div className="w-32 h-32 md:w-40 md:h-40 shrink-0 rounded-xl bg-slate-100 flex flex-col items-center justify-center text-slate-400 border border-slate-200 border-dashed">
@@ -314,7 +329,12 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
                                             <div key={i} className="bg-white p-3 rounded-2xl border border-slate-100 flex gap-4 shadow-sm hover:shadow-md transition-shadow group">
                                                 <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-100">
                                                     {item.imageUrl ? (
-                                                        <img src={item.imageUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" alt={item.name} />
+                                                        <img 
+                                                            src={item.imageUrl} 
+                                                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" 
+                                                            alt={item.name}
+                                                            onError={handleImageError} 
+                                                        />
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center text-slate-300">
                                                             <ShoppingBag size={24} />

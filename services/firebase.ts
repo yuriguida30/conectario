@@ -1,23 +1,27 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getAnalytics } from 'firebase/analytics';
 
-// --- CONFIGURAÇÃO DO FIREBASE ---
-// 1. Vá em console.firebase.google.com
-// 2. Crie um projeto novo
-// 3. Adicione um App Web (ícone </>)
-// 4. Copie as chaves abaixo e substitua os valores.
-
+// --- CONFIGURAÇÃO DO FIREBASE (CONECTA RIO) ---
 const firebaseConfig = {
-  apiKey: "SUA_API_KEY_AQUI",
-  authDomain: "SEU_PROJETO.firebaseapp.com",
-  projectId: "SEU_PROJECT_ID",
-  storageBucket: "SEU_PROJECT_ID.appspot.com",
-  messagingSenderId: "SEU_MESSAGING_ID",
-  appId: "SEU_APP_ID"
+  apiKey: "AIzaSyCLyaiF_RVOd4BXNE9sZ4sGNsjlqu6ihdQ",
+  authDomain: "conectario-dd04b.firebaseapp.com",
+  projectId: "conectario-dd04b",
+  storageBucket: "conectario-dd04b.firebasestorage.app",
+  messagingSenderId: "733864820546",
+  appId: "1:733864820546:web:9dc7affdf1e76ec92cd2db",
+  measurementId: "G-39XG38B9GK"
 };
 
-// Initialize Firebase
+// Inicializa o App do Firebase
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Inicializa os serviços que o site usa
+const auth = getAuth(app);        // Para login
+const db = getFirestore(app);     // Para banco de dados (cupons, empresas)
+const analytics = getAnalytics(app); // Para métricas de acesso
+
+console.log("🔥 Firebase conectado e pronto para uso!");
+
+export { auth, db, analytics };

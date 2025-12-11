@@ -27,6 +27,7 @@ export interface User {
   // New Control Fields
   maxCoupons?: number; // Limit of active coupons
   permissions?: UserPermissions;
+  isBlocked?: boolean; // Bloqueio de acesso
   
   // Favorites
   favorites?: {

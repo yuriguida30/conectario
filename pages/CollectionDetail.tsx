@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Collection, BusinessProfile } from '../types';
 import { getCollectionById, getBusinessById } from '../services/dataService';
@@ -22,7 +23,7 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
     if (col) {
         const loadedBusinesses = col.businessIds
             .map(id => getBusinessById(id))
-            .filter((b): b is BusinessProfile => b !== undefined);
+            .filter((b) => b !== undefined) as BusinessProfile[];
         setBusinesses(loadedBusinesses);
     }
   }, [collectionId]);

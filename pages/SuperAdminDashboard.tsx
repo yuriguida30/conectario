@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, CompanyRequest, UserRole, AppCategory, AppLocation, AppAmenity, BlogPost, Collection, BusinessProfile, FeaturedConfig, SupportMessage, AppConfig } from '../types';
 import { 
@@ -5,7 +6,6 @@ import {
     approveRequest, 
     rejectRequest, 
     getAllUsers, 
-    createUser, 
     updateUser,
     deleteUser, 
     getCategories,
@@ -28,10 +28,11 @@ import {
     saveFeaturedConfig,
     getSupportMessages,
     getAppConfig,
-    saveAppConfig
+    saveAppConfig,
+    adminResetPassword
 } from '../services/dataService';
 import { 
-    Check, X, Clock, Shield, Users, Settings, LayoutGrid, Map, Plus, Trash2, BookOpen, Edit, Save, Coffee, LogOut, User as UserIcon, Mail, Layers, Search, Star, MessageSquare, Palette
+    Check, X, Clock, Shield, Users, Settings, LayoutGrid, Map, Plus, Trash2, BookOpen, Edit, Save, Coffee, LogOut, User as UserIcon, Mail, Layers, Search, Star, MessageSquare, Palette, Lock, Unlock, Key
 } from 'lucide-react';
 import { ImageUpload } from '../components/ImageUpload';
 
@@ -73,6 +74,9 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
 
   // User Permission Edit State
   const [editingUser, setEditingUser] = useState<User | null>(null);
+
+  // Password Reset State
+  const [passwordResetModal, setPasswordResetModal] = useState<{user: User, pass: string} | null>(null);
 
   useEffect(() => {
     refreshAll();
@@ -117,6 +121,25 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
           deleteUser(id);
           refreshAll();
       }
+  };
+
+  const handleBlockToggle = (user: User) => {
+      if (user.id === currentUser.id) {
+          alert("Você não pode bloquear a si mesmo.");
+          return;
+      }
+      const updatedUser = { ...user, isBlocked: !user.isBlocked };
+      updateUser(updatedUser);
+      refreshAll();
+  };
+
+  const handlePasswordReset = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!passwordResetModal || !passwordResetModal.pass) return;
+      
+      adminResetPassword(passwordResetModal.user.email, passwordResetModal.pass);
+      alert(`Senha de ${passwordResetModal.user.name} alterada com sucesso!`);
+      setPasswordResetModal(null);
   };
 
   const handleUpdateUserPermissions = () => {
@@ -467,6 +490,28 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                    {/* ... Keep existing USERS content ... */}
                    <h1 className="text-2xl font-bold text-ocean-950 mb-6">Controle de Usuários e Permissões</h1>
                    
+                   {passwordResetModal && (
+                       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                           <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm">
+                               <h3 className="text-lg font-bold mb-4">Nova senha para {passwordResetModal.user.name}</h3>
+                               <form onSubmit={handlePasswordReset}>
+                                   <input 
+                                        type="text" 
+                                        className="w-full border p-3 rounded-lg mb-4"
+                                        placeholder="Digite a nova senha"
+                                        value={passwordResetModal.pass}
+                                        onChange={e => setPasswordResetModal({...passwordResetModal, pass: e.target.value})}
+                                        required
+                                   />
+                                   <div className="flex gap-2">
+                                       <button type="button" onClick={() => setPasswordResetModal(null)} className="flex-1 py-2 text-slate-500 font-bold border rounded-lg">Cancelar</button>
+                                       <button type="submit" className="flex-1 py-2 bg-ocean-600 text-white font-bold rounded-lg hover:bg-ocean-700">Salvar Senha</button>
+                                   </div>
+                               </form>
+                           </div>
+                       </div>
+                   )}
+
                    {editingUser ? (
                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-lg mb-6 animate-in fade-in">
                            <div className="flex justify-between items-center mb-4">
@@ -548,9 +593,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                               </thead>
                               <tbody className="divide-y divide-slate-100 text-sm">
                                   {users.map(u => (
-                                      <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                                      <tr key={u.id} className={`transition-colors ${u.isBlocked ? 'bg-red-50' : 'hover:bg-slate-50'}`}>
                                           <td className="p-4">
-                                              <div className="font-bold text-ocean-900">{u.name}</div>
+                                              <div className="font-bold text-ocean-900 flex items-center gap-2">
+                                                {u.name}
+                                                {u.isBlocked && <span className="bg-red-500 text-white text-[10px] px-2 rounded-full">BLOQUEADO</span>}
+                                              </div>
                                               <div className="text-xs text-slate-500">{u.email}</div>
                                           </td>
                                           <td className="p-4">
@@ -576,15 +624,24 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                                               )}
                                           </td>
                                           <td className="p-4 text-right">
-                                              <button onClick={() => setEditingUser(u)} className="text-ocean-600 hover:bg-ocean-50 p-2 rounded mr-2" title="Editar Permissões">
-                                                  <Settings size={18} />
-                                              </button>
-                                              <button 
-                                                onClick={() => handleDeleteUser(u.id)}
-                                                className="text-slate-400 hover:text-red-500 p-2 rounded hover:bg-red-50"
-                                              >
-                                                  <Trash2 size={18} />
-                                              </button>
+                                              <div className="flex justify-end gap-1">
+                                                  <button onClick={() => setPasswordResetModal({user: u, pass: ''})} className="text-slate-500 hover:bg-slate-100 p-2 rounded" title="Trocar Senha">
+                                                      <Key size={18} />
+                                                  </button>
+                                                  <button onClick={() => handleBlockToggle(u)} className={`${u.isBlocked ? 'text-red-600' : 'text-slate-500'} hover:bg-slate-100 p-2 rounded`} title={u.isBlocked ? 'Desbloquear' : 'Bloquear'}>
+                                                      {u.isBlocked ? <Lock size={18} /> : <Unlock size={18} />}
+                                                  </button>
+                                                  <button onClick={() => setEditingUser(u)} className="text-ocean-600 hover:bg-ocean-50 p-2 rounded" title="Editar Permissões">
+                                                      <Settings size={18} />
+                                                  </button>
+                                                  <button 
+                                                    onClick={() => handleDeleteUser(u.id)}
+                                                    className="text-slate-400 hover:text-red-500 p-2 rounded hover:bg-red-50"
+                                                    title="Excluir"
+                                                  >
+                                                      <Trash2 size={18} />
+                                                  </button>
+                                              </div>
                                           </td>
                                       </tr>
                                   ))}

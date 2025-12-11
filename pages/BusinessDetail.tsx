@@ -78,6 +78,28 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
       setIsFav(!isFav);
   };
 
+  const handleShare = async () => {
+      if (!business) return;
+      
+      const shareData = {
+          title: business.name,
+          text: `Confira ${business.name} no app Conecta Rio! As melhores ofertas e informações.`,
+          url: window.location.href
+      };
+
+      if (navigator.share) {
+          try {
+              await navigator.share(shareData);
+          } catch (err) {
+              console.log('Erro ao compartilhar:', err);
+          }
+      } else {
+          // Fallback para clipboard
+          navigator.clipboard.writeText(window.location.href);
+          alert('Link copiado para a área de transferência!');
+      }
+  };
+
   const handleSubmitReview = (e: React.FormEvent) => {
       e.preventDefault();
       if(!currentUser) {
@@ -156,7 +178,10 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
                     <ArrowLeft size={24} />
                 </button>
                 <div className="flex gap-2">
-                    <button className="bg-white/20 text-white p-2 rounded-full backdrop-blur-md hover:bg-white/30 transition-colors">
+                    <button 
+                        onClick={handleShare}
+                        className="bg-white/20 text-white p-2 rounded-full backdrop-blur-md hover:bg-white/30 transition-colors"
+                    >
                         <Share2 size={24} />
                     </button>
                     <button 

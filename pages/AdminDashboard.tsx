@@ -175,18 +175,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
 
   const addGalleryImage = (base64: string) => {
       if(!myBusiness) return;
-      if(myBusiness.gallery.length >= 7) {
+      if(!base64) return;
+      
+      const currentGallery = myBusiness.gallery || [];
+      
+      if(currentGallery.length >= 7) {
           alert("Limite de 7 fotos atingido. Remova alguma para adicionar outra.");
           return;
       }
-      setMyBusiness({ ...myBusiness, gallery: [...myBusiness.gallery, base64] });
+      
+      // Usa uma atualização funcional para evitar race conditions
+      setMyBusiness(prev => {
+          if (!prev) return null;
+          return {
+              ...prev,
+              gallery: [...(prev.gallery || []), base64]
+          };
+      });
   };
   
   const removeGalleryImage = (index: number) => {
-      if(!myBusiness) return;
-      const newGallery = [...myBusiness.gallery];
-      newGallery.splice(index, 1);
-      setMyBusiness({ ...myBusiness, gallery: newGallery });
+      setMyBusiness(prev => {
+          if (!prev) return null;
+          const newGallery = [...(prev.gallery || [])];
+          newGallery.splice(index, 1);
+          return { ...prev, gallery: newGallery };
+      });
   };
 
   // --- IMPROVED HOURS HELPER ---

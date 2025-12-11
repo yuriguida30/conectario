@@ -48,26 +48,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
   const activeCouponCount = coupons.length; 
   const reachedLimit = activeCouponCount >= maxCoupons;
 
-  useEffect(() => {
-    refreshCoupons();
-    setCategories(getCategories());
-    setAmenities(getAmenities());
-    setLocations(getLocations());
-    loadBusinessProfile();
-  }, [currentUser.id]);
-
-  const loadBusinessProfile = async () => {
-      const all = getBusinesses();
-      const mine = all.find(b => b.id === currentUser.id) || null;
-      setMyBusiness(mine);
-  };
-
-  const refreshCoupons = async () => {
+  const refreshAll = async () => {
     setLoadingData(true);
     const allCoupons = await getCoupons();
     setCoupons(allCoupons.filter(c => c.companyId === currentUser.id));
+    
+    setCategories(getCategories());
+    setAmenities(getAmenities());
+    setLocations(getLocations());
+    
+    const allBiz = getBusinesses();
+    const mine = allBiz.find(b => b.id === currentUser.id) || null;
+    setMyBusiness(mine);
+    
     setLoadingData(false);
   };
+
+  useEffect(() => {
+    refreshAll();
+    window.addEventListener('dataUpdated', refreshAll);
+    return () => window.removeEventListener('dataUpdated', refreshAll);
+  }, [currentUser.id]);
+
 
   const handleValidate = (e: React.FormEvent) => {
       e.preventDefault();
@@ -222,14 +224,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
     };
     await saveCoupon(newCoupon);
     setIsCreating(false);
-    refreshCoupons();
+    // Refresh handled by listener
     setFormData({ companyName: currentUser.companyName, companyId: currentUser.id, category: 'Gastronomia', active: true, imageUrl: `https://picsum.photos/400/300?random=${Date.now()}` });
   };
 
   const handleDelete = async (id: string) => {
       if(window.confirm('Tem certeza que deseja excluir este cupom?')) {
           await deleteCoupon(id);
-          refreshCoupons();
       }
   };
 

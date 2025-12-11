@@ -2,7 +2,7 @@
 import { Coupon, User, UserRole, BusinessProfile, BlogPost, CompanyRequest, AppCategory, AppLocation, AppAmenity, Collection, DEFAULT_CATEGORIES, DEFAULT_AMENITIES, PROTECTED_CATEGORIES, FeaturedConfig, SupportMessage, AppConfig } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 import { db } from './firebase'; // Importa a conexão real
-import { collection, getDocs, setDoc, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, setDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
 
 // --- HELPERS BÁSICOS ---
 const getStored = <T>(key: string, defaultData: T): T => {
@@ -16,12 +16,13 @@ const getStored = <T>(key: string, defaultData: T): T => {
 
 const setStored = (key: string, data: any) => {
     localStorage.setItem(key, JSON.stringify(data));
+    // Dispara evento para atualizar a UI em tempo real
+    window.dispatchEvent(new Event('dataUpdated'));
 };
 
 // --- SYNC HELPER (Mágica do Firebase) ---
-// Função genérica que salva no Firebase se ele estiver ativo
 const syncToFirebase = async (collectionName: string, id: string, data: any) => {
-    if (!db) return; // Se não tiver firebase configurado, ignora
+    if (!db) return;
     try {
         await setDoc(doc(db, collectionName, id), data);
     } catch (e) {
@@ -38,68 +39,76 @@ const deleteFromFirebase = async (collectionName: string, id: string) => {
     }
 }
 
+// --- REALTIME LISTENERS ---
+let unsubscribers: Function[] = [];
+
+const setupRealtimeListener = (collectionName: string, storageKey: string, defaultData: any[]) => {
+    if (!db) return;
+    
+    // Cancela listener anterior se existir (evita duplicidade em hot reload)
+    // (Lógica simplificada para este escopo)
+
+    const unsub = onSnapshot(collection(db, collectionName), (snapshot) => {
+        if (!snapshot.empty) {
+            const data = snapshot.docs.map(d => d.data());
+            console.log(`🔥 Atualização recebida de ${collectionName}: ${data.length} itens`);
+            setStored(storageKey, data);
+        } else {
+            // Se estiver vazio no banco (e não for o first load), assume vazio
+            // Mas cuidado para não apagar dados locais se a conexão cair.
+            // Aqui mantemos o mock se o banco estiver zerado (primeiro uso)
+             if (defaultData.length > 0 && getStored(storageKey, []).length === 0) {
+                 // First seed logic handled in init
+             }
+        }
+    }, (error) => {
+        console.error(`Erro no listener de ${collectionName}:`, error);
+    });
+
+    unsubscribers.push(unsub);
+};
+
 // --- INITIALIZATION & SYNC ---
 export const initFirebaseData = async () => {
-    console.log("Iniciando sincronização de dados...");
+    console.log("Iniciando conexão Realtime Database...");
     
-    // Se o Firebase estiver configurado, tentamos baixar os dados dele primeiro
     if (db) {
         try {
-            // 1. Tenta buscar empresas do Firebase
-            const bizSnapshot = await getDocs(collection(db, 'businesses'));
+            // Configura listeners para TUDO. 
+            // Assim que o banco mudar, o localStorage atualiza e a UI reage.
+            setupRealtimeListener('businesses', 'arraial_businesses', MOCK_BUSINESSES);
+            setupRealtimeListener('coupons', 'arraial_coupons', MOCK_COUPONS);
+            setupRealtimeListener('users', 'arraial_users_list', MOCK_USERS);
+            setupRealtimeListener('posts', 'arraial_blog_posts', MOCK_POSTS);
+            setupRealtimeListener('collections', 'arraial_collections', []);
+            setupRealtimeListener('requests', 'arraial_requests', []);
+            setupRealtimeListener('support', 'arraial_support_messages', []);
             
-            if (!bizSnapshot.empty) {
-                // MODO ONLINE: Baixa tudo do Firebase e atualiza o LocalStorage
-                console.log("Baixando dados do Firebase...");
-                
-                const businesses = bizSnapshot.docs.map(d => d.data() as BusinessProfile);
-                setStored('arraial_businesses', businesses);
+            // System Configs (Listeners manuais ou simples)
+            onSnapshot(collection(db, 'system'), (snap) => {
+                 snap.forEach(doc => {
+                     if(doc.id === 'app_config') setStored('app_config', doc.data());
+                     if(doc.id === 'featured_config') setStored('arraial_featured_config', doc.data());
+                 });
+            });
 
-                const couponSnap = await getDocs(collection(db, 'coupons'));
-                setStored('arraial_coupons', couponSnap.docs.map(d => d.data()));
+            // SEED: Se o LocalStorage estiver vazio, tenta enviar o Mock para o banco para começar
+            setTimeout(() => {
+                 const localBiz = getStored<any[]>('arraial_businesses', []);
+                 if (localBiz.length === 0) {
+                     console.log("Banco parece vazio. Enviando Mocks...");
+                     MOCK_BUSINESSES.forEach(b => syncToFirebase('businesses', b.id, b));
+                     MOCK_COUPONS.forEach(c => syncToFirebase('coupons', c.id, c));
+                     MOCK_USERS.forEach(u => syncToFirebase('users', u.id, u));
+                     MOCK_POSTS.forEach(p => syncToFirebase('posts', p.id, p));
+                 }
+            }, 2000); // Espera 2s para o listener verificar se tem dados
 
-                const userSnap = await getDocs(collection(db, 'users'));
-                setStored('arraial_users_list', userSnap.docs.map(d => d.data()));
-                
-                const postSnap = await getDocs(collection(db, 'posts'));
-                setStored('arraial_blog_posts', postSnap.docs.map(d => d.data()));
-
-                const colSnap = await getDocs(collection(db, 'collections'));
-                setStored('arraial_collections', colSnap.docs.map(d => d.data()));
-
-            } else {
-                // MODO SEED: Firebase está vazio. Vamos enviar os MOCKS para lá!
-                console.log("Firebase vazio. Enviando dados iniciais (Seed)...");
-                
-                // FEEDBACK VISUAL PARA O DONO (VOCÊ)
-                alert("🔥 Primeira conexão detectada!\n\nSeu banco de dados no Firebase está vazio. O sistema vai enviar os dados de exemplo (Empresas, Cupons, etc) para lá agora.\n\nAguarde um instante...");
-
-                // Upload Businesses
-                for (const b of MOCK_BUSINESSES) await syncToFirebase('businesses', b.id, b);
-                setStored('arraial_businesses', MOCK_BUSINESSES);
-                
-                // Upload Coupons
-                for (const c of MOCK_COUPONS) await syncToFirebase('coupons', c.id, c);
-                setStored('arraial_coupons', MOCK_COUPONS);
-                
-                // Upload Users
-                for (const u of MOCK_USERS) await syncToFirebase('users', u.id, u);
-                setStored('arraial_users_list', MOCK_USERS);
-
-                // Upload Posts
-                for (const p of MOCK_POSTS) await syncToFirebase('posts', p.id, p);
-                setStored('arraial_blog_posts', MOCK_POSTS);
-
-                console.log("Dados iniciais enviados com sucesso!");
-                
-                alert("✅ Sucesso! O banco de dados foi preenchido.\n\nO site será recarregado para puxar os dados diretamente da nuvem.");
-                window.location.reload();
-            }
         } catch (e) {
-            console.error("Erro na sincronização inicial (usando dados locais):", e);
+            console.error("Erro ao iniciar listeners:", e);
         }
     } else {
-        // MODO OFFLINE/SEM FIREBASE: Usa mocks locais se estiver vazio
+        // MODO OFFLINE: Usa mocks locais
         const existingBiz = getStored<BusinessProfile[]>('arraial_businesses', []);
         if (existingBiz.length < 2) {
             setStored('arraial_businesses', MOCK_BUSINESSES);
@@ -109,7 +118,7 @@ export const initFirebaseData = async () => {
         }
     }
 
-    // Configs secundárias (Categorias, etc)
+    // Configs secundárias
     const cats = getStored<AppCategory[]>('arraial_categories', []);
     if (cats.length === 0) {
         const defaults = DEFAULT_CATEGORIES.map(c => ({ id: c.toLowerCase(), name: c }));
@@ -130,8 +139,7 @@ export const getAppConfig = (): AppConfig => {
 
 export const saveAppConfig = (config: AppConfig) => {
     setStored('app_config', config);
-    syncToFirebase('system', 'app_config', config); // Save to cloud
-    window.dispatchEvent(new Event('appConfigUpdated'));
+    syncToFirebase('system', 'app_config', config);
 };
 
 // --- GPS UTILS ---
@@ -149,7 +157,6 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 function deg2rad(deg: number) { return deg * (Math.PI / 180) }
 
 export const identifyNeighborhood = (lat: number, lng: number): string => {
-    // Simple logic placeholder
     return "Arraial do Cabo"; 
 };
 
@@ -179,7 +186,7 @@ export const addCategory = (name: string): void => {
     const current = getCategories();
     const newCat = { id: Date.now().toString(), name };
     setStored('arraial_categories', [...current, newCat]);
-    // Sync configs logic omitted for brevity, usually stored in a single doc or collection
+    // Categorias ainda locais neste exemplo simplificado, ou criar collection 'categories'
 };
 
 export const deleteCategory = (id: string): void => {
@@ -219,18 +226,12 @@ export const deleteAmenity = (id: string): void => {
 export const getAllUsers = (): User[] => getStored<User[]>('arraial_users_list', []);
 
 export const createUser = (user: User): void => {
+    // Optimistic Update
     const users = getAllUsers();
-    if (users.find(u => u.email === user.email)) throw new Error("Email já cadastrado");
-    
-    // Defaults
-    if (user.role === UserRole.COMPANY && !user.permissions) {
-        user.maxCoupons = 5;
-        user.permissions = { canCreateCoupons: true, canManageBusiness: true };
-    }
-    
+    if (users.find(u => u.email === user.email)) return; 
     users.push(user);
     setStored('arraial_users_list', users);
-    syncToFirebase('users', user.id, user); // SYNC
+    syncToFirebase('users', user.id, user); 
 };
 
 export const updateUser = (user: User): void => {
@@ -239,7 +240,7 @@ export const updateUser = (user: User): void => {
     if (index !== -1) {
         users[index] = user;
         setStored('arraial_users_list', users);
-        syncToFirebase('users', user.id, user); // SYNC
+        syncToFirebase('users', user.id, user);
         
         const session = getCurrentUser();
         if(session && session.id === user.id) {
@@ -257,8 +258,6 @@ export const deleteUser = (userId: string): void => {
 
 // --- COUPONS ---
 export const getCoupons = async (): Promise<Coupon[]> => {
-    // Always read from local storage for speed (which is kept in sync by init)
-    // join with businesses for GPS
     const storedCoupons = getStored<Coupon[]>('arraial_coupons', []);
     const businesses = getBusinesses();
     
@@ -277,13 +276,14 @@ export const getCoupons = async (): Promise<Coupon[]> => {
 };
 
 export const saveCoupon = async (coupon: Coupon): Promise<void> => {
+    // Optimistic
     const current = getStored<Coupon[]>('arraial_coupons', []);
     const index = current.findIndex(c => c.id === coupon.id);
     if (index >= 0) current[index] = coupon;
     else current.unshift(coupon);
-    
     setStored('arraial_coupons', current);
-    await syncToFirebase('coupons', coupon.id, coupon); // SYNC
+    
+    await syncToFirebase('coupons', coupon.id, coupon);
 };
 
 export const deleteCoupon = async (id: string): Promise<void> => {
@@ -305,8 +305,6 @@ export const getCurrentUser = (): User | null => {
 export const login = async (email: string, role: UserRole): Promise<User | null> => {
     await new Promise(r => setTimeout(r, 500));
     
-    // In a real firebase app, use auth.signInWithEmailAndPassword
-    // Here we simulate using our synced user list
     const allUsers = getAllUsers();
     let user = allUsers.find(u => u.email === email);
     
@@ -321,7 +319,6 @@ export const login = async (email: string, role: UserRole): Promise<User | null>
         return user;
     }
 
-    // Auto-create customer
     if (role === UserRole.CUSTOMER) {
         const newUser: User = {
             id: 'u_' + Date.now(),
@@ -334,7 +331,7 @@ export const login = async (email: string, role: UserRole): Promise<User | null>
         };
         currentUser = newUser;
         localStorage.setItem('arraial_user', JSON.stringify(newUser));
-        createUser(newUser); // Will sync to firebase
+        createUser(newUser);
         return newUser;
     }
     return null;
@@ -355,7 +352,7 @@ export const toggleFavorite = (type: 'coupon' | 'business', id: string): User | 
     if (index >= 0) list.splice(index, 1);
     else list.push(id);
 
-    updateUser(user); // Will sync
+    updateUser(user);
     return user;
 };
 
@@ -373,7 +370,7 @@ export const redeemCoupon = async (userId: string, coupon: Coupon) => {
             savedAmount: (user.savedAmount || 0) + saved,
             history: newHistory
         };
-        updateUser(updatedUser); // Will sync
+        updateUser(updatedUser);
     }
 };
 
@@ -387,9 +384,9 @@ export const saveBusiness = (business: BusinessProfile): void => {
     const index = current.findIndex(b => b.id === business.id);
     if (index >= 0) current[index] = business;
     else current.push(business);
-    
     setStored('arraial_businesses', current);
-    syncToFirebase('businesses', business.id, business); // SYNC
+    
+    syncToFirebase('businesses', business.id, business);
 };
 
 export const rateBusiness = (businessId: string, rating: number) => {
@@ -404,7 +401,7 @@ export const rateBusiness = (businessId: string, rating: number) => {
         
         current[index] = { ...biz, rating: parseFloat(newRating.toFixed(1)), reviewCount: newCount };
         setStored('arraial_businesses', current);
-        syncToFirebase('businesses', biz.id, current[index]); // SYNC
+        syncToFirebase('businesses', biz.id, current[index]);
         return current[index];
     }
     return null;

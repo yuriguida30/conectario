@@ -29,13 +29,17 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   // Favorites state for immediate UI update
   const [favorites, setFavorites] = useState<string[]>(currentUser?.favorites?.businesses || []);
 
-  useEffect(() => {
-    const data = getBusinesses();
-    setBusinesses(data);
-    setFiltered(data);
+  const refreshData = () => {
+    setBusinesses(getBusinesses());
     setCategories(getCategories());
     setLocations(getLocations());
     setAmenities(getAmenities());
+  };
+
+  useEffect(() => {
+    refreshData();
+    window.addEventListener('dataUpdated', refreshData);
+    return () => window.removeEventListener('dataUpdated', refreshData);
   }, []);
 
   useEffect(() => {

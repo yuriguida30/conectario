@@ -24,24 +24,28 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
   const [gpsLoading, setGpsLoading] = useState(false);
   const [locationName, setLocationName] = useState("Arraial do Cabo");
 
+  const fetchData = async () => {
+      const couponData = await getCoupons();
+      const businessData = getBusinesses();
+      const postData = getBlogPosts();
+      const catData = getCategories();
+      const colData = getCollections();
+      const featData = getFeaturedConfig();
+      
+      setCoupons(couponData.filter(c => c.active));
+      setBusinesses(businessData);
+      setPosts(postData);
+      setCategories(catData);
+      setCollections(colData);
+      setFeatured(featData);
+      setLoading(false);
+  };
+
   useEffect(() => {
-    const fetch = async () => {
-        const couponData = await getCoupons();
-        const businessData = getBusinesses();
-        const postData = getBlogPosts();
-        const catData = getCategories();
-        const colData = getCollections();
-        const featData = getFeaturedConfig();
-        
-        setCoupons(couponData.filter(c => c.active));
-        setBusinesses(businessData);
-        setPosts(postData);
-        setCategories(catData);
-        setCollections(colData);
-        setFeatured(featData);
-        setLoading(false);
-    };
-    fetch();
+    fetchData();
+    
+    // Listener for Realtime Updates from Firebase
+    window.addEventListener('dataUpdated', fetchData);
     
     // Check if we already have location
     const storedGps = sessionStorage.getItem('user_gps');
@@ -49,6 +53,10 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
         const { lat, lng } = JSON.parse(storedGps);
         const area = identifyNeighborhood(lat, lng);
         setLocationName(area);
+    }
+
+    return () => {
+        window.removeEventListener('dataUpdated', fetchData);
     }
   }, []);
 

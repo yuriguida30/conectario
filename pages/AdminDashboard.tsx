@@ -173,23 +173,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
       setMyBusiness({ ...myBusiness, menu: newMenu });
   };
 
-  const addGalleryImage = (base64: string) => {
+  // Improved Logic: Accepts batch of images
+  const addGalleryImages = (newImages: string[]) => {
       if(!myBusiness) return;
-      if(!base64) return;
       
-      const currentGallery = myBusiness.gallery || [];
+      const currentCount = myBusiness.gallery.length;
+      const availableSlots = 7 - currentCount;
       
-      if(currentGallery.length >= 7) {
-          alert("Limite de 7 fotos atingido. Remova alguma para adicionar outra.");
+      if (availableSlots <= 0) {
+          alert("Limite de 7 fotos atingido. Remova algumas para adicionar novas.");
           return;
       }
-      
-      // Usa uma atualização funcional para evitar race conditions
+
+      let imagesToAdd = newImages;
+      if (newImages.length > availableSlots) {
+          alert(`Você selecionou ${newImages.length} fotos, mas só há espaço para ${availableSlots}. Adicionando as primeiras ${availableSlots}.`);
+          imagesToAdd = newImages.slice(0, availableSlots);
+      }
+
       setMyBusiness(prev => {
           if (!prev) return null;
           return {
               ...prev,
-              gallery: [...(prev.gallery || []), base64]
+              gallery: [...prev.gallery, ...imagesToAdd]
           };
       });
   };
@@ -505,8 +511,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                                       {myBusiness.gallery.length < 7 && (
                                           <div className="aspect-square">
                                               <ImageUpload 
-                                                  onImageSelect={addGalleryImage}
-                                                  label={myBusiness.gallery.length === 0 ? "Adicionar 1ª Foto" : "Adicionar Mais"}
+                                                  onBatchSelect={addGalleryImages}
+                                                  allowMultiple={true}
+                                                  label={myBusiness.gallery.length === 0 ? "Adicionar Fotos" : "Mais Fotos"}
                                                   className="h-full"
                                               />
                                           </div>

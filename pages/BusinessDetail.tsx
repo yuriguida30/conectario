@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, Wifi, Car, Tv, Utensils, Accessibility, CheckCircle2, ChevronDown, ChevronUp, Ticket, Heart, ShoppingBag, BedDouble, Layers, Star, MessageCircle, Map, Share2, Camera } from 'lucide-react';
-import { BusinessProfile, AMENITIES_LABELS, Coupon, User } from '../types';
-import { getBusinessById, getCoupons, getCurrentUser, redeemCoupon, toggleFavorite, rateBusiness } from '../services/dataService';
+import { ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, Wifi, Car, Tv, Utensils, Accessibility, CheckCircle2, ChevronDown, ChevronUp, Ticket, Heart, ShoppingBag, BedDouble, Layers, Star, MessageCircle, Map, Share2, Camera, MessageSquare, Send } from 'lucide-react';
+import { BusinessProfile, AMENITIES_LABELS, Coupon, User, Review } from '../types';
+import { getBusinessById, getCoupons, getCurrentUser, redeemCoupon, toggleFavorite, addBusinessReview } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 
@@ -25,13 +25,17 @@ const AmenityIcon = ({ name }: { name: string }) => {
 export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNavigate }) => {
   const [business, setBusiness] = useState<BusinessProfile | undefined>(undefined);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [activeTab, setActiveTab] = useState<'info' | 'catalog'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'catalog' | 'reviews'>('info');
   
   // Coupon Logic
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isFav, setIsFav] = useState(false);
+  
+  // Review Logic
   const [userRating, setUserRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -74,15 +78,28 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
       setIsFav(!isFav);
   };
 
-  const handleRate = (rating: number) => {
+  const handleSubmitReview = (e: React.FormEvent) => {
+      e.preventDefault();
       if(!currentUser) {
           alert("Faça login para avaliar!");
+          onNavigate('login');
           return;
       }
-      setUserRating(rating);
-      const updated = rateBusiness(businessId, rating);
-      if(updated) setBusiness(updated);
-      alert("Obrigado pela sua avaliação!");
+      if(userRating === 0) {
+          alert("Por favor, selecione uma nota de 1 a 5 estrelas.");
+          return;
+      }
+
+      setSubmittingReview(true);
+      
+      const updated = addBusinessReview(businessId, currentUser, userRating, reviewComment);
+      if(updated) {
+          setBusiness(updated);
+          setReviewComment('');
+          setUserRating(0);
+          alert("Avaliação enviada com sucesso!");
+      }
+      setSubmittingReview(false);
   };
 
   const openMap = () => {
@@ -259,21 +276,27 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
                     )}
 
                     {/* Tabs */}
-                     <div className="flex items-center gap-2 border-b border-slate-200">
+                     <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto hide-scrollbar">
                         <button 
-                            className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'info' ? 'border-ocean-600 text-ocean-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`} 
+                            className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'info' ? 'border-ocean-600 text-ocean-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`} 
                             onClick={() => setActiveTab('info')}
                         >
                             Sobre
                         </button>
                         {(business.menu && business.menu.length > 0) && (
                             <button 
-                                className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'catalog' ? 'border-ocean-600 text-ocean-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`} 
+                                className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'catalog' ? 'border-ocean-600 text-ocean-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`} 
                                 onClick={() => setActiveTab('catalog')}
                             >
                                 {getCatalogIcon(business.category)} {catalogLabel}
                             </button>
                         )}
+                        <button 
+                            className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap ${activeTab === 'reviews' ? 'border-ocean-600 text-ocean-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`} 
+                            onClick={() => setActiveTab('reviews')}
+                        >
+                            <MessageSquare size={18} /> Avaliações ({business.reviewCount || 0})
+                        </button>
                     </div>
 
                     {activeTab === 'info' && (
@@ -296,23 +319,6 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
                                     </div>
                                 </div>
                             )}
-
-                            {/* Ratings Section */}
-                            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                                <h3 className="font-bold text-ocean-950 mb-4 text-lg">Avalie sua experiência</h3>
-                                <div className="flex gap-2">
-                                    {[1, 2, 3, 4, 5].map((star) => (
-                                        <button 
-                                            key={star}
-                                            onClick={() => handleRate(star)}
-                                            className={`transition-transform hover:scale-110 p-1 ${star <= userRating ? 'text-gold-500' : 'text-slate-200'}`}
-                                        >
-                                            <Star size={32} fill={star <= userRating ? "currentColor" : "none"} />
-                                        </button>
-                                    ))}
-                                </div>
-                                {userRating > 0 && <p className="text-sm text-green-600 mt-2 font-bold animate-in fade-in">Obrigado por avaliar!</p>}
-                            </div>
                         </div>
                     )}
 
@@ -355,6 +361,96 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    )}
+
+                    {activeTab === 'reviews' && (
+                        <div className="space-y-6 animate-in slide-in-from-right-10">
+                            {/* Review Form */}
+                            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+                                <h3 className="font-bold text-ocean-950 mb-4 text-lg">Escreva sua avaliação</h3>
+                                <form onSubmit={handleSubmitReview}>
+                                    <div className="mb-4">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Sua Nota</label>
+                                        <div className="flex gap-2">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <button 
+                                                    type="button"
+                                                    key={star}
+                                                    onClick={() => setUserRating(star)}
+                                                    className={`transition-transform hover:scale-110 p-1 ${star <= userRating ? 'text-gold-500' : 'text-slate-200'}`}
+                                                >
+                                                    <Star size={32} fill={star <= userRating ? "currentColor" : "none"} />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="mb-4 relative">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Comentário (Opcional)</label>
+                                        <textarea 
+                                            className="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-ocean-500 outline-none resize-none bg-slate-50"
+                                            rows={4}
+                                            maxLength={450}
+                                            placeholder="Conte como foi sua experiência..."
+                                            value={reviewComment}
+                                            onChange={e => setReviewComment(e.target.value)}
+                                        />
+                                        <div className="absolute bottom-3 right-3 text-xs text-slate-400 pointer-events-none">
+                                            {reviewComment.length}/450
+                                        </div>
+                                    </div>
+                                    <button 
+                                        type="submit" 
+                                        disabled={submittingReview}
+                                        className="bg-ocean-600 text-white font-bold py-3 px-6 rounded-xl hover:bg-ocean-700 transition-colors flex items-center gap-2 shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
+                                    >
+                                        {submittingReview ? 'Enviando...' : <><Send size={18}/> Publicar Avaliação</>}
+                                    </button>
+                                </form>
+                            </div>
+
+                            {/* Review List */}
+                            <div className="space-y-4">
+                                {business.reviews && business.reviews.length > 0 ? (
+                                    business.reviews.map((review) => (
+                                        <div key={review.id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex gap-4">
+                                            <div className="shrink-0">
+                                                {review.userAvatar ? (
+                                                    <img src={review.userAvatar} className="w-12 h-12 rounded-full object-cover border border-slate-200" alt={review.userName} />
+                                                ) : (
+                                                    <div className="w-12 h-12 rounded-full bg-ocean-100 flex items-center justify-center text-ocean-600 font-bold text-lg">
+                                                        {review.userName.charAt(0)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <h4 className="font-bold text-ocean-950 text-sm">{review.userName}</h4>
+                                                        <div className="flex text-gold-500 mt-0.5">
+                                                            {[...Array(5)].map((_, i) => (
+                                                                <Star key={i} size={12} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "text-gold-500" : "text-slate-200"} />
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <span className="text-xs text-slate-400">{new Date(review.date).toLocaleDateString()}</span>
+                                                </div>
+                                                {review.comment && (
+                                                    <p className="text-slate-600 text-sm leading-relaxed bg-slate-50 p-3 rounded-lg rounded-tl-none">
+                                                        {review.comment}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-10 bg-slate-50 rounded-2xl border border-slate-200 border-dashed">
+                                        <MessageSquare size={40} className="text-slate-300 mx-auto mb-3" />
+                                        <p className="text-slate-500 font-medium">Nenhuma avaliação ainda.</p>
+                                        <p className="text-xs text-slate-400">Seja o primeiro a avaliar!</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>

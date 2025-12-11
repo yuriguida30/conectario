@@ -137,6 +137,16 @@ export interface MenuSection {
   items: MenuItem[];
 }
 
+export interface Review {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number;
+  comment: string;
+  date: string;
+}
+
 export interface BusinessProfile {
   id: string; // Should match User ID for simplicity in 1-to-1 relation
   name: string;
@@ -153,6 +163,7 @@ export interface BusinessProfile {
   amenities: string[]; // array of AppAmenity IDs
   openingHours: { [key: string]: string }; // e.g., "Seg-Sex": "09:00 - 18:00"
   menu?: MenuSection[];
+  reviews?: Review[];
   rating: number;
   reviewCount?: number;
   isOpenNow?: boolean; // Mock helper

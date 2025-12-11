@@ -59,7 +59,12 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['wifi', 'ac', 'kids', 'access', 'wine'],
     openingHours: { 'Seg-Dom': '11:00 - 23:00' },
     rating: 4.9,
-    reviewCount: 1250,
+    reviewCount: 3,
+    reviews: [
+        { id: 'r1', userId: 'u99', userName: 'Maria Silva', rating: 5, comment: 'Simplesmente divino! O bolinho de bacalhau é o melhor que já comi.', date: '2024-02-10' },
+        { id: 'r2', userId: 'u98', userName: 'João Souza', rating: 5, comment: 'Atendimento impecável e comida saborosa.', date: '2024-02-15' },
+        { id: 'r3', userId: 'u97', userName: 'Ana Costa', rating: 4.5, comment: 'Lugar aconchegante, preço justo.', date: '2024-03-01' }
+    ],
     isOpenNow: true,
     lat: -22.9691,
     lng: -42.0232
@@ -80,7 +85,11 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['pool', 'wifi', 'ac', 'breakfast', 'parking'],
     openingHours: { 'Recepção': '24h' },
     rating: 4.8,
-    reviewCount: 450,
+    reviewCount: 2,
+    reviews: [
+        { id: 'r4', userId: 'u96', userName: 'Pedro H.', rating: 5, comment: 'A vista do quarto é inacreditável. Voltarei com certeza!', date: '2024-01-20' },
+        { id: 'r5', userId: 'u95', userName: 'Carla Dias', rating: 4.5, comment: 'Café da manhã muito bom.', date: '2024-02-05' }
+    ],
     isOpenNow: true,
     lat: -22.9554,
     lng: -42.0336
@@ -101,7 +110,10 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['bar', 'wifi', 'guide', 'photo'],
     openingHours: { 'Seg-Dom': '08:00 - 18:00' },
     rating: 5.0,
-    reviewCount: 2100,
+    reviewCount: 1,
+    reviews: [
+        { id: 'r6', userId: 'u94', userName: 'Lucas M.', rating: 5, comment: 'Melhor passeio de barco da vida! A equipe é animada demais.', date: '2024-03-10' }
+    ],
     isOpenNow: true,
     lat: -22.9700,
     lng: -42.0220
@@ -119,7 +131,8 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['beach', 'bar', 'live_music'],
     openingHours: { 'Ter-Dom': '10:00 - 22:00' },
     rating: 4.6,
-    reviewCount: 320,
+    reviewCount: 0,
+    reviews: [],
     isOpenNow: true,
     lat: -22.9712,
     lng: -42.0390
@@ -137,7 +150,8 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['equipment', 'photo', 'shower'],
     openingHours: { 'Seg-Sáb': '08:00 - 18:00' },
     rating: 4.9,
-    reviewCount: 150,
+    reviewCount: 0,
+    reviews: [],
     isOpenNow: true,
     lat: -22.9680,
     lng: -42.0240
@@ -155,7 +169,8 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['ac', 'wifi'],
     openingHours: { 'Seg-Dom': '13:00 - 00:00' },
     rating: 4.7,
-    reviewCount: 500,
+    reviewCount: 0,
+    reviews: [],
     isOpenNow: true,
     lat: -22.9660,
     lng: -42.0260

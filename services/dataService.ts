@@ -1,5 +1,5 @@
 
-import { Coupon, User, UserRole, BusinessProfile, BlogPost, CompanyRequest, AppCategory, AppLocation, AppAmenity, Collection, DEFAULT_CATEGORIES, DEFAULT_AMENITIES, PROTECTED_CATEGORIES, FeaturedConfig, SupportMessage, AppConfig } from '../types';
+import { Coupon, User, UserRole, BusinessProfile, BlogPost, CompanyRequest, AppCategory, AppLocation, AppAmenity, Collection, DEFAULT_CATEGORIES, DEFAULT_AMENITIES, PROTECTED_CATEGORIES, FeaturedConfig, SupportMessage, AppConfig, Review } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 import { db, auth } from './firebase'; // Importa a conexão real e auth
 import { collection, setDoc, doc, deleteDoc, onSnapshot, getDoc } from 'firebase/firestore';
@@ -521,18 +521,37 @@ export const saveBusiness = (business: BusinessProfile): void => {
     syncToFirebase('businesses', business.id, business);
 };
 
-export const rateBusiness = (businessId: string, rating: number) => {
+export const addBusinessReview = (businessId: string, user: User, rating: number, comment: string) => {
     const current = getBusinesses();
     const index = current.findIndex(b => b.id === businessId);
+    
     if (index >= 0) {
         const biz = current[index];
-        const oldRating = biz.rating || 5.0;
-        const count = biz.reviewCount || 10;
-        const newCount = count + 1;
-        const newRating = ((oldRating * count) + rating) / newCount;
+        const newReview: Review = {
+            id: `rev_${Date.now()}`,
+            userId: user.id,
+            userName: user.name,
+            userAvatar: user.avatarUrl,
+            rating: rating,
+            comment: comment,
+            date: new Date().toISOString().split('T')[0]
+        };
+
+        const existingReviews = biz.reviews || [];
+        const newReviews = [newReview, ...existingReviews];
         
-        current[index] = { ...biz, rating: parseFloat(newRating.toFixed(1)), reviewCount: newCount };
-        // We setStored with raw data, let getBusinesses calc isOpenNow
+        // Recalculate average
+        const totalStars = newReviews.reduce((sum, r) => sum + r.rating, 0);
+        const newAverage = parseFloat((totalStars / newReviews.length).toFixed(1));
+
+        current[index] = { 
+            ...biz, 
+            reviews: newReviews,
+            rating: newAverage, 
+            reviewCount: newReviews.length 
+        };
+        
+        // We setStored with raw data
         const rawBiz = getStored<BusinessProfile[]>('arraial_businesses', []);
         const rawIndex = rawBiz.findIndex(b => b.id === businessId);
         if(rawIndex >= 0) {
@@ -543,6 +562,12 @@ export const rateBusiness = (businessId: string, rating: number) => {
         return current[index];
     }
     return null;
+};
+
+export const rateBusiness = (businessId: string, rating: number) => {
+    // Deprecated in favor of addBusinessReview but kept for compatibility if needed elsewhere
+    // This simple version doesn't add text
+    return addBusinessReview(businessId, { id: 'anon', name: 'Anônimo' } as User, rating, '');
 };
 
 export const getBusinessById = (id: string): BusinessProfile | undefined => {

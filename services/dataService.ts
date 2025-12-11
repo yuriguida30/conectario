@@ -1,8 +1,9 @@
 
 import { Coupon, User, UserRole, BusinessProfile, BlogPost, CompanyRequest, AppCategory, AppLocation, AppAmenity, Collection, DEFAULT_CATEGORIES, DEFAULT_AMENITIES, PROTECTED_CATEGORIES, FeaturedConfig, SupportMessage, AppConfig } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
-import { db } from './firebase'; // Importa a conexão real
-import { collection, setDoc, doc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { db, auth } from './firebase'; // Importa a conexão real e auth
+import { collection, setDoc, doc, deleteDoc, onSnapshot, getDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
 
 // --- HELPERS BÁSICOS ---
 const getStored = <T>(key: string, defaultData: T): T => {
@@ -16,15 +17,14 @@ const getStored = <T>(key: string, defaultData: T): T => {
 
 const setStored = (key: string, data: any) => {
     localStorage.setItem(key, JSON.stringify(data));
-    // Dispara evento para atualizar a UI em tempo real
     window.dispatchEvent(new Event('dataUpdated'));
 };
 
-// --- SYNC HELPER (Mágica do Firebase) ---
+// --- SYNC HELPER ---
 const syncToFirebase = async (collectionName: string, id: string, data: any) => {
     if (!db) return;
     try {
-        await setDoc(doc(db, collectionName, id), data);
+        await setDoc(doc(db, collectionName, id), data, { merge: true });
     } catch (e) {
         console.error(`Erro ao sincronizar ${collectionName}:`, e);
     }
@@ -45,18 +45,11 @@ let unsubscribers: Function[] = [];
 const setupRealtimeListener = (collectionName: string, storageKey: string, defaultData: any[]) => {
     if (!db) return;
     
-    // Cancela listener anterior se existir (evita duplicidade em hot reload)
-    // (Lógica simplificada para este escopo)
-
     const unsub = onSnapshot(collection(db, collectionName), (snapshot) => {
         if (!snapshot.empty) {
             const data = snapshot.docs.map(d => d.data());
-            console.log(`🔥 Atualização recebida de ${collectionName}: ${data.length} itens`);
             setStored(storageKey, data);
         } else {
-            // Se estiver vazio no banco (e não for o first load), assume vazio
-            // Mas cuidado para não apagar dados locais se a conexão cair.
-            // Aqui mantemos o mock se o banco estiver zerado (primeiro uso)
              if (defaultData.length > 0 && getStored(storageKey, []).length === 0) {
                  // First seed logic handled in init
              }
@@ -68,14 +61,12 @@ const setupRealtimeListener = (collectionName: string, storageKey: string, defau
     unsubscribers.push(unsub);
 };
 
-// --- INITIALIZATION & SYNC ---
+// --- INITIALIZATION ---
 export const initFirebaseData = async () => {
     console.log("Iniciando conexão Realtime Database...");
     
     if (db) {
         try {
-            // Configura listeners para TUDO. 
-            // Assim que o banco mudar, o localStorage atualiza e a UI reage.
             setupRealtimeListener('businesses', 'arraial_businesses', MOCK_BUSINESSES);
             setupRealtimeListener('coupons', 'arraial_coupons', MOCK_COUPONS);
             setupRealtimeListener('users', 'arraial_users_list', MOCK_USERS);
@@ -84,7 +75,6 @@ export const initFirebaseData = async () => {
             setupRealtimeListener('requests', 'arraial_requests', []);
             setupRealtimeListener('support', 'arraial_support_messages', []);
             
-            // System Configs (Listeners manuais ou simples)
             onSnapshot(collection(db, 'system'), (snap) => {
                  snap.forEach(doc => {
                      if(doc.id === 'app_config') setStored('app_config', doc.data());
@@ -92,23 +82,20 @@ export const initFirebaseData = async () => {
                  });
             });
 
-            // SEED: Se o LocalStorage estiver vazio, tenta enviar o Mock para o banco para começar
             setTimeout(() => {
                  const localBiz = getStored<any[]>('arraial_businesses', []);
                  if (localBiz.length === 0) {
-                     console.log("Banco parece vazio. Enviando Mocks...");
                      MOCK_BUSINESSES.forEach(b => syncToFirebase('businesses', b.id, b));
                      MOCK_COUPONS.forEach(c => syncToFirebase('coupons', c.id, c));
                      MOCK_USERS.forEach(u => syncToFirebase('users', u.id, u));
                      MOCK_POSTS.forEach(p => syncToFirebase('posts', p.id, p));
                  }
-            }, 2000); // Espera 2s para o listener verificar se tem dados
+            }, 2000);
 
         } catch (e) {
             console.error("Erro ao iniciar listeners:", e);
         }
     } else {
-        // MODO OFFLINE: Usa mocks locais
         const existingBiz = getStored<BusinessProfile[]>('arraial_businesses', []);
         if (existingBiz.length < 2) {
             setStored('arraial_businesses', MOCK_BUSINESSES);
@@ -118,7 +105,6 @@ export const initFirebaseData = async () => {
         }
     }
 
-    // Configs secundárias
     const cats = getStored<AppCategory[]>('arraial_categories', []);
     if (cats.length === 0) {
         const defaults = DEFAULT_CATEGORIES.map(c => ({ id: c.toLowerCase(), name: c }));
@@ -126,7 +112,6 @@ export const initFirebaseData = async () => {
     }
 };
 
-// --- APP CONFIG ---
 export const getAppConfig = (): AppConfig => {
     return getStored<AppConfig>('app_config', {
         appName: 'CONECTA',
@@ -186,7 +171,6 @@ export const addCategory = (name: string): void => {
     const current = getCategories();
     const newCat = { id: Date.now().toString(), name };
     setStored('arraial_categories', [...current, newCat]);
-    // Categorias ainda locais neste exemplo simplificado, ou criar collection 'categories'
 };
 
 export const deleteCategory = (id: string): void => {
@@ -226,7 +210,6 @@ export const deleteAmenity = (id: string): void => {
 export const getAllUsers = (): User[] => getStored<User[]>('arraial_users_list', []);
 
 export const createUser = (user: User): void => {
-    // Optimistic Update
     const users = getAllUsers();
     if (users.find(u => u.email === user.email)) return; 
     users.push(user);
@@ -276,7 +259,6 @@ export const getCoupons = async (): Promise<Coupon[]> => {
 };
 
 export const saveCoupon = async (coupon: Coupon): Promise<void> => {
-    // Optimistic
     const current = getStored<Coupon[]>('arraial_coupons', []);
     const index = current.findIndex(c => c.id === coupon.id);
     if (index >= 0) current[index] = coupon;
@@ -292,7 +274,7 @@ export const deleteCoupon = async (id: string): Promise<void> => {
     await deleteFromFirebase('coupons', id);
 };
 
-// --- AUTH ---
+// --- AUTH (REAL IMPLEMENTATION) ---
 let currentUser: User | null = null;
 
 export const getCurrentUser = (): User | null => {
@@ -302,42 +284,93 @@ export const getCurrentUser = (): User | null => {
     return currentUser;
 };
 
-export const login = async (email: string, role: UserRole): Promise<User | null> => {
-    await new Promise(r => setTimeout(r, 500));
+// Nova função para Cadastro
+export const registerUser = async (name: string, email: string, password: string): Promise<User | null> => {
+    if (!auth) throw new Error("Serviço de autenticação indisponível.");
     
-    const allUsers = getAllUsers();
-    let user = allUsers.find(u => u.email === email);
-    
-    if (user) {
-        if (user.role === UserRole.SUPER_ADMIN) { /* ok */ }
-        else if (user.role !== role && role !== UserRole.CUSTOMER) {
-             alert(`Email sem permissão de ${role}`);
-             return null;
-        }
-        currentUser = user;
-        localStorage.setItem('arraial_user', JSON.stringify(user));
-        return user;
-    }
+    try {
+        // 1. Criar no Firebase Auth
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const firebaseUser = userCredential.user;
 
-    if (role === UserRole.CUSTOMER) {
+        // 2. Criar objeto User da aplicação
         const newUser: User = {
-            id: 'u_' + Date.now(),
-            name: email.split('@')[0],
+            id: firebaseUser.uid, // Usa o UID do Firebase
+            name: name,
             email: email,
             role: UserRole.CUSTOMER,
             savedAmount: 0,
             history: [],
             favorites: { coupons: [], businesses: [] }
         };
+
+        // 3. Salvar no Firestore e LocalStorage
+        await syncToFirebase('users', newUser.id, newUser);
+        setStored('arraial_user', newUser); // Cache
+        createUser(newUser); // Atualiza lista local de usuarios
+
         currentUser = newUser;
-        localStorage.setItem('arraial_user', JSON.stringify(newUser));
-        createUser(newUser);
         return newUser;
+    } catch (error: any) {
+        console.error("Erro no cadastro:", error);
+        throw error;
+    }
+};
+
+// Função Login atualizada para checar senha
+export const login = async (email: string, password?: string): Promise<User | null> => {
+    // Se tiver auth e senha, usa o Firebase Auth
+    if (auth && password) {
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const uid = userCredential.user.uid;
+            
+            // Buscar dados extras no Firestore
+            if (db) {
+                const docRef = doc(db, 'users', uid);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const userData = docSnap.data() as User;
+                    currentUser = userData;
+                    localStorage.setItem('arraial_user', JSON.stringify(userData));
+                    return userData;
+                }
+            }
+            
+            // Fallback se não achar no banco mas logou no Auth (ex: user antigo)
+            const fallbackUser: User = {
+                id: uid,
+                name: userCredential.user.displayName || email.split('@')[0],
+                email: email,
+                role: UserRole.CUSTOMER,
+                savedAmount: 0,
+                favorites: { coupons: [], businesses: [] }
+            };
+            currentUser = fallbackUser;
+            return fallbackUser;
+
+        } catch (error: any) {
+            console.error("Login Error:", error.code);
+            throw error;
+        }
+    }
+
+    // Fallback Legacy (Mock/Sem senha para dev environment simples se Auth falhar)
+    // Mantém compatibilidade com código antigo se Firebase não estiver configurado
+    const allUsers = getAllUsers();
+    let user = allUsers.find(u => u.email === email);
+    if (user) {
+        currentUser = user;
+        localStorage.setItem('arraial_user', JSON.stringify(user));
+        return user;
     }
     return null;
 };
 
 export const logout = async () => {
+    if (auth) {
+        await signOut(auth);
+    }
     currentUser = null;
     localStorage.removeItem('arraial_user');
 };

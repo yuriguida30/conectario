@@ -1,0 +1,114 @@
+import React, { useEffect, useState } from 'react';
+import { Collection, BusinessProfile } from '../types';
+import { getCollectionById, getBusinessById } from '../services/dataService';
+import { ArrowLeft, Star, Heart } from 'lucide-react';
+import { toggleFavorite, getCurrentUser } from '../services/dataService';
+
+interface CollectionDetailProps {
+  collectionId: string;
+  onNavigate: (page: string, params?: any) => void;
+}
+
+export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId, onNavigate }) => {
+  const [collection, setCollection] = useState<Collection | undefined>(undefined);
+  const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
+  const user = getCurrentUser();
+  const [favorites, setFavorites] = useState<string[]>(user?.favorites?.businesses || []);
+
+  useEffect(() => {
+    const col = getCollectionById(collectionId);
+    setCollection(col);
+    
+    if (col) {
+        const loadedBusinesses = col.businessIds
+            .map(id => getBusinessById(id))
+            .filter((b): b is BusinessProfile => b !== undefined);
+        setBusinesses(loadedBusinesses);
+    }
+  }, [collectionId]);
+
+  const handleToggleFavorite = (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      if (!user) {
+          alert("Você precisa estar logado.");
+          return;
+      }
+      toggleFavorite('business', id);
+      setFavorites(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  if (!collection) return <div className="p-10 text-center">Carregando...</div>;
+
+  return (
+    <div className="bg-slate-50 min-h-screen pb-24">
+        {/* Hero Header */}
+        <div className="relative h-64 md:h-[40vh] w-full">
+            <img src={collection.coverImage} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
+            
+            <button 
+                onClick={() => onNavigate('collections')}
+                className="absolute top-4 left-4 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white p-2 rounded-full transition-colors z-20"
+            >
+                <ArrowLeft size={24} />
+            </button>
+
+            <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 max-w-4xl mx-auto text-center md:text-left">
+                <span className="text-gold-400 font-bold text-xs uppercase tracking-widest mb-2 block">Coleção Exclusiva</span>
+                <h1 className="text-3xl md:text-5xl font-bold text-white leading-tight mb-4 shadow-black drop-shadow-lg">
+                    {collection.title}
+                </h1>
+                <p className="text-white/90 text-sm md:text-lg max-w-2xl leading-relaxed">
+                    {collection.description}
+                </p>
+            </div>
+        </div>
+
+        {/* Business List */}
+        <div className="max-w-7xl mx-auto px-4 py-8 -mt-6 relative z-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {businesses.map(biz => {
+                    const isFav = favorites.includes(biz.id);
+                    return (
+                        <div 
+                            key={biz.id} 
+                            onClick={() => onNavigate('business-detail', { businessId: biz.id })}
+                            className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full group relative"
+                        >
+                            <div className="h-48 w-full relative shrink-0">
+                                <img src={biz.coverImage} className="w-full h-full object-cover" alt={biz.name} />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
+                                {biz.isOpenNow ? (
+                                    <span className="absolute top-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded">ABERTO</span>
+                                ) : (
+                                    <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded">FECHADO</span>
+                                )}
+                                
+                                <button 
+                                    onClick={(e) => handleToggleFavorite(e, biz.id)}
+                                    className="absolute top-2 right-2 p-2 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm transition-colors z-20 group/heart"
+                                >
+                                    <Heart size={16} className={`transition-colors ${isFav ? 'fill-red-500 text-red-500' : 'text-white group-hover/heart:text-red-200'}`} />
+                                </button>
+                            </div>
+                            <div className="p-4 flex flex-col justify-between flex-1">
+                                <div>
+                                    <div className="flex justify-between items-start">
+                                        <h3 className="text-lg font-bold text-ocean-900 line-clamp-1">{biz.name}</h3>
+                                        <div className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded">
+                                            <Star size={12} className="text-gold-500 fill-gold-500" />
+                                            <span className="text-xs font-bold text-slate-700">{biz.rating}</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-slate-500 text-xs mb-2">{biz.category}</p>
+                                    <p className="text-slate-600 text-sm line-clamp-2 min-h-[2.5rem]">{biz.description}</p>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    </div>
+  );
+};

@@ -1,0 +1,218 @@
+import React, { useState, useEffect } from 'react';
+import { Search as SearchIcon, X, SlidersHorizontal, Frown, Loader2, Navigation } from 'lucide-react';
+import { Coupon, AppCategory } from '../types';
+import { getCoupons, getCategories, calculateDistance } from '../services/dataService';
+import { CouponCard } from '../components/CouponCard';
+import { CouponModal } from '../components/CouponModal';
+
+interface SearchPageProps {
+  onNavigate: (page: string) => void;
+}
+
+export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
+  const [query, setQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [filteredCoupons, setFilteredCoupons] = useState<Coupon[]>([]);
+  const [categories, setCategories] = useState<AppCategory[]>([]);
+  const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // GPS Logic
+  const [nearby, setNearby] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  useEffect(() => {
+    const fetch = async () => {
+        const data = await getCoupons();
+        const cats = getCategories();
+        const activeData = data.filter(c => c.active);
+        setCoupons(activeData);
+        setFilteredCoupons(activeData);
+        setCategories(cats);
+        setLoading(false);
+    };
+    fetch();
+  }, []);
+
+  useEffect(() => {
+    let result = coupons;
+
+    // Filter by Category
+    if (selectedCategory !== 'Todos') {
+      result = result.filter(c => c.category === selectedCategory);
+    }
+
+    // Filter by Text
+    if (query) {
+      const lowerQuery = query.toLowerCase();
+      result = result.filter(c => 
+        c.title.toLowerCase().includes(lowerQuery) || 
+        c.companyName.toLowerCase().includes(lowerQuery) ||
+        c.description.toLowerCase().includes(lowerQuery)
+      );
+    }
+
+    // Filter by Proximity
+    if (nearby) {
+        const storedGps = sessionStorage.getItem('user_gps');
+        if (storedGps) {
+            const { lat, lng } = JSON.parse(storedGps);
+            // Enrich with distance and sort
+            const withDist = result.map(c => ({
+                ...c,
+                distance: calculateDistance(lat, lng, c.lat || 0, c.lng || 0)
+            }));
+            
+            // Filter < 10km and Sort
+            result = withDist
+                .filter(c => (c.distance || 9999) < 15) // 15km radius
+                .sort((a, b) => (a.distance || 9999) - (b.distance || 9999));
+        }
+    }
+
+    setFilteredCoupons(result);
+  }, [query, selectedCategory, coupons, nearby]);
+
+  const handleNearbyToggle = () => {
+      if (nearby) {
+          setNearby(false);
+          return;
+      }
+
+      const storedGps = sessionStorage.getItem('user_gps');
+      if (storedGps) {
+          setNearby(true);
+      } else {
+          setLocating(true);
+          navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                  sessionStorage.setItem('user_gps', JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }));
+                  setLocating(false);
+                  setNearby(true);
+              },
+              (err) => {
+                  setLocating(false);
+                  alert("Não conseguimos obter sua localização.");
+              }
+          );
+      }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-24">
+      
+      {/* Sticky Header Container */}
+      <div className="sticky top-0 md:top-16 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] transition-all duration-300">
+          <div className="max-w-7xl mx-auto px-4 py-4">
+            
+            <div className="flex items-center gap-4 mb-4">
+                <div className="relative flex-1 group">
+                    <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-ocean-600 transition-colors" size={20} />
+                    <input 
+                        type="text"
+                        placeholder="Buscar restaurantes, passeios..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3.5 pl-12 pr-10 text-ocean-900 focus:ring-2 focus:ring-ocean-500/20 focus:border-ocean-500 outline-none transition-all shadow-inner"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                    />
+                    {query && (
+                        <button 
+                            onClick={() => setQuery('')} 
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-red-500 hover:bg-slate-100 rounded-full transition-colors"
+                        >
+                            <X size={16} />
+                        </button>
+                    )}
+                </div>
+                <button 
+                    onClick={handleNearbyToggle}
+                    disabled={locating}
+                    className={`p-3.5 rounded-2xl border transition-colors flex items-center justify-center gap-2 ${nearby ? 'bg-ocean-100 border-ocean-200 text-ocean-700' : 'bg-ocean-50 border-ocean-100 text-ocean-600 hover:bg-ocean-100'}`}
+                >
+                    {locating ? <Loader2 className="animate-spin" size={20}/> : <Navigation size={20} className={nearby ? "fill-ocean-700" : ""} />}
+                    <span className="hidden md:inline text-sm font-bold">{nearby ? 'Perto de mim' : 'Distância'}</span>
+                </button>
+            </div>
+
+            {/* Filter Chips / Tabs */}
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
+                <button 
+                    onClick={() => setSelectedCategory('Todos')}
+                    className={`px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${selectedCategory === 'Todos' ? 'bg-ocean-600 border-ocean-600 text-white shadow-md shadow-ocean-600/20' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
+                >
+                    Todos
+                </button>
+                {categories.map(cat => (
+                    <button 
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.name)}
+                        className={`px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${selectedCategory === cat.name ? 'bg-ocean-600 border-ocean-600 text-white shadow-md shadow-ocean-600/20' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
+                    >
+                        {cat.name}
+                    </button>
+                ))}
+            </div>
+          </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 py-8">
+          
+          <div className="flex justify-between items-end mb-6">
+              <h2 className="text-xl font-bold text-ocean-950">
+                  {loading ? 'Carregando...' : `${filteredCoupons.length} ${filteredCoupons.length === 1 ? 'oferta encontrada' : 'ofertas encontradas'}`}
+                  {nearby && <span className="text-sm font-normal text-slate-500 ml-2">(Próximas a você)</span>}
+              </h2>
+              {(selectedCategory !== 'Todos' || nearby || query) && (
+                  <button onClick={() => { setSelectedCategory('Todos'); setNearby(false); setQuery(''); }} className="text-xs text-ocean-600 font-bold hover:underline">
+                      Limpar filtros
+                  </button>
+              )}
+          </div>
+          
+          {loading ? (
+               <div className="flex justify-center py-20">
+                   <Loader2 className="animate-spin text-ocean-300" size={48} />
+               </div>
+          ) : filteredCoupons.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {filteredCoupons.map(coupon => (
+                      <div key={coupon.id} className="h-full">
+                        <CouponCard coupon={coupon} onGetCoupon={setSelectedCoupon} />
+                      </div>
+                  ))}
+              </div>
+          ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center animate-in fade-in">
+                  <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6 text-slate-300">
+                      <Frown size={48} />
+                  </div>
+                  <h3 className="text-xl font-bold text-ocean-950 mb-2">Ops! Nada encontrado.</h3>
+                  <p className="text-slate-500 max-w-xs mx-auto mb-6">
+                      {nearby 
+                        ? "Não encontramos ofertas próximas a sua localização atual." 
+                        : `Não encontramos cupons para "${query}" na categoria ${selectedCategory}.`
+                      }
+                  </p>
+                  <button 
+                      onClick={() => { setQuery(''); setSelectedCategory('Todos'); setNearby(false); }}
+                      className="bg-ocean-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-ocean-700 transition-colors"
+                  >
+                      Ver todas as ofertas
+                  </button>
+              </div>
+          )}
+      </div>
+
+      {selectedCoupon && (
+          <CouponModal 
+            coupon={selectedCoupon} 
+            onClose={() => setSelectedCoupon(null)} 
+            onRedeem={() => {}} // Mock redeem in search page
+            isRedeemed={false}
+          />
+      )}
+    </div>
+  );
+};

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { NavBar } from './components/NavBar';
 import { Home } from './pages/Home';
@@ -37,11 +38,18 @@ export default function App() {
 
     // Listen for config changes
     window.addEventListener('appConfigUpdated', updateBranding);
+    
+    // Listen for DATA changes (Critical for Favorites to update UI instantly)
+    const handleDataUpdate = () => {
+        setUser(getCurrentUser()); // Force refresh user from local storage
+    };
+    window.addEventListener('dataUpdated', handleDataUpdate);
 
     setLoading(false);
 
     return () => {
         window.removeEventListener('appConfigUpdated', updateBranding);
+        window.removeEventListener('dataUpdated', handleDataUpdate);
     }
   }, []);
 

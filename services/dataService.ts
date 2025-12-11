@@ -67,6 +67,24 @@ const setupRealtimeListener = (collectionName: string, storageKey: string, defau
 export const initFirebaseData = async () => {
     console.log("Iniciando conexão Realtime Database...");
     
+    // --- SEED ADMIN PASSWORD (LOCAL FALLBACK) ---
+    // Garante que o Admin tenha senha no ambiente local/demo
+    try {
+        const localAuth = JSON.parse(localStorage.getItem(LOCAL_AUTH_KEY) || '{}');
+        if (!localAuth['admin@conectario.com']) {
+            localAuth['admin@conectario.com'] = btoa('123456'); // Senha padrão: 123456
+            localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify(localAuth));
+            console.log("🔐 Senha de Admin configurada para: 123456");
+        }
+        // Configura senha para usuário de teste também
+        if (!localAuth['empresa@email.com']) {
+            localAuth['empresa@email.com'] = btoa('123456'); 
+            localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify(localAuth));
+        }
+    } catch (e) {
+        console.error("Erro ao configurar senhas padrão:", e);
+    }
+
     if (db) {
         try {
             setupRealtimeListener('businesses', 'arraial_businesses', MOCK_BUSINESSES);
@@ -415,12 +433,23 @@ export const logout = async () => {
 export const toggleFavorite = (type: 'coupon' | 'business', id: string): User | null => {
     const user = getCurrentUser();
     if (!user) return null;
-    if (!user.favorites) user.favorites = { coupons: [], businesses: [] };
+    
+    // SAFETY CHECK: Garante que a estrutura existe antes de acessar
+    if (!user.favorites) {
+        user.favorites = { coupons: [], businesses: [] };
+    }
+    // Verifica individualmente para usuários antigos
+    if (!user.favorites.businesses) user.favorites.businesses = [];
+    if (!user.favorites.coupons) user.favorites.coupons = [];
 
     const list = type === 'coupon' ? user.favorites.coupons : user.favorites.businesses;
     const index = list.indexOf(id);
-    if (index >= 0) list.splice(index, 1);
-    else list.push(id);
+    
+    if (index >= 0) {
+        list.splice(index, 1); // Remove dos favoritos
+    } else {
+        list.push(id); // Adiciona aos favoritos
+    }
 
     updateUser(user);
     return user;

@@ -175,6 +175,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
 
   const addGalleryImage = (base64: string) => {
       if(!myBusiness) return;
+      if(myBusiness.gallery.length >= 7) {
+          alert("Limite de 7 fotos atingido. Remova alguma para adicionar outra.");
+          return;
+      }
       setMyBusiness({ ...myBusiness, gallery: [...myBusiness.gallery, base64] });
   };
   
@@ -469,6 +473,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                               <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
                                   <div className="flex justify-between items-center mb-4">
                                       <h3 className="text-xs font-bold text-ocean-900 uppercase flex items-center gap-2"><ImageIcon size={14}/> Galeria de Fotos</h3>
+                                      <span className="text-xs font-bold bg-ocean-50 text-ocean-600 px-2 py-1 rounded-full">{myBusiness.gallery.length}/7 fotos</span>
                                   </div>
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                       {myBusiness.gallery.map((img, idx) => (
@@ -481,11 +486,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                                               </button>
                                           </div>
                                       ))}
-                                      <ImageUpload 
-                                          onImageSelect={addGalleryImage}
-                                          label=""
-                                          className="aspect-square"
-                                      />
+                                      
+                                      {/* Add Button - only shows if less than 7 images */}
+                                      {myBusiness.gallery.length < 7 && (
+                                          <div className="aspect-square">
+                                              <ImageUpload 
+                                                  onImageSelect={addGalleryImage}
+                                                  label={myBusiness.gallery.length === 0 ? "Adicionar 1ª Foto" : "Adicionar Mais"}
+                                                  className="h-full"
+                                              />
+                                          </div>
+                                      )}
                                   </div>
                               </div>
                           </div>

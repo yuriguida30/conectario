@@ -198,37 +198,37 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
         {/* Content Body - Overlapping Card Style */}
         <div className="relative z-20 -mt-8 px-4 max-w-6xl mx-auto">
             
-            {/* Action Bar (Responsive) */}
+            {/* Action Bar (Scrollable) */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-4 mb-6">
-                <div className="flex flex-wrap justify-center sm:justify-start gap-4 sm:gap-8">
+                <div className="flex justify-between md:justify-start md:gap-8 items-center overflow-x-auto hide-scrollbar pb-2">
                     {business.phone && (
-                        <a href={`tel:${business.phone}`} className="flex flex-col items-center gap-1 w-16 sm:w-auto text-slate-600 hover:text-ocean-600 transition-colors">
+                        <a href={`tel:${business.phone}`} className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-ocean-600 transition-colors">
                             <div className="w-10 h-10 bg-ocean-50 rounded-full flex items-center justify-center text-ocean-600"><Phone size={20}/></div>
-                            <span className="text-xs font-bold text-center">Ligar</span>
+                            <span className="text-xs font-bold">Ligar</span>
                         </a>
                     )}
                     {business.whatsapp && (
-                        <a href={`https://wa.me/${business.whatsapp}`} target="_blank" className="flex flex-col items-center gap-1 w-16 sm:w-auto text-slate-600 hover:text-green-600 transition-colors">
+                        <a href={`https://wa.me/${business.whatsapp}`} target="_blank" className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-green-600 transition-colors">
                             <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center text-green-600"><MessageCircle size={20}/></div>
-                            <span className="text-xs font-bold text-center">WhatsApp</span>
+                            <span className="text-xs font-bold">WhatsApp</span>
                         </a>
                     )}
                     {business.instagram && (
-                        <a href={`https://instagram.com/${business.instagram.replace('@','')}`} target="_blank" className="flex flex-col items-center gap-1 w-16 sm:w-auto text-slate-600 hover:text-pink-600 transition-colors">
+                        <a href={`https://instagram.com/${business.instagram.replace('@','')}`} target="_blank" className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-pink-600 transition-colors">
                             <div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center text-pink-600"><Instagram size={20}/></div>
-                            <span className="text-xs font-bold text-center">Insta</span>
+                            <span className="text-xs font-bold">Insta</span>
                         </a>
                     )}
                     {business.website && (
-                        <a href={business.website.startsWith('http') ? business.website : `https://${business.website}`} target="_blank" className="flex flex-col items-center gap-1 w-16 sm:w-auto text-slate-600 hover:text-blue-600 transition-colors">
+                        <a href={business.website.startsWith('http') ? business.website : `https://${business.website}`} target="_blank" className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-blue-600 transition-colors">
                             <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600"><Globe size={20}/></div>
-                            <span className="text-xs font-bold text-center">Site</span>
+                            <span className="text-xs font-bold">Site</span>
                         </a>
                     )}
                     {business.lat && (
-                        <button onClick={openMap} className="flex flex-col items-center gap-1 w-16 sm:w-auto text-slate-600 hover:text-orange-600 transition-colors">
+                        <button onClick={openMap} className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-orange-600 transition-colors">
                             <div className="w-10 h-10 bg-orange-50 rounded-full flex items-center justify-center text-orange-600"><Map size={20}/></div>
-                            <span className="text-xs font-bold text-center">Mapa</span>
+                            <span className="text-xs font-bold">Mapa</span>
                         </button>
                     )}
                 </div>
@@ -318,8 +318,6 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
                                 </div>
                             </div>
                         )}
-                        
-                        {/* Ratings Section moved here as part of Info Summary if needed, or keep in Reviews tab. Let's keep a mini rating summary here or just trust the Reviews tab. */}
                     </div>
 
                     {/* Right Column (Moved inside Info Tab) */}

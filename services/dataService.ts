@@ -68,15 +68,12 @@ export const initFirebaseData = async () => {
     console.log("Iniciando conexão Realtime Database...");
     
     // --- SEED ADMIN PASSWORD (LOCAL FALLBACK) ---
-    // Garante que o Admin tenha senha no ambiente local/demo
     try {
         const localAuth = JSON.parse(localStorage.getItem(LOCAL_AUTH_KEY) || '{}');
         if (!localAuth['admin@conectario.com']) {
-            localAuth['admin@conectario.com'] = btoa('123456'); // Senha padrão: 123456
+            localAuth['admin@conectario.com'] = btoa('123456'); 
             localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify(localAuth));
-            console.log("🔐 Senha de Admin configurada para: 123456");
         }
-        // Configura senha para usuário de teste também
         if (!localAuth['empresa@email.com']) {
             localAuth['empresa@email.com'] = btoa('123456'); 
             localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify(localAuth));
@@ -308,7 +305,6 @@ export const getCurrentUser = (): User | null => {
 export const registerUser = async (name: string, email: string, password: string): Promise<User | null> => {
     try {
         if (!auth) throw new Error("no_auth_service");
-        // Tenta criar no Firebase Oficial
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
 
@@ -329,7 +325,6 @@ export const registerUser = async (name: string, email: string, password: string
         return newUser;
 
     } catch (error: any) {
-        // Se o Firebase não estiver configurado/habilitado, usa Fallback Local Seguro
         if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed' || error.message === 'no_auth_service') {
             console.warn("⚠️ Firebase Auth indisponível. Usando Auth Local.");
             
@@ -340,7 +335,6 @@ export const registerUser = async (name: string, email: string, password: string
                 throw e;
             }
 
-            // Armazena senha (hash simples para demo) localmente
             const localAuth = JSON.parse(localStorage.getItem(LOCAL_AUTH_KEY) || '{}');
             localAuth[email] = btoa(password); 
             localStorage.setItem(LOCAL_AUTH_KEY, JSON.stringify(localAuth));
@@ -365,16 +359,13 @@ export const registerUser = async (name: string, email: string, password: string
     }
 };
 
-// Função Login com Fallback
 export const login = async (email: string, password?: string): Promise<User | null> => {
     if (password) {
         try {
             if (!auth) throw new Error("no_auth_service");
-            // Tenta Login no Firebase
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const uid = userCredential.user.uid;
             
-            // Tenta buscar perfil completo
             if (db) {
                 try {
                     const docRef = doc(db, 'users', uid);
@@ -401,7 +392,6 @@ export const login = async (email: string, password?: string): Promise<User | nu
             return fallbackUser;
 
         } catch (error: any) {
-            // Se falhar, verifica se existe no sistema Local (Fallback)
             const localAuth = JSON.parse(localStorage.getItem(LOCAL_AUTH_KEY) || '{}');
             const storedPass = localAuth[email];
 
@@ -414,8 +404,6 @@ export const login = async (email: string, password?: string): Promise<User | nu
                     return user;
                 }
             }
-            
-            // Se não for auth local e for erro de senha do firebase, lança erro real
             throw error;
         }
     }
@@ -434,11 +422,9 @@ export const toggleFavorite = (type: 'coupon' | 'business', id: string): User | 
     const user = getCurrentUser();
     if (!user) return null;
     
-    // SAFETY CHECK: Garante que a estrutura existe antes de acessar
     if (!user.favorites) {
         user.favorites = { coupons: [], businesses: [] };
     }
-    // Verifica individualmente para usuários antigos
     if (!user.favorites.businesses) user.favorites.businesses = [];
     if (!user.favorites.coupons) user.favorites.coupons = [];
 
@@ -446,9 +432,9 @@ export const toggleFavorite = (type: 'coupon' | 'business', id: string): User | 
     const index = list.indexOf(id);
     
     if (index >= 0) {
-        list.splice(index, 1); // Remove dos favoritos
+        list.splice(index, 1);
     } else {
-        list.push(id); // Adiciona aos favoritos
+        list.push(id);
     }
 
     updateUser(user);
@@ -473,13 +459,60 @@ export const redeemCoupon = async (userId: string, coupon: Coupon) => {
     }
 };
 
+// --- HOURS & OPEN LOGIC ---
+const DAYS_LOOKUP = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+const checkIsOpen = (hours: { [key: string]: string } | undefined): boolean => {
+    if (!hours) return false;
+    const now = new Date();
+    const dayName = DAYS_LOOKUP[now.getDay()];
+    const timeString = hours[dayName];
+
+    if (!timeString || timeString.toLowerCase().includes('fechado')) return false;
+    if (timeString.toLowerCase().includes('24h')) return true;
+
+    // Expected format: "09:00 - 18:00"
+    const parts = timeString.split('-').map(p => p.trim());
+    if (parts.length !== 2) return false;
+
+    const [start, end] = parts;
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const [startH, startM] = start.split(':').map(Number);
+    const startMinutes = startH * 60 + (startM || 0);
+
+    const [endH, endM] = end.split(':').map(Number);
+    let endMinutes = endH * 60 + (endM || 0);
+
+    // Handle overnight (e.g., 18:00 - 02:00)
+    if (endMinutes < startMinutes) {
+        // If current time is after start, or early morning before end
+        // Simplification: treat 'next day' end time as (endMinutes + 1440)
+        const extendedEnd = endMinutes + 1440;
+        if (currentMinutes >= startMinutes) {
+            return true; // We are in the evening part
+        }
+        // Check if we are in the early morning part (e.g. 01:00 am)
+        if (currentMinutes < endMinutes) {
+             return true; 
+        }
+        return false;
+    }
+
+    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+};
+
 // --- BUSINESSES ---
 export const getBusinesses = (): BusinessProfile[] => {
-    return getStored<BusinessProfile[]>('arraial_businesses', []);
+    const biz = getStored<BusinessProfile[]>('arraial_businesses', []);
+    return biz.map(b => ({
+        ...b,
+        isOpenNow: checkIsOpen(b.openingHours)
+    }));
 };
 
 export const saveBusiness = (business: BusinessProfile): void => {
-    const current = getBusinesses();
+    const current = getStored<BusinessProfile[]>('arraial_businesses', []);
     const index = current.findIndex(b => b.id === business.id);
     if (index >= 0) current[index] = business;
     else current.push(business);
@@ -499,8 +532,14 @@ export const rateBusiness = (businessId: string, rating: number) => {
         const newRating = ((oldRating * count) + rating) / newCount;
         
         current[index] = { ...biz, rating: parseFloat(newRating.toFixed(1)), reviewCount: newCount };
-        setStored('arraial_businesses', current);
-        syncToFirebase('businesses', biz.id, current[index]);
+        // We setStored with raw data, let getBusinesses calc isOpenNow
+        const rawBiz = getStored<BusinessProfile[]>('arraial_businesses', []);
+        const rawIndex = rawBiz.findIndex(b => b.id === businessId);
+        if(rawIndex >= 0) {
+            rawBiz[rawIndex] = current[index];
+            setStored('arraial_businesses', rawBiz);
+            syncToFirebase('businesses', biz.id, current[index]);
+        }
         return current[index];
     }
     return null;
@@ -567,7 +606,6 @@ export const approveRequest = (requestId: string): void => {
         setStored('arraial_requests', requests);
         syncToFirebase('requests', req.id, req);
         
-        // Create User & Business Stub
         const userId = `comp_${Date.now()}`;
         const newUser: User = {
             id: userId,
@@ -594,7 +632,7 @@ export const approveRequest = (requestId: string): void => {
             phone: req.phone,
             whatsapp: req.whatsapp || req.phone,
             amenities: [],
-            openingHours: {},
+            openingHours: { 'Segunda': '09:00 - 18:00', 'Terça': '09:00 - 18:00' },
             rating: 5.0,
             lat: -22.966, 
             lng: -42.026

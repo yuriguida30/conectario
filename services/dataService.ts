@@ -2,7 +2,7 @@
 import { Coupon, User, UserRole, BusinessProfile, BlogPost, CompanyRequest, AppCategory, AppLocation, AppAmenity, Collection, DEFAULT_CATEGORIES, DEFAULT_AMENITIES, PROTECTED_CATEGORIES, FeaturedConfig, SupportMessage, AppConfig, Review } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 import { db, auth } from './firebase'; 
-import { collection, setDoc, doc, deleteDoc, onSnapshot, getDoc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
+import { collection, setDoc, doc, deleteDoc, onSnapshot, getDoc, updateDoc, arrayUnion, increment, addDoc, query, orderBy, getDocs, deleteField, writeBatch } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 // --- IN-MEMORY CACHE (Substitui LocalStorage) ---
@@ -49,7 +49,14 @@ export const initFirebaseData = async () => {
         // Assim que algo muda no banco, atualiza a variável em memória e a tela
         
         onSnapshot(collection(db, 'businesses'), (snap) => {
-            _businesses = snap.docs.map(d => d.data() as BusinessProfile);
+            _businesses = snap.docs.map(d => {
+                // Remover o campo reviews pesado da memória principal para não travar a UI
+                const data = d.data() as BusinessProfile;
+                if (data.reviews && data.reviews.length > 50) {
+                    data.reviews = data.reviews.slice(0, 5); // Mantém apenas preview se ainda existir
+                }
+                return data;
+            });
             notifyListeners();
         });
 
@@ -243,7 +250,31 @@ export const saveBusiness = async (business: BusinessProfile) => {
     }
 };
 
-// FIX: Made Async to ensure DB consistency
+// NOVO: Busca reviews da sub-coleção para não pesar o documento principal
+export const fetchReviewsForBusiness = async (businessId: string): Promise<Review[]> => {
+    if (!db) return [];
+    try {
+        // Busca da sub-coleção
+        const reviewsRef = collection(db, 'businesses', businessId, 'reviews');
+        const q = query(reviewsRef, orderBy('date', 'desc'));
+        const snapshot = await getDocs(q);
+        const subCollectionReviews = snapshot.docs.map(d => d.data() as Review);
+
+        // Se tiver reviews, retorna elas. Se não, verifica se ainda estão no documento principal (legado)
+        if (subCollectionReviews.length > 0) {
+            return subCollectionReviews;
+        }
+
+        // Fallback para o modo legado (se existirem na memória)
+        const business = getBusinessById(businessId);
+        return business?.reviews || [];
+    } catch (e) {
+        console.error("Erro ao buscar reviews:", e);
+        return [];
+    }
+};
+
+// FIX: Salva na sub-coleção e limpa o documento pai se necessário
 export const addBusinessReview = async (businessId: string, user: User, rating: number, comment: string) => {
     if (!db) {
         alert("Erro: Banco de dados não conectado.");
@@ -254,7 +285,7 @@ export const addBusinessReview = async (businessId: string, user: User, rating: 
         id: `rev_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         userId: user.id,
         userName: user.name,
-        userAvatar: user.avatarUrl,
+        userAvatar: user.avatarUrl || '', // Avatar pode ser pesado, mantenha strings curtas se possível
         rating: rating,
         comment: comment,
         date: new Date().toISOString().split('T')[0]
@@ -263,29 +294,58 @@ export const addBusinessReview = async (businessId: string, user: User, rating: 
     const businessRef = doc(db, 'businesses', businessId);
     
     try {
-        // Fetch latest data fresh from DB to avoid race conditions
         const docSnap = await getDoc(businessRef);
         
         if (docSnap.exists()) {
             const bizData = docSnap.data() as BusinessProfile;
-            const currentReviews = bizData.reviews || [];
-            const updatedReviews = [newReview, ...currentReviews];
             
-            // Recalculate average
-            const totalStars = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
-            const newAverage = parseFloat((totalStars / updatedReviews.length).toFixed(1));
+            // --- LÓGICA DE MIGRAÇÃO ---
+            // Se o documento tiver um array 'reviews' grande, vamos movê-lo para a sub-coleção
+            // para liberar espaço e resolver o erro "Document size exceeds 1MB"
+            const legacyReviews = bizData.reviews || [];
+            
+            if (legacyReviews.length > 0) {
+                console.log("Migrando reviews antigos para sub-coleção...");
+                const batch = writeBatch(db);
+                
+                // Adiciona reviews antigos na sub-coleção
+                legacyReviews.forEach(rev => {
+                    const revRef = doc(db, 'businesses', businessId, 'reviews', rev.id || `migrated_${Date.now()}_${Math.random()}`);
+                    batch.set(revRef, rev);
+                });
 
-            const updateData = {
-                reviews: updatedReviews,
-                rating: newAverage,
-                reviewCount: updatedReviews.length
+                // Executa a migração
+                await batch.commit();
+            }
+
+            // --- SALVAR O NOVO REVIEW ---
+            // Salva na sub-coleção 'reviews'
+            await addDoc(collection(db, 'businesses', businessId, 'reviews'), newReview);
+
+            // --- RECALCULAR MÉDIA ---
+            // Como agora pode estar híbrido ou na sub-coleção, fazemos uma conta aproximada baseada no count atual
+            // (Média Antiga * Contagem Antiga + Nova Nota) / (Contagem Antiga + 1)
+            const oldRating = bizData.rating || 5.0;
+            const oldCount = bizData.reviewCount || 0;
+            const newCount = oldCount + 1;
+            const newRating = parseFloat(((oldRating * oldCount + rating) / newCount).toFixed(1));
+
+            // --- ATUALIZAR DOCUMENTO PAI ---
+            // Removemos o campo 'reviews' do pai para evitar o erro de tamanho
+            await updateDoc(businessRef, {
+                rating: newRating,
+                reviewCount: newCount,
+                reviews: deleteField() // CRUCIAL: Deleta o array gigante do documento pai
+            });
+            
+            // Retorna dados atualizados para a UI (localmente)
+            const updatedBiz = {
+                ...bizData,
+                rating: newRating,
+                reviewCount: newCount,
+                reviews: [newReview, ...legacyReviews] // Para display imediato
             };
-
-            // Wait for DB Write
-            await updateDoc(businessRef, updateData);
-            
-            // Return updated object for UI
-            return { ...bizData, ...updateData };
+            return updatedBiz;
         }
     } catch (e) {
         console.error("Erro ao salvar review:", e);
@@ -315,14 +375,14 @@ export const deleteCoupon = async (id: string) => {
 
 export const updateUser = async (user: User) => {
     if (db) {
-        await setDoc(doc(db, 'users', user.id), user, { merge: true });
-        
-        // Se for o usuário logado, atualiza sessão
+        // Salvamento Otimista: Salva local primeiro para feedback instantâneo
         if (currentUser && currentUser.id === user.id) {
             currentUser = user;
-            // Mantemos APENAS a sessão do usuário no localStorage para persistir login F5
             localStorage.setItem('arraial_user_session', JSON.stringify(user));
         }
+        
+        // Salva no DB
+        await setDoc(doc(db, 'users', user.id), user, { merge: true });
     }
 };
 

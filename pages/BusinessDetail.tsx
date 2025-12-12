@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, Wifi, Car, Tv, Utensils, Accessibility, CheckCircle2, ChevronDown, ChevronUp, Ticket, Heart, ShoppingBag, BedDouble, Layers, Star, MessageCircle, Map, Share2, Camera, MessageSquare, Send } from 'lucide-react';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, Review } from '../types';
-import { getBusinessById, getCoupons, getCurrentUser, redeemCoupon, toggleFavorite, addBusinessReview } from '../services/dataService';
+import { getBusinessById, getCoupons, getCurrentUser, redeemCoupon, toggleFavorite, addBusinessReview, fetchReviewsForBusiness } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 
@@ -27,6 +27,9 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [activeTab, setActiveTab] = useState<'info' | 'catalog' | 'reviews'>('info');
   
+  // Review Fetch State
+  const [reviews, setReviews] = useState<Review[]>([]);
+  
   // Coupon Logic
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -46,6 +49,10 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
         const allCoupons = await getCoupons();
         const businessCoupons = allCoupons.filter(c => c.companyId === businessId && c.active);
         setCoupons(businessCoupons);
+
+        // Fetch Reviews (From Sub-collection now)
+        const reviewsData = await fetchReviewsForBusiness(businessId);
+        setReviews(reviewsData);
 
         const user = getCurrentUser();
         setCurrentUser(user);
@@ -115,11 +122,15 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
       setSubmittingReview(true);
       
       try {
-          // Now awaiting the async DB operation
+          // Now awaiting the async DB operation which also handles cleaning up big docs
           const updated = await addBusinessReview(businessId, currentUser, userRating, reviewComment);
           
           if(updated) {
               setBusiness(updated);
+              // Fetch latest reviews immediately
+              const newReviews = await fetchReviewsForBusiness(businessId);
+              setReviews(newReviews);
+              
               setReviewComment('');
               setUserRating(0);
               alert("Avaliação enviada com sucesso!");
@@ -474,8 +485,8 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
 
                     {/* Review List */}
                     <div className="space-y-4">
-                        {business.reviews && business.reviews.length > 0 ? (
-                            business.reviews.map((review) => (
+                        {reviews && reviews.length > 0 ? (
+                            reviews.map((review) => (
                                 <div key={review.id} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex gap-4">
                                     <div className="shrink-0">
                                         {review.userAvatar ? (

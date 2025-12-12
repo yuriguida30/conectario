@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Star, Heart } from 'lucide-react';
+import { Star, Heart, Flame } from 'lucide-react';
 import { Coupon, User } from '../types';
 import { getCurrentUser, toggleFavorite } from '../services/dataService';
 
@@ -24,10 +25,18 @@ export const CouponCard: React.FC<CouponCardProps> = ({ coupon, onGetCoupon, isR
       setIsFav(!isFav);
   };
 
+  // Scarcity Logic
+  const max = coupon.maxRedemptions || 0;
+  const current = coupon.currentRedemptions || 0;
+  const isLimited = max > 0;
+  const percentClaimed = isLimited ? Math.min(100, (current / max) * 100) : 0;
+  const isSoldOut = isLimited && current >= max;
+  const isLowStock = isLimited && !isSoldOut && percentClaimed >= 80;
+
   return (
     <div 
-        onClick={() => onGetCoupon(coupon)}
-        className="group relative bg-white rounded-2xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-slate-100 cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300 active:scale-[0.98] h-full flex flex-col"
+        onClick={() => !isSoldOut && onGetCoupon(coupon)}
+        className={`group relative bg-white rounded-2xl overflow-hidden shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-slate-100 flex flex-col h-full transition-all duration-300 ${isSoldOut ? 'opacity-70 grayscale cursor-not-allowed' : 'cursor-pointer hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]'}`}
     >
       {/* Image Section */}
       <div className="relative aspect-[4/3] md:aspect-video shrink-0 overflow-hidden bg-slate-100">
@@ -39,6 +48,17 @@ export const CouponCard: React.FC<CouponCardProps> = ({ coupon, onGetCoupon, isR
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-80" />
         
+        {/* Badges */}
+        {isSoldOut ? (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30">
+                <span className="text-white font-bold border-2 border-white px-4 py-1 rounded-lg uppercase tracking-widest text-sm -rotate-12">Esgotado</span>
+            </div>
+        ) : isLowStock ? (
+            <div className="absolute top-2 left-2 z-20 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 shadow-md animate-pulse">
+                <Flame size={12} fill="currentColor" /> ACABANDO
+            </div>
+        ) : null}
+
         {/* Favorite Button */}
         <button 
             onClick={handleToggleFavorite}
@@ -67,23 +87,40 @@ export const CouponCard: React.FC<CouponCardProps> = ({ coupon, onGetCoupon, isR
           <div>
             <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-bold text-slate-400 truncate max-w-[80%]">{coupon.companyName}</span>
-                {coupon.active && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>}
+                {coupon.active && !isSoldOut && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>}
             </div>
             <h4 className="font-bold text-ocean-950 text-base leading-tight mb-2 line-clamp-2 group-hover:text-ocean-600 transition-colors">{coupon.title}</h4>
             <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">{coupon.description}</p>
           </div>
           
-          <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
-              <div className="flex flex-col">
-                  <span className="text-[10px] text-slate-400 line-through">R$ {coupon.originalPrice.toFixed(2)}</span>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-xs font-medium text-ocean-900">R$</span>
-                    <span className="text-lg font-bold text-green-600">{coupon.discountedPrice.toFixed(2)}</span>
+          <div className="mt-4 pt-3 border-t border-slate-50">
+              <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-col">
+                      <span className="text-[10px] text-slate-400 line-through">R$ {coupon.originalPrice.toFixed(2)}</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xs font-medium text-ocean-900">R$</span>
+                        <span className="text-lg font-bold text-green-600">{coupon.discountedPrice.toFixed(2)}</span>
+                      </div>
                   </div>
+                  <span className="text-xs bg-green-50 text-green-700 font-bold px-2.5 py-1 rounded-lg border border-green-100 group-hover:bg-green-100 transition-colors">
+                      -{coupon.discountPercentage}%
+                  </span>
               </div>
-              <span className="text-xs bg-green-50 text-green-700 font-bold px-2.5 py-1 rounded-lg border border-green-100 group-hover:bg-green-100 transition-colors">
-                  -{coupon.discountPercentage}%
-              </span>
+
+              {/* Scarcity Bar */}
+              {isLimited && !isSoldOut && (
+                  <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden mt-1">
+                      <div 
+                        className={`h-full rounded-full ${percentClaimed > 80 ? 'bg-red-500' : 'bg-ocean-400'}`} 
+                        style={{ width: `${percentClaimed}%` }}
+                      ></div>
+                  </div>
+              )}
+              {isLimited && !isSoldOut && (
+                  <p className="text-[9px] text-slate-400 text-right mt-1">
+                      {current}/{max} resgatados
+                  </p>
+              )}
           </div>
       </div>
     </div>

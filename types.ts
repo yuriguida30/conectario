@@ -56,6 +56,7 @@ export interface SavingsRecord {
   date: string;
   amount: number;
   couponTitle: string;
+  couponId?: string; // Added for limit tracking
 }
 
 export interface Coupon {
@@ -79,6 +80,11 @@ export interface Coupon {
   active: boolean;
   rating?: number;
   reviews?: number;
+  
+  // --- SCARCITY LOGIC ---
+  maxRedemptions?: number; // Total supply (e.g., 100 coupons available)
+  currentRedemptions?: number; // How many claimed so far
+  limitPerUser?: number; // How many a single user can claim (e.g., 1 per person)
 }
 
 // --- NEW CONFIGURATION TYPES ---

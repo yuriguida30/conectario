@@ -2,7 +2,7 @@
 import { Coupon, User, UserRole, BusinessProfile, BlogPost, CompanyRequest, AppCategory, AppLocation, AppAmenity, Collection, DEFAULT_CATEGORIES, DEFAULT_AMENITIES, PROTECTED_CATEGORIES, FeaturedConfig, SupportMessage, AppConfig, Review } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 import { db, auth } from './firebase'; 
-import { collection, setDoc, doc, deleteDoc, onSnapshot, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, setDoc, doc, deleteDoc, onSnapshot, getDoc, updateDoc, arrayUnion, increment } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 // --- IN-MEMORY CACHE (Substitui LocalStorage) ---
@@ -323,14 +323,27 @@ export const toggleFavorite = (type: 'coupon' | 'business', id: string) => {
     return user;
 };
 
+// LOGICA DE RESGATE COM LIMITES
 export const redeemCoupon = async (userId: string, coupon: Coupon) => {
     const user = getCurrentUser();
     if (user && db) {
+        // 1. Validar Estoque Global
+        if (coupon.maxRedemptions && (coupon.currentRedemptions || 0) >= coupon.maxRedemptions) {
+            throw new Error("Esgotado"); // Na prática, a UI deve prevenir, mas aqui é segurança
+        }
+
+        // 2. Validar Limite por Usuário
+        const userUsage = user.history?.filter(h => h.couponId === coupon.id).length || 0;
+        if (coupon.limitPerUser && userUsage >= coupon.limitPerUser) {
+            throw new Error("Limite atingido");
+        }
+
         const saved = coupon.originalPrice - coupon.discountedPrice;
         const newRecord = {
             date: new Date().toISOString().split('T')[0],
             amount: saved,
-            couponTitle: coupon.title
+            couponTitle: coupon.title,
+            couponId: coupon.id // Importante para contagem
         };
         
         // Atualiza histórico do usuário
@@ -340,7 +353,17 @@ export const redeemCoupon = async (userId: string, coupon: Coupon) => {
             history: [...(user.history || []), newRecord]
         };
         
-        updateUser(updatedUser);
+        // Atualiza DB do usuário
+        await setDoc(doc(db, 'users', user.id), updatedUser, { merge: true });
+        
+        // Incrementa contador global do cupom atomicamente
+        await updateDoc(doc(db, 'coupons', coupon.id), {
+            currentRedemptions: increment(1)
+        });
+
+        // Atualiza sessão local
+        currentUser = updatedUser;
+        localStorage.setItem('arraial_user_session', JSON.stringify(updatedUser));
     }
 };
 

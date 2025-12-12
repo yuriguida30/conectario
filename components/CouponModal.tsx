@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
-import { X, MapPin, Clock, FileText, Check, Copy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, MapPin, Clock, FileText, Check, Copy, AlertTriangle } from 'lucide-react';
 import { Coupon } from '../types';
+import { getCurrentUser } from '../services/dataService';
 
 interface CouponModalProps {
   coupon: Coupon;
@@ -12,10 +13,32 @@ interface CouponModalProps {
 
 export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRedeem, isRedeemed }) => {
   const [step, setStep] = useState<'details' | 'code'>(isRedeemed ? 'code' : 'details');
+  const [error, setError] = useState<string | null>(null);
+  const user = getCurrentUser();
 
-  const handleRedeemClick = () => {
-    onRedeem(coupon);
-    setStep('code');
+  // Check Eligibility on Mount
+  useEffect(() => {
+      if (!user) return;
+      
+      const userUsage = user.history?.filter(h => h.couponId === coupon.id).length || 0;
+      const limit = coupon.limitPerUser || 1;
+      
+      if (userUsage >= limit) {
+          setError(`Você já atingiu o limite de ${limit} cupom(ns) por pessoa.`);
+      }
+
+      if (coupon.maxRedemptions && (coupon.currentRedemptions || 0) >= coupon.maxRedemptions) {
+          setError("Este lote de cupons esgotou!");
+      }
+  }, []);
+
+  const handleRedeemClick = async () => {
+    try {
+        await onRedeem(coupon); // Assuming onRedeem is async and throws on failure now
+        setStep('code');
+    } catch (e: any) {
+        setError(e.message || "Erro ao resgatar. Tente novamente.");
+    }
   };
 
   return (
@@ -66,6 +89,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
                           <p className="font-bold text-ocean-900 text-sm">Regras</p>
                           <ul className="text-slate-500 text-xs list-disc pl-4 space-y-1 mt-1">
                              {coupon.rules ? coupon.rules.map((r, i) => <li key={i}>{r}</li>) : <li>Consumo no local</li>}
+                             {coupon.limitPerUser && <li>Limite de {coupon.limitPerUser} por pessoa</li>}
                           </ul>
                       </div>
                   </div>
@@ -107,12 +131,19 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
         {/* Footer Actions */}
         <div className="p-4 border-t border-slate-100 bg-white">
             {step === 'details' ? (
-                <button 
-                    onClick={handleRedeemClick}
-                    className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-all"
-                >
-                    PEGAR CUPOM
-                </button>
+                error ? (
+                    <div className="w-full bg-red-50 border border-red-100 text-red-600 font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-sm">
+                        <AlertTriangle size={18} />
+                        {error}
+                    </div>
+                ) : (
+                    <button 
+                        onClick={handleRedeemClick}
+                        className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-all"
+                    >
+                        PEGAR CUPOM
+                    </button>
+                )
             ) : (
                 <button 
                     onClick={() => {

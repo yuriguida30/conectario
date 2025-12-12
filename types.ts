@@ -3,6 +3,7 @@ export enum UserRole {
   CUSTOMER = 'CUSTOMER',
   COMPANY = 'COMPANY',
   SUPER_ADMIN = 'SUPER_ADMIN',
+  CONTENT_CREATOR = 'CONTENT_CREATOR',
 }
 
 export interface UserPermissions {
@@ -28,6 +29,12 @@ export interface User {
   maxCoupons?: number; // Limit of active coupons
   permissions?: UserPermissions;
   isBlocked?: boolean; // Bloqueio de acesso
+  
+  // Content Creator Profile
+  profession?: string;
+  bio?: string;
+  instagram?: string;
+  website?: string;
   
   // Favorites
   favorites?: {
@@ -210,6 +217,7 @@ export interface BlogPost {
   category: 'Roteiro' | 'Dica' | 'Notícia' | 'Curiosidade';
   date: string;
   author: string;
+  authorId?: string; // Link to a User with CONTENT_CREATOR role
 }
 
 // DEFAULT FALLBACKS (Used if DB is empty)

@@ -11,6 +11,17 @@ export const MOCK_USERS: User[] = [
     avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200'
   },
   {
+    id: 'creator1',
+    name: 'Ana Terra',
+    email: 'ana.terra@blog.com',
+    role: UserRole.CONTENT_CREATOR,
+    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
+    profession: 'Jornalista de Viagem',
+    bio: 'Apaixonada pelo Rio e suas histórias. Escrevo sobre turismo sustentável, gastronomia local e os segredos escondidos de Arraial do Cabo. Minha missão é fazer você viver experiências autênticas.',
+    instagram: '@anaterra.travel',
+    website: 'anaterra.com.br'
+  },
+  {
     id: 'user1',
     name: 'Turista Feliz',
     email: 'cliente@email.com',
@@ -311,7 +322,8 @@ export const MOCK_POSTS: BlogPost[] = [
     imageUrl: 'https://images.unsplash.com/photo-1590089415225-401cd6f9ad5d?auto=format&fit=crop&q=80&w=800',
     category: 'Roteiro',
     date: '12/05/2024',
-    author: 'Conecta Rio'
+    author: 'Ana Terra',
+    authorId: 'creator1'
   },
   {
     id: 'p2',
@@ -321,7 +333,8 @@ export const MOCK_POSTS: BlogPost[] = [
     imageUrl: 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&q=80&w=800',
     category: 'Dica',
     date: '10/05/2024',
-    author: 'Chef Local'
+    author: 'Ana Terra',
+    authorId: 'creator1'
   },
   {
     id: 'p3',
@@ -331,6 +344,6 @@ export const MOCK_POSTS: BlogPost[] = [
     imageUrl: 'https://images.unsplash.com/photo-1504519632431-7e8c15923832?auto=format&fit=crop&q=80&w=800',
     category: 'Roteiro',
     date: '05/05/2024',
-    author: 'Equipe Aventuras'
+    author: 'Equipe Conecta'
   }
 ];

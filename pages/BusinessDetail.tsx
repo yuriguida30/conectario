@@ -100,7 +100,7 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
       }
   };
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const handleSubmitReview = async (e: React.FormEvent) => {
       e.preventDefault();
       if(!currentUser) {
           alert("Faça login para avaliar!");
@@ -114,14 +114,22 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
 
       setSubmittingReview(true);
       
-      const updated = addBusinessReview(businessId, currentUser, userRating, reviewComment);
-      if(updated) {
-          setBusiness(updated);
-          setReviewComment('');
-          setUserRating(0);
-          alert("Avaliação enviada com sucesso!");
+      try {
+          // Now awaiting the async DB operation
+          const updated = await addBusinessReview(businessId, currentUser, userRating, reviewComment);
+          
+          if(updated) {
+              setBusiness(updated);
+              setReviewComment('');
+              setUserRating(0);
+              alert("Avaliação enviada com sucesso!");
+          }
+      } catch (err) {
+          console.error("Erro ao enviar avaliação:", err);
+          alert("Houve um erro ao enviar sua avaliação. Tente novamente.");
+      } finally {
+          setSubmittingReview(false);
       }
-      setSubmittingReview(false);
   };
 
   const openMap = () => {

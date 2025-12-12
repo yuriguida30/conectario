@@ -243,11 +243,15 @@ export const saveBusiness = async (business: BusinessProfile) => {
     }
 };
 
-export const addBusinessReview = (businessId: string, user: User, rating: number, comment: string) => {
-    if (!db) return null;
+// FIX: Made Async to ensure DB consistency
+export const addBusinessReview = async (businessId: string, user: User, rating: number, comment: string) => {
+    if (!db) {
+        alert("Erro: Banco de dados não conectado.");
+        return null;
+    }
 
     const newReview: Review = {
-        id: `rev_${Date.now()}`,
+        id: `rev_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         userId: user.id,
         userName: user.name,
         userAvatar: user.avatarUrl,
@@ -256,29 +260,36 @@ export const addBusinessReview = (businessId: string, user: User, rating: number
         date: new Date().toISOString().split('T')[0]
     };
 
-    // Atualiza diretamente no documento da empresa no Firestore
     const businessRef = doc(db, 'businesses', businessId);
     
-    // Precisamos recalcular a média, então precisamos ler primeiro (embora tenhamos na memória)
-    const currentBiz = _businesses.find(b => b.id === businessId);
-    if (currentBiz) {
-        const currentReviews = currentBiz.reviews || [];
-        const updatedReviews = [newReview, ...currentReviews];
+    try {
+        // Fetch latest data fresh from DB to avoid race conditions
+        const docSnap = await getDoc(businessRef);
         
-        const totalStars = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
-        const newAverage = parseFloat((totalStars / updatedReviews.length).toFixed(1));
+        if (docSnap.exists()) {
+            const bizData = docSnap.data() as BusinessProfile;
+            const currentReviews = bizData.reviews || [];
+            const updatedReviews = [newReview, ...currentReviews];
+            
+            // Recalculate average
+            const totalStars = updatedReviews.reduce((sum, r) => sum + r.rating, 0);
+            const newAverage = parseFloat((totalStars / updatedReviews.length).toFixed(1));
 
-        const updateData = {
-            reviews: updatedReviews,
-            rating: newAverage,
-            reviewCount: updatedReviews.length
-        };
+            const updateData = {
+                reviews: updatedReviews,
+                rating: newAverage,
+                reviewCount: updatedReviews.length
+            };
 
-        // Salva no banco
-        updateDoc(businessRef, updateData).catch(e => console.error("Erro ao salvar review:", e));
-        
-        // Retorna optimistically o objeto atualizado
-        return { ...currentBiz, ...updateData };
+            // Wait for DB Write
+            await updateDoc(businessRef, updateData);
+            
+            // Return updated object for UI
+            return { ...bizData, ...updateData };
+        }
+    } catch (e) {
+        console.error("Erro ao salvar review:", e);
+        throw e;
     }
     return null;
 };

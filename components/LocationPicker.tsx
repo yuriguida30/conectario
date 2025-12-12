@@ -95,13 +95,20 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
       }
   }, [initialLat, initialLng]);
 
-  const handleSearch = async (e: React.SyntheticEvent) => {
-      e.preventDefault();
-      e.stopPropagation(); // Previne que o evento suba para pais e cause comportamento inesperado
+  const handleSearch = async (e: React.FormEvent) => {
+      e.preventDefault(); // CRUCIAL: Previne o reload da página
+      e.stopPropagation(); // Previne eventos de clique no mapa por baixo
 
       if (!searchQuery) return;
 
       setIsSearching(true);
+      
+      // Fecha o teclado no mobile
+      const activeElement = document.activeElement as HTMLElement;
+      if (activeElement) {
+        activeElement.blur();
+      }
+
       try {
           // Use OpenStreetMap Nominatim API (Free)
           // Appending ' Rio de Janeiro' to ensure it searches within the state/city
@@ -136,23 +143,25 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
         {/* Map Container */}
         <div ref={mapContainerRef} className="absolute inset-0 z-0 bg-slate-100" />
 
-        {/* Search Overlay */}
+        {/* Search Overlay - Estilo Mobile Safe */}
         <div className="absolute top-2 left-2 right-2 z-[1000]">
-            <form onSubmit={handleSearch} className="relative shadow-lg rounded-lg flex bg-white overflow-hidden border border-slate-200 w-full">
+            <form 
+                onSubmit={handleSearch} 
+                className="relative shadow-lg rounded-lg flex items-center bg-white overflow-hidden border border-slate-200 w-full"
+            >
                 <input 
                     type="text" 
-                    placeholder="Buscar bairro..." 
-                    className="flex-1 min-w-0 pl-3 pr-2 py-3 text-sm focus:outline-none text-slate-800 placeholder:text-slate-400"
+                    placeholder="Buscar local..." 
+                    className="flex-1 min-w-0 pl-3 pr-2 py-3 text-sm focus:outline-none text-slate-800 placeholder:text-slate-400 bg-transparent"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 <button 
-                    type="button" 
-                    onClick={handleSearch}
-                    className="px-4 bg-ocean-600 text-white hover:bg-ocean-700 transition-colors flex items-center justify-center border-l border-ocean-700 active:bg-ocean-800 shrink-0"
+                    type="submit" 
+                    className="px-4 py-3 bg-ocean-600 text-white hover:bg-ocean-700 transition-colors flex items-center justify-center border-l border-ocean-700 active:bg-ocean-800 shrink-0"
                     disabled={isSearching}
                 >
-                    {isSearching ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
+                    {isSearching ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
                 </button>
             </form>
         </div>

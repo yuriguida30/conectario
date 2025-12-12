@@ -16,13 +16,13 @@ let _collections: Collection[] = [];
 let _requests: CompanyRequest[] = [];
 let _support: SupportMessage[] = [];
 let _categories: AppCategory[] = [];
-// Inicializando com coordenadas reais de Arraial do Cabo para fallback imediato
+// Inicializando com coordenadas reais do Rio de Janeiro para cobrir Zona Oeste, Centro e Sul
 let _locations: AppLocation[] = [
-    { id: 'centro', name: 'Centro', active: true, lat: -22.966, lng: -42.026 },
-    { id: 'prainha', name: 'Prainha', active: true, lat: -22.955, lng: -42.033 },
-    { id: 'anjos', name: 'Praia dos Anjos', active: true, lat: -22.969, lng: -42.023 },
-    { id: 'grande', name: 'Praia Grande', active: true, lat: -22.971, lng: -42.039 },
-    { id: 'pontal', name: 'Pontal', active: true, lat: -22.962, lng: -42.038 }
+    { id: 'centro', name: 'Centro', active: true, lat: -22.9068, lng: -43.1729 },
+    { id: 'copacabana', name: 'Copacabana', active: true, lat: -22.9694, lng: -43.1868 },
+    { id: 'barra', name: 'Barra da Tijuca', active: true, lat: -23.0003, lng: -43.3659 },
+    { id: 'campogrande', name: 'Campo Grande', active: true, lat: -22.9035, lng: -43.5591 },
+    { id: 'sepetiba', name: 'Sepetiba', active: true, lat: -22.9739, lng: -43.6997 }
 ];
 let _amenities: AppAmenity[] = [];
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
@@ -199,8 +199,8 @@ export const addLocation = async (name: string, lat?: number, lng?: number) => {
             id: Date.now().toString(), 
             name, 
             active: true,
-            lat: lat || -22.966, // Default fallback if not provided
-            lng: lng || -42.026 
+            lat: lat || -22.9068, // Default fallback
+            lng: lng || -43.1729 
         };
         const updated = [..._locations, newLoc];
         await setDoc(doc(db, 'system', 'locations'), { list: updated });
@@ -735,7 +735,7 @@ function deg2rad(deg: number) { return deg * (Math.PI / 180) }
 // IMPROVED IDENTIFY NEIGHBORHOOD
 export const identifyNeighborhood = (lat: number, lng: number): string => {
     // Finds the closest defined location
-    let closest = "Arraial do Cabo";
+    let closest = "Rio de Janeiro"; // Padrão agora é Rio geral
     let minDistance = 9999;
 
     // Use predefined locations which have lat/lng
@@ -751,5 +751,5 @@ export const identifyNeighborhood = (lat: number, lng: number): string => {
 
     // Only return the closest neighborhood if it's reasonably close (e.g., < 3km)
     // Otherwise return default
-    return minDistance < 3 ? closest : "Arraial do Cabo";
+    return minDistance < 5 ? closest : "Rio de Janeiro";
 };

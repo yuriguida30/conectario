@@ -1,13 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { MapPin, Navigation, X, Loader2 } from 'lucide-react';
 import { Coupon } from '../types';
 import { getCoupons, calculateDistance } from '../services/dataService';
 
-// Bounds of Arraial do Cabo for mapping logic
-// Top-Left (North-West)
-const BOUNDS_NW = { lat: -22.92, lng: -42.06 };
-// Bottom-Right (South-East)
-const BOUNDS_SE = { lat: -22.98, lng: -42.00 };
+// Bounds of Rio de Janeiro (Greater Rio) for mapping logic
+// Expanded to cover Sepetiba (West) to Niterói (East) and North Zone
+// Top-Left (North-West): Near Seropédica/Itaguaí
+const BOUNDS_NW = { lat: -22.75, lng: -43.75 };
+// Bottom-Right (South-East): Near Itaipu/Ocean
+const BOUNDS_SE = { lat: -23.10, lng: -42.90 };
 
 export const MapPage: React.FC = () => {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -58,13 +60,13 @@ export const MapPage: React.FC = () => {
   return (
     <div className="relative w-full h-screen bg-[#eef6f8] overflow-hidden">
         
-        {/* Background - Simplified Arraial Geometry */}
+        {/* Background - Simplified Rio Geometry Abstract */}
         <div className="absolute inset-0 opacity-40 pointer-events-none">
             {/* Mainland */}
             <div className="absolute top-0 left-0 w-full h-full bg-[#cbd5e1] opacity-20"></div>
-            {/* Ocean Mask (rough shape) */}
-            <div className="absolute top-[40%] right-0 w-[60%] h-[60%] bg-[#eef6f8] rounded-tl-[100px]"></div>
-            <div className="absolute top-[10%] left-[20%] w-[30%] h-[30%] bg-[#0ea5e9] opacity-10 rounded-full blur-3xl"></div>
+            {/* Ocean Mask (rough shape for Rio Coast) */}
+            <div className="absolute bottom-0 right-0 w-[100%] h-[40%] bg-[#eef6f8] rounded-tl-[300px]"></div>
+            <div className="absolute top-[50%] right-[20%] w-[10%] h-[10%] bg-[#0ea5e9] opacity-20 rounded-full blur-xl"></div>
         </div>
 
         {/* Grid */}
@@ -72,7 +74,7 @@ export const MapPage: React.FC = () => {
 
         {/* Header Overlay */}
         <div className="absolute top-0 left-0 right-0 p-4 z-10 bg-gradient-to-b from-white via-white/90 to-transparent pt-6 pb-12">
-            <h1 className="text-2xl font-bold text-ocean-950">Mapa Interativo</h1>
+            <h1 className="text-2xl font-bold text-ocean-950">Mapa Interativo (RJ)</h1>
             <p className="text-xs text-slate-500 flex items-center gap-1">
                {userLocation ? <span className="text-green-600 font-bold flex items-center gap-1"><Navigation size={10}/> GPS Ativo</span> : 'Mostrando todas as ofertas'}
             </p>

@@ -19,9 +19,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
 
-  // Arraial Default Center
-  const DEFAULT_LAT = -22.966;
-  const DEFAULT_LNG = -42.026;
+  // Rio de Janeiro Default Center (Centralizado para cobrir Zonas Norte, Sul, Oeste e Centro)
+  const DEFAULT_LAT = -22.9068;
+  const DEFAULT_LNG = -43.1729;
 
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -34,8 +34,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
         // Create Map
         const map = L.map(mapContainerRef.current, {
             center: [startLat, startLng],
-            zoom: 14,
-            zoomControl: false, // We'll add it in a better position or keep UI clean
+            zoom: 11, // Zoom ajustado para ver o Rio como um todo
+            zoomControl: false, 
             attributionControl: false
         });
 
@@ -102,7 +102,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
       setIsSearching(true);
       try {
           // Use OpenStreetMap Nominatim API (Free)
-          const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery + ' Arraial do Cabo')}`);
+          // Appending ' Rio de Janeiro' to ensure it searches within the state/city
+          const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery + ', Rio de Janeiro, Brasil')}`);
           const data = await response.json();
 
           if (data && data.length > 0) {
@@ -113,11 +114,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
               if (mapInstanceRef.current && markerRef.current) {
                   const newLatLng = new L.LatLng(newLat, newLng);
                   markerRef.current.setLatLng(newLatLng);
-                  mapInstanceRef.current.setView(newLatLng, 16);
+                  mapInstanceRef.current.setView(newLatLng, 14); // Zoom apropriado para bairro
                   onLocationSelect(newLat, newLng);
               }
           } else {
-              alert("Local não encontrado. Tente algo como 'Praia Grande' ou 'Centro'.");
+              alert("Local não encontrado. Tente digitar o nome do bairro seguido de 'RJ'. Ex: 'Sepetiba RJ'");
           }
       } catch (err) {
           console.error("Geocoding error:", err);
@@ -138,7 +139,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
             <form onSubmit={handleSearch} className="relative shadow-lg rounded-lg">
                 <input 
                     type="text" 
-                    placeholder="Buscar bairro ou rua..." 
+                    placeholder="Buscar bairro (ex: Sepetiba, Campo Grande)..." 
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border-0 text-sm focus:ring-2 focus:ring-ocean-500 shadow-sm text-slate-800"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -156,7 +157,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
 
         <div className="absolute bottom-3 right-3 z-[400] bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg shadow-sm border border-slate-200 pointer-events-none">
             <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
-                <Navigation size={10} /> Arraste o mapa para posicionar
+                <Navigation size={10} /> Arraste o mapa para ajustar
             </p>
         </div>
     </div>

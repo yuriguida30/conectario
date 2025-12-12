@@ -18,6 +18,57 @@ import { SubscribePage } from './pages/Subscribe';
 import { getCurrentUser, logout, getAppConfig, initFirebaseData } from './services/dataService';
 import { User, UserRole } from './types';
 
+// Função auxiliar para analisar a URL atual e determinar a página
+const parseUrl = (): { page: string; params: any } => {
+  const path = window.location.pathname;
+  
+  // Rotas Dinâmicas (com ID)
+  const businessMatch = path.match(/^\/business\/([^/]+)/);
+  if (businessMatch) return { page: 'business-detail', params: { businessId: businessMatch[1] } };
+
+  const blogMatch = path.match(/^\/blog\/([^/]+)/);
+  if (blogMatch) return { page: 'blog-detail', params: { postId: blogMatch[1] } };
+
+  const colMatch = path.match(/^\/collection\/([^/]+)/);
+  if (colMatch) return { page: 'collection-detail', params: { collectionId: colMatch[1] } };
+
+  // Rotas Estáticas
+  switch (path) {
+    case '/guide': return { page: 'guide', params: null };
+    case '/search': return { page: 'search', params: null };
+    case '/blog': return { page: 'blog', params: null };
+    case '/collections': return { page: 'collections', params: null };
+    case '/map': return { page: 'map', params: null };
+    case '/subscribe': return { page: 'subscribe', params: null };
+    case '/login': return { page: 'login', params: null };
+    case '/user-dashboard': return { page: 'user-dashboard', params: null };
+    case '/admin-dashboard': return { page: 'admin-dashboard', params: null };
+    case '/super-admin-dashboard': return { page: 'super-admin-dashboard', params: null };
+    default: return { page: 'home', params: null };
+  }
+};
+
+// Função para construir a URL baseada na página e params
+const buildUrl = (page: string, params?: any): string => {
+  switch (page) {
+    case 'home': return '/';
+    case 'guide': return '/guide';
+    case 'search': return '/search';
+    case 'blog': return '/blog';
+    case 'collections': return '/collections';
+    case 'map': return '/map';
+    case 'subscribe': return '/subscribe';
+    case 'login': return '/login';
+    case 'user-dashboard': return '/user-dashboard';
+    case 'admin-dashboard': return '/admin-dashboard';
+    case 'super-admin-dashboard': return '/super-admin-dashboard';
+    case 'business-detail': return `/business/${params?.businessId}`;
+    case 'blog-detail': return `/blog/${params?.postId}`;
+    case 'collection-detail': return `/collection/${params?.collectionId}`;
+    default: return '/';
+  }
+};
+
 export default function App() {
   const [page, setPage] = useState('home');
   const [pageParams, setPageParams] = useState<any>(null);
@@ -28,26 +79,38 @@ export default function App() {
   const [configVersion, setConfigVersion] = useState(0);
 
   useEffect(() => {
-    // Check for logged in user in local storage
+    // 1. Inicializa Estado base da URL
+    const { page: initialPage, params: initialParams } = parseUrl();
+    setPage(initialPage);
+    setPageParams(initialParams);
+
+    // 2. Listener para o botão "Voltar" do navegador (popstate)
+    const handlePopState = () => {
+        const { page: newPage, params: newParams } = parseUrl();
+        setPage(newPage);
+        setPageParams(newParams);
+        window.scrollTo(0, 0);
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    // 3. Inicializa Dados e Usuário
     const u = getCurrentUser();
     setUser(u);
-    initFirebaseData(); // Ensure mock data exists
+    initFirebaseData(); 
     
-    // Apply initial branding
     updateBranding();
 
-    // Listen for config changes
     window.addEventListener('appConfigUpdated', updateBranding);
     
-    // Listen for DATA changes (Critical for Favorites to update UI instantly)
     const handleDataUpdate = () => {
-        setUser(getCurrentUser()); // Force refresh user from local storage
+        setUser(getCurrentUser()); 
     };
     window.addEventListener('dataUpdated', handleDataUpdate);
 
     setLoading(false);
 
     return () => {
+        window.removeEventListener('popstate', handlePopState);
         window.removeEventListener('appConfigUpdated', updateBranding);
         window.removeEventListener('dataUpdated', handleDataUpdate);
     }
@@ -57,7 +120,6 @@ export default function App() {
       const config = getAppConfig();
       document.title = `${config.appName} ${config.appNameHighlight}`;
       
-      // Update Favicon if exists
       if (config.faviconUrl) {
           let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
           if (!link) {
@@ -67,12 +129,23 @@ export default function App() {
           }
           link.href = config.faviconUrl;
       }
-      setConfigVersion(v => v + 1); // Trigger re-render of components using config
+      setConfigVersion(v => v + 1);
   };
 
+  // NAVEGAÇÃO CENTRAL: Atualiza o Histórico do Navegador
   const handleNavigate = (newPage: string, params?: any) => {
+      // Se for a mesma página, não faz nada
+      if (page === newPage && JSON.stringify(params) === JSON.stringify(pageParams)) return;
+
+      const url = buildUrl(newPage, params);
+      
+      // Push State: Adiciona nova entrada no histórico (faz o botão voltar funcionar)
+      window.history.pushState({}, '', url);
+      
       setPage(newPage);
       if (params) setPageParams(params);
+      
+      window.scrollTo(0, 0);
   };
 
   const handleLoginSuccess = async () => {
@@ -84,6 +157,7 @@ export default function App() {
     } else if (u?.role === UserRole.SUPER_ADMIN) {
       handleNavigate('super-admin-dashboard');
     } else {
+      // Se estava tentando acessar algo protegido, poderia voltar pra lá, mas por padrão vai pra Home
       handleNavigate('home');
     }
   };

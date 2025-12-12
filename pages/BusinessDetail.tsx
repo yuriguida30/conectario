@@ -91,7 +91,7 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
       const shareData = {
           title: business.name,
           text: `Confira ${business.name} no app Conecta Rio! As melhores ofertas e informações.`,
-          url: window.location.href
+          url: window.location.href // Agora pega a URL real do browser (com ID)
       };
 
       if (navigator.share) {
@@ -104,6 +104,15 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
           // Fallback para clipboard
           navigator.clipboard.writeText(window.location.href);
           alert('Link copiado para a área de transferência!');
+      }
+  };
+
+  const handleBack = () => {
+      // Se houver histórico, volta nativamente. Se não (abriu direto pelo link), vai pro Guia.
+      if (window.history.length > 1) {
+          window.history.back();
+      } else {
+          onNavigate('guide');
       }
   };
 
@@ -122,12 +131,10 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
       setSubmittingReview(true);
       
       try {
-          // Now awaiting the async DB operation which also handles cleaning up big docs
           const updated = await addBusinessReview(businessId, currentUser, userRating, reviewComment);
           
           if(updated) {
               setBusiness(updated);
-              // Fetch latest reviews immediately
               const newReviews = await fetchReviewsForBusiness(businessId);
               setReviews(newReviews);
               
@@ -191,7 +198,7 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
             {/* Top Nav */}
             <div className="absolute top-0 left-0 w-full p-4 flex justify-between items-center z-20 pt-safe">
                 <button 
-                    onClick={() => onNavigate('guide')}
+                    onClick={handleBack}
                     className="bg-white/20 text-white p-2 rounded-full backdrop-blur-md hover:bg-white/30 transition-colors"
                 >
                     <ArrowLeft size={24} />

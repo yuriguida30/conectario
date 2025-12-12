@@ -91,6 +91,7 @@ export interface Coupon {
 export interface AppCategory {
   id: string;
   name: string;
+  subcategories?: string[]; // NOVO: Lista de subcategorias (tags)
 }
 
 export interface AppLocation {
@@ -160,6 +161,7 @@ export interface BusinessProfile {
   id: string; // Should match User ID for simplicity in 1-to-1 relation
   name: string;
   category: string; // Gastronomia, Hotel, etc.
+  subcategory?: string; // NOVO: Subcategoria específica
   description: string;
   coverImage: string;
   gallery: string[];

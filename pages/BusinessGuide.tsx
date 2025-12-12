@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Filter, Star, Clock, Check, Heart, Navigation, Loader2 } from 'lucide-react';
 import { BusinessProfile, AppCategory, AppLocation, AppAmenity, User } from '../types';
@@ -20,6 +21,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   // Filter States
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
+  const [selectedSubCategory, setSelectedSubCategory] = useState('Todos'); // NOVO: Subcategoria State
   const [selectedLocation, setSelectedLocation] = useState('Todos');
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [onlyOpen, setOnlyOpen] = useState(false);
@@ -58,6 +60,11 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
       result = result.filter(b => b.category === selectedCategory);
     }
 
+    // Filter by SubCategory (if active)
+    if (selectedSubCategory !== 'Todos' && selectedCategory !== 'Todos') {
+        result = result.filter(b => b.subcategory === selectedSubCategory);
+    }
+
     // Filter by Location
     if (selectedLocation !== 'Todos') {
         result = result.filter(b => b.address.includes(selectedLocation) || b.locationId === selectedLocation);
@@ -91,7 +98,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     }
 
     setFiltered(result);
-  }, [query, selectedCategory, selectedLocation, onlyOpen, selectedAmenities, nearby, businesses]);
+  }, [query, selectedCategory, selectedSubCategory, selectedLocation, onlyOpen, selectedAmenities, nearby, businesses]);
 
   const toggleAmenity = (id: string) => {
       setSelectedAmenities(prev => 
@@ -143,6 +150,9 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
       }
   };
 
+  const currentCategory = categories.find(c => c.name === selectedCategory);
+  const currentSubcategories = currentCategory?.subcategories || [];
+
   return (
     <div className="pb-24 pt-4 min-h-screen bg-slate-50">
       
@@ -172,7 +182,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                       <select 
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-ocean-500 text-sm text-slate-700"
                         value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
+                        onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubCategory('Todos'); }}
                       >
                           <option value="Todos">Todas Categorias</option>
                           {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
@@ -190,6 +200,37 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                       </select>
                   </div>
               </div>
+
+              {/* NEW ROW: Subcategories Chips (Shows only if Main Category is selected) */}
+              {selectedCategory !== 'Todos' && currentSubcategories.length > 0 && (
+                  <div className="mb-4">
+                      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                          <button
+                              onClick={() => setSelectedSubCategory('Todos')}
+                              className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${
+                                  selectedSubCategory === 'Todos'
+                                  ? 'bg-ocean-600 text-white border-ocean-600'
+                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                              }`}
+                          >
+                              Todos
+                          </button>
+                          {currentSubcategories.map(sub => (
+                              <button
+                                  key={sub}
+                                  onClick={() => setSelectedSubCategory(sub)}
+                                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${
+                                      selectedSubCategory === sub
+                                      ? 'bg-ocean-600 text-white border-ocean-600'
+                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                  }`}
+                              >
+                                  {sub}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+              )}
 
               {/* Row 3: Quick Toggles */}
               <div className="flex gap-2 mb-4">
@@ -284,7 +325,10 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                                       <span className="text-xs font-bold text-slate-700">{business.rating}</span>
                                   </div>
                               </div>
-                              <p className="text-slate-500 text-xs mb-2">{business.category}</p>
+                              <div className="flex items-center gap-2 mb-2">
+                                <p className="text-slate-500 text-xs">{business.category}</p>
+                                {business.subcategory && <span className="bg-ocean-50 text-ocean-700 text-[10px] font-bold px-1.5 py-0.5 rounded">{business.subcategory}</span>}
+                              </div>
                               <p className="text-slate-600 text-sm line-clamp-2 min-h-[2.5rem]">{business.description}</p>
                           </div>
                           <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-2 text-xs text-slate-400 overflow-hidden whitespace-nowrap">

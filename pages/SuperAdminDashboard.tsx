@@ -30,7 +30,9 @@ import {
     getAppConfig,
     saveAppConfig,
     adminResetPassword,
-    createCompanyDirectly
+    createCompanyDirectly,
+    addSubCategory,
+    removeSubCategory
 } from '../services/dataService';
 import { 
     Check, X, Clock, Shield, Users, Settings, LayoutGrid, Map, Plus, Trash2, BookOpen, Edit, Save, Coffee, LogOut, User as UserIcon, Mail, Layers, Search, Star, MessageSquare, Palette, Lock, Unlock, Key, Building2, MapPin
@@ -189,6 +191,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       if (!newCatName) return;
       addCategory(newCatName);
       setNewCatName('');
+      refreshAll();
+  };
+
+  const handleAddSubCategory = (catId: string, subName: string) => {
+      if (!subName) return;
+      addSubCategory(catId, subName);
       refreshAll();
   };
 
@@ -368,9 +376,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       {/* Main Content Area */}
       <div className="flex-1 p-6 md:p-12 overflow-y-auto">
           
-          {/* ... (Existing Tabs REQUESTS, BRANDING, FEATURED, USERS, COLLECTIONS, BLOG, SUPPORT) ... */}
-          {/* KEEPING THEM THE SAME, JUST FOCUSED ON SETTINGS CHANGE */}
-          
           {/* TAB: REQUESTS */}
           {activeTab === 'REQUESTS' && (
               <div className="max-w-4xl">
@@ -425,7 +430,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
           )}
 
           {/* ... (Other tabs logic preserved) ... */}
-          {/* TAB: BRANDING, FEATURED, USERS, COLLECTIONS, BLOG, SUPPORT use existing logic */}
           {activeTab === 'BRANDING' && <div className="max-w-2xl"><h1 className="text-2xl font-bold text-ocean-950 mb-6">Identidade Visual & Marca</h1><div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-lg"><form onSubmit={handleSaveBranding} className="space-y-6"><div className="grid md:grid-cols-2 gap-6"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Principal</label><input className="w-full border rounded-lg p-3 font-bold text-lg" value={appConfig.appName} onChange={e => setAppConfig({...appConfig, appName: e.target.value})} placeholder="CONECTA" /></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Destaque (Cor)</label><input className="w-full border rounded-lg p-3 font-bold text-lg text-gold-500" value={appConfig.appNameHighlight} onChange={e => setAppConfig({...appConfig, appNameHighlight: e.target.value})} placeholder="RIO" /></div></div><div className="space-y-6"><ImageUpload label="Logo da Barra de Navegação (Pequeno)" currentImage={appConfig.logoUrl} onImageSelect={(base64) => setAppConfig({...appConfig, logoUrl: base64})} className="w-32" /><ImageUpload label="Logo de Login & Inscrição (Grande)" currentImage={appConfig.loginLogoUrl} onImageSelect={(base64) => setAppConfig({...appConfig, loginLogoUrl: base64})} className="w-48" /><ImageUpload label="Favicon (Ícone da Aba)" currentImage={appConfig.faviconUrl} onImageSelect={(base64) => setAppConfig({...appConfig, faviconUrl: base64})} className="w-16" /></div><button type="submit" className="w-full bg-ocean-600 text-white font-bold py-3 rounded-xl hover:bg-ocean-700 transition-colors shadow-lg">Salvar Identidade</button></form></div></div>}
           {activeTab === 'FEATURED' && <div className="max-w-2xl"><h1 className="text-2xl font-bold text-ocean-950 mb-6">Editar Destaque Premium (Home)</h1><div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-lg"><form onSubmit={handleSaveFeatured} className="space-y-4"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Título Principal</label><input className="w-full border rounded-lg p-3" value={featuredConfig.title} onChange={e => setFeaturedConfig({...featuredConfig, title: e.target.value})} /></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Subtítulo / Descrição</label><textarea className="w-full border rounded-lg p-3" rows={3} value={featuredConfig.subtitle} onChange={e => setFeaturedConfig({...featuredConfig, subtitle: e.target.value})} /></div><div><ImageUpload label="Imagem de Fundo do Destaque" currentImage={featuredConfig.imageUrl} onImageSelect={(base64) => setFeaturedConfig({...featuredConfig, imageUrl: base64})} /></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Texto do Botão</label><input className="w-full border rounded-lg p-3" value={featuredConfig.buttonText} onChange={e => setFeaturedConfig({...featuredConfig, buttonText: e.target.value})} /></div><button type="submit" className="w-full bg-ocean-600 text-white font-bold py-3 rounded-xl hover:bg-ocean-700 transition-colors">Salvar Alterações</button></form></div></div>}
           {activeTab === 'USERS' && <div className="max-w-5xl"><div className="flex justify-between items-center mb-6"><h1 className="text-2xl font-bold text-ocean-950">Controle de Usuários e Permissões</h1><button onClick={() => setShowNewCompany(true)} className="bg-ocean-600 hover:bg-ocean-700 text-white font-bold py-2 px-4 rounded-xl flex items-center gap-2 shadow-lg"><Plus size={20} /> Nova Empresa</button></div>{showNewCompany && (<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in"><div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden"><div className="bg-ocean-900 px-6 py-4 flex justify-between items-center"><h3 className="text-white font-bold flex items-center gap-2"><Building2 size={20}/> Criar Nova Empresa</h3><button onClick={() => setShowNewCompany(false)} className="text-white/80 hover:text-white"><X size={20}/></button></div><form onSubmit={handleCreateCompany} className="p-6 space-y-4"><div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Dono</label><input required className="w-full border p-2.5 rounded-lg" value={newCompanyForm.name} onChange={e => setNewCompanyForm({...newCompanyForm, name: e.target.value})} /></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome da Empresa</label><input required className="w-full border p-2.5 rounded-lg" value={newCompanyForm.companyName} onChange={e => setNewCompanyForm({...newCompanyForm, companyName: e.target.value})} /></div></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label><select className="w-full border p-2.5 rounded-lg" value={newCompanyForm.category} onChange={e => setNewCompanyForm({...newCompanyForm, category: e.target.value})}>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email de Login</label><input required type="email" className="w-full border p-2.5 rounded-lg" value={newCompanyForm.email} onChange={e => setNewCompanyForm({...newCompanyForm, email: e.target.value})} /></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Senha de Acesso</label><input required type="text" className="w-full border p-2.5 rounded-lg font-mono bg-slate-50" value={newCompanyForm.password} onChange={e => setNewCompanyForm({...newCompanyForm, password: e.target.value})} /></div><div className="pt-2"><button type="submit" className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 shadow-lg">Criar Empresa & Perfil</button></div></form></div></div>)}{passwordResetModal && (<div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm"><h3 className="text-lg font-bold mb-4">Nova senha para {passwordResetModal.user.name}</h3><form onSubmit={handlePasswordReset}><input type="text" className="w-full border p-3 rounded-lg mb-4" placeholder="Digite a nova senha" value={passwordResetModal.pass} onChange={e => setPasswordResetModal({...passwordResetModal, pass: e.target.value})} required /><div className="flex gap-2"><button type="button" onClick={() => setPasswordResetModal(null)} className="flex-1 py-2 text-slate-500 font-bold border rounded-lg">Cancelar</button><button type="submit" className="flex-1 py-2 bg-ocean-600 text-white font-bold rounded-lg hover:bg-ocean-700">Salvar Senha</button></div></form></div></div>)}{editingUser ? (<div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-lg mb-6 animate-in fade-in"><div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold text-ocean-900">Editar Permissões: {editingUser.name}</h3><button onClick={() => setEditingUser(null)}><X size={20} className="text-slate-400"/></button></div><div className="space-y-4"><div className="grid md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-2">Função</label><select className="w-full border rounded-lg p-2 bg-slate-50" value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value as UserRole})}><option value={UserRole.CUSTOMER}>Cliente</option><option value={UserRole.COMPANY}>Empresa</option><option value={UserRole.SUPER_ADMIN}>Super Admin</option></select></div>{editingUser.role === UserRole.COMPANY && (<div><label className="block text-xs font-bold text-slate-500 uppercase mb-2">Limite de Cupons Ativos</label><input type="number" className="w-full border rounded-lg p-2" value={editingUser.maxCoupons || 0} onChange={e => setEditingUser({...editingUser, maxCoupons: parseInt(e.target.value)})} /></div>)}</div>{editingUser.role === UserRole.COMPANY && (<div className="bg-slate-50 p-4 rounded-xl space-y-3"><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" className="w-5 h-5 text-ocean-600 rounded" checked={editingUser.permissions?.canCreateCoupons || false} onChange={e => setEditingUser({...editingUser, permissions: { ...editingUser.permissions!, canCreateCoupons: e.target.checked }})} /><span className="text-sm font-medium text-slate-700">Pode Criar Cupons</span></label><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" className="w-5 h-5 text-ocean-600 rounded" checked={editingUser.permissions?.canManageBusiness || false} onChange={e => setEditingUser({...editingUser, permissions: { ...editingUser.permissions!, canManageBusiness: e.target.checked }})} /><span className="text-sm font-medium text-slate-700">Pode Ter Página no Guia</span></label></div>)}<button onClick={handleUpdateUserPermissions} className="bg-ocean-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-ocean-700">Salvar Alterações</button></div></div>) : (<div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm"><table className="w-full text-left border-collapse"><thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold"><tr><th className="p-4">Usuário</th><th className="p-4">Tipo</th><th className="p-4">Status</th><th className="p-4 text-right">Ações</th></tr></thead><tbody className="divide-y divide-slate-100 text-sm">{users.map(u => (<tr key={u.id} className={`transition-colors ${u.isBlocked ? 'bg-red-50' : 'hover:bg-slate-50'}`}><td className="p-4"><div className="font-bold text-ocean-900 flex items-center gap-2">{u.name}{u.isBlocked && <span className="bg-red-500 text-white text-[10px] px-2 rounded-full">BLOQUEADO</span>}</div><div className="text-xs text-slate-500">{u.email}</div></td><td className="p-4"><span className={`px-2 py-1 rounded text-xs font-bold ${u.role === UserRole.SUPER_ADMIN ? 'bg-purple-100 text-purple-700' : u.role === UserRole.COMPANY ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}`}>{u.role}</span></td><td className="p-4">{u.role === UserRole.COMPANY && (<div className="flex flex-col gap-1 text-xs"><span className={u.permissions?.canCreateCoupons ? 'text-green-600' : 'text-red-400'}>{u.permissions?.canCreateCoupons ? 'Cupons: SIM' : 'Cupons: NÃO'}{u.permissions?.canCreateCoupons && ` (Max: ${u.maxCoupons})`}</span><span className={u.permissions?.canManageBusiness ? 'text-green-600' : 'text-red-400'}>{u.permissions?.canManageBusiness ? 'Guia: SIM' : 'Guia: NÃO'}</span></div>)}</td><td className="p-4 text-right"><div className="flex justify-end gap-1"><button onClick={() => setPasswordResetModal({user: u, pass: ''})} className="text-slate-500 hover:bg-slate-100 p-2 rounded" title="Trocar Senha"><Key size={18} /></button><button onClick={() => handleBlockToggle(u)} className={`${u.isBlocked ? 'text-red-600' : 'text-slate-500'} hover:bg-slate-100 p-2 rounded`} title={u.isBlocked ? 'Desbloquear' : 'Bloquear'}>{u.isBlocked ? <Lock size={18} /> : <Unlock size={18} />}</button><button onClick={() => setEditingUser(u)} className="text-ocean-600 hover:bg-ocean-50 p-2 rounded" title="Editar Permissões"><Settings size={18} /></button><button onClick={() => handleDeleteUser(u.id)} className="text-slate-400 hover:text-red-500 p-2 rounded hover:bg-red-50" title="Excluir"><Trash2 size={18} /></button></div></td></tr>))}</tbody></table></div>)}</div>}
@@ -481,27 +485,71 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                       </div>
                   </div>
 
-                  {/* Categories */}
+                  {/* Categories WITH SUBCATEGORIES */}
                   <div>
                       <h2 className="text-xl font-bold text-ocean-950 mb-4 flex items-center gap-2">
-                          <LayoutGrid size={20} className="text-ocean-500" /> Categorias
+                          <LayoutGrid size={20} className="text-ocean-500" /> Categorias & Tags
                       </h2>
                       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
                           <div className="flex gap-2 mb-4">
                               <input 
                                 type="text" 
-                                placeholder="Nova categoria..." 
+                                placeholder="Nova Categoria Principal..." 
                                 className="flex-1 border border-slate-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-ocean-500 outline-none"
                                 value={newCatName}
                                 onChange={e => setNewCatName(e.target.value)}
                               />
                               <button onClick={handleAddCategory} className="bg-ocean-600 hover:bg-ocean-700 text-white px-4 rounded-lg"><Plus size={20}/></button>
                           </div>
-                          <div className="flex flex-wrap gap-2">
+                          <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
                               {categories.map(cat => (
-                                  <div key={cat.id} className="bg-slate-50 border border-slate-200 pl-3 pr-1 py-1 rounded-lg flex items-center gap-2 text-sm text-slate-700">
-                                      {cat.name}
-                                      <button onClick={() => { if(confirm('Excluir?')) { deleteCategory(cat.id); refreshAll(); } }} className="p-1 hover:text-red-500 text-slate-400"><X size={14} /></button>
+                                  <div key={cat.id} className="bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                                      <div className="flex justify-between items-center mb-3">
+                                          <span className="font-bold text-ocean-900">{cat.name}</span>
+                                          <button onClick={() => { if(confirm('Excluir categoria?')) { deleteCategory(cat.id); refreshAll(); } }} className="p-1 hover:text-red-500 text-slate-400"><X size={16} /></button>
+                                      </div>
+                                      
+                                      {/* Subcategories Area */}
+                                      <div className="bg-white border border-slate-100 rounded-lg p-3">
+                                          <div className="flex flex-wrap gap-2 mb-2">
+                                              {cat.subcategories && cat.subcategories.length > 0 ? (
+                                                  cat.subcategories.map(sub => (
+                                                      <span key={sub} className="bg-ocean-50 text-ocean-700 text-xs px-2 py-1 rounded-md flex items-center gap-1 border border-ocean-100">
+                                                          {sub}
+                                                          <button onClick={() => removeSubCategory(cat.id, sub)} className="hover:text-red-500"><X size={10}/></button>
+                                                      </span>
+                                                  ))
+                                              ) : (
+                                                  <span className="text-xs text-slate-400 italic">Sem subcategorias</span>
+                                              )}
+                                          </div>
+                                          <div className="flex gap-2">
+                                              <input 
+                                                  id={`subinput-${cat.id}`}
+                                                  type="text" 
+                                                  placeholder="Add subcategoria..." 
+                                                  className="flex-1 bg-slate-50 border-none rounded text-xs px-2 py-1 focus:ring-1 focus:ring-ocean-300"
+                                                  onKeyDown={(e) => {
+                                                      if(e.key === 'Enter') {
+                                                          handleAddSubCategory(cat.id, e.currentTarget.value);
+                                                          e.currentTarget.value = '';
+                                                      }
+                                                  }}
+                                              />
+                                              <button 
+                                                  onClick={() => {
+                                                      const input = document.getElementById(`subinput-${cat.id}`) as HTMLInputElement;
+                                                      if(input) {
+                                                          handleAddSubCategory(cat.id, input.value);
+                                                          input.value = '';
+                                                      }
+                                                  }}
+                                                  className="text-ocean-600 hover:bg-ocean-50 p-1 rounded"
+                                              >
+                                                  <Plus size={14}/>
+                                              </button>
+                                          </div>
+                                      </div>
                                   </div>
                               ))}
                           </div>

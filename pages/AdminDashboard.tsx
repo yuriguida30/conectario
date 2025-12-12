@@ -223,9 +223,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
 
   const catalogConfig = getCatalogConfig();
 
-  // ... (Profile Editor Render Logic same as before) ...
-  // Keeping the Profile Editor rendering logic abbreviated for this specific XML change block to focus on the request logic,
-  // but in a real file, the `renderProfileEditor` function would be here as is.
+  // Find Subcategories for Selected Category
+  const currentCategory = categories.find(c => c.name === myBusiness?.category);
+  const availableSubcategories = currentCategory?.subcategories || [];
+
   const renderProfileEditor = () => {
       if(!myBusiness) return null;
       return (
@@ -267,10 +268,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                                <div className="grid md:grid-cols-2 gap-6">
                                   <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
                                       <h3 className="text-xs font-bold text-ocean-900 uppercase mb-2">Informações Principais</h3>
-                                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome da Empresa</label><input type="text" className="w-full border rounded-lg p-2.5 bg-slate-50" value={myBusiness.name} onChange={e => setMyBusiness({...myBusiness!, name: e.target.value})} /></div>
-                                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label><select className="w-full border rounded-lg p-2.5 bg-slate-50" value={myBusiness.category} onChange={e => setMyBusiness({...myBusiness!, category: e.target.value})}>{categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select></div>
-                                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Localidade / Bairro</label><select className="w-full border rounded-lg p-2.5 bg-slate-50" value={myBusiness.locationId || ''} onChange={e => setMyBusiness({...myBusiness!, locationId: e.target.value})}><option value="">Selecione...</option>{locations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}</select></div>
-                                      <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Descrição</label><textarea className="w-full border rounded-lg p-2.5 bg-slate-50" rows={4} value={myBusiness.description} onChange={e => setMyBusiness({...myBusiness!, description: e.target.value})} /></div>
+                                      <div>
+                                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome da Empresa</label>
+                                          <input type="text" className="w-full border rounded-lg p-2.5 bg-slate-50" value={myBusiness.name} onChange={e => setMyBusiness({...myBusiness!, name: e.target.value})} />
+                                      </div>
+                                      
+                                      <div className="grid grid-cols-2 gap-4">
+                                          <div>
+                                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria Principal</label>
+                                              <select 
+                                                className="w-full border rounded-lg p-2.5 bg-slate-50" 
+                                                value={myBusiness.category} 
+                                                onChange={e => setMyBusiness({...myBusiness!, category: e.target.value, subcategory: ''})} // Reset subcategory on change
+                                              >
+                                                  {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                              </select>
+                                          </div>
+                                          <div>
+                                              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Subcategoria (Opcional)</label>
+                                              <select 
+                                                className="w-full border rounded-lg p-2.5 bg-slate-50 disabled:bg-slate-100 disabled:text-slate-400"
+                                                value={myBusiness.subcategory || ''}
+                                                onChange={e => setMyBusiness({...myBusiness!, subcategory: e.target.value})}
+                                                disabled={availableSubcategories.length === 0}
+                                              >
+                                                  <option value="">Selecione...</option>
+                                                  {availableSubcategories.map(sub => <option key={sub} value={sub}>{sub}</option>)}
+                                              </select>
+                                          </div>
+                                      </div>
+
+                                      <div>
+                                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Localidade / Bairro</label>
+                                          <select className="w-full border rounded-lg p-2.5 bg-slate-50" value={myBusiness.locationId || ''} onChange={e => setMyBusiness({...myBusiness!, locationId: e.target.value})}>
+                                              <option value="">Selecione...</option>
+                                              {locations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
+                                          </select>
+                                      </div>
+                                      <div>
+                                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Descrição</label>
+                                          <textarea className="w-full border rounded-lg p-2.5 bg-slate-50" rows={4} value={myBusiness.description} onChange={e => setMyBusiness({...myBusiness!, description: e.target.value})} />
+                                      </div>
                                   </div>
                                   <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm space-y-4">
                                       <h3 className="text-xs font-bold text-ocean-900 uppercase mb-2">Contato</h3>

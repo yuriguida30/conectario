@@ -101,7 +101,7 @@ export const initFirebaseData = async () => {
             });
             // Se categorias estiverem vazias no banco, salva as padrões
             if (_categories.length === 0) {
-                _categories = DEFAULT_CATEGORIES.map(c => ({ id: c.toLowerCase(), name: c }));
+                _categories = DEFAULT_CATEGORIES.map(c => ({ id: c.toLowerCase(), name: c, subcategories: [] }));
                 setDoc(doc(db, 'system', 'categories'), { list: _categories });
             }
             if (_amenities.length === 0) {
@@ -129,7 +129,7 @@ const loadMocksToMemory = () => {
     _coupons = MOCK_COUPONS;
     _users = MOCK_USERS;
     _posts = MOCK_POSTS;
-    _categories = DEFAULT_CATEGORIES.map(c => ({ id: c.toLowerCase(), name: c }));
+    _categories = DEFAULT_CATEGORIES.map(c => ({ id: c.toLowerCase(), name: c, subcategories: [] }));
     _amenities = DEFAULT_AMENITIES;
     notifyListeners();
 };
@@ -187,7 +187,7 @@ export const saveFeaturedConfig = async (config: FeaturedConfig) => {
 
 export const addCategory = async (name: string) => {
     if (db) {
-        const newCat = { id: Date.now().toString(), name };
+        const newCat = { id: Date.now().toString(), name, subcategories: [] };
         const updated = [..._categories, newCat];
         await setDoc(doc(db, 'system', 'categories'), { list: updated });
     }
@@ -197,6 +197,32 @@ export const deleteCategory = async (id: string) => {
     if (db) {
         const updated = _categories.filter(c => c.id !== id);
         await setDoc(doc(db, 'system', 'categories'), { list: updated });
+    }
+};
+
+// NOVO: Gerenciar Subcategorias
+export const addSubCategory = async (categoryId: string, subName: string) => {
+    if (db) {
+        const catIndex = _categories.findIndex(c => c.id === categoryId);
+        if (catIndex >= 0) {
+            const updatedCats = [..._categories];
+            const subs = updatedCats[catIndex].subcategories || [];
+            if (!subs.includes(subName)) {
+                updatedCats[catIndex].subcategories = [...subs, subName];
+                await setDoc(doc(db, 'system', 'categories'), { list: updatedCats });
+            }
+        }
+    }
+};
+
+export const removeSubCategory = async (categoryId: string, subName: string) => {
+    if (db) {
+        const catIndex = _categories.findIndex(c => c.id === categoryId);
+        if (catIndex >= 0) {
+            const updatedCats = [..._categories];
+            updatedCats[catIndex].subcategories = (updatedCats[catIndex].subcategories || []).filter(s => s !== subName);
+            await setDoc(doc(db, 'system', 'categories'), { list: updatedCats });
+        }
     }
 };
 

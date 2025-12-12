@@ -178,6 +178,13 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
       return <Layers size={18} />;
   }
 
+  // Gera o link do WhatsApp com mensagem personalizada
+  const getWhatsAppLink = (phone: string, businessName: string) => {
+      const cleanPhone = phone.replace(/\D/g, ''); // Remove tudo que não for número
+      const message = encodeURIComponent(`Olá! Encontrei a ${businessName} no Guia Conecta Rio e gostaria de mais informações.`);
+      return `https://wa.me/${cleanPhone}?text=${message}`;
+  };
+
   if (!business) return <div className="p-10 text-center flex items-center justify-center h-screen"><div className="animate-spin h-8 w-8 border-4 border-ocean-500 rounded-full border-t-transparent"></div></div>;
 
   const catalogLabel = getCatalogLabel(business.category);
@@ -259,7 +266,11 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
                         </a>
                     )}
                     {business.whatsapp && (
-                        <a href={`https://wa.me/${business.whatsapp}`} target="_blank" className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-green-600 transition-colors">
+                        <a 
+                            href={getWhatsAppLink(business.whatsapp, business.name)} 
+                            target="_blank" 
+                            className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-green-600 transition-colors"
+                        >
                             <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center text-green-600"><MessageCircle size={20}/></div>
                             <span className="text-xs font-bold">WhatsApp</span>
                         </a>

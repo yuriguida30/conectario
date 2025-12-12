@@ -97,6 +97,8 @@ export interface AppLocation {
   id: string;
   name: string;
   active: boolean;
+  lat?: number; // Center latitude of the neighborhood
+  lng?: number; // Center longitude of the neighborhood
 }
 
 export interface AppAmenity {

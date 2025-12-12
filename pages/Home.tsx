@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { MapPin, ChevronDown, ChevronRight, Gem, ArrowRight, Loader2, Utensils, Bed, Anchor, ShoppingBag, Star, Calendar, Map, Layers } from 'lucide-react';
 import { Coupon, User, AppCategory, BusinessProfile, BlogPost, Collection, FeaturedConfig } from '../types';
@@ -53,6 +54,9 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
         const { lat, lng } = JSON.parse(storedGps);
         const area = identifyNeighborhood(lat, lng);
         setLocationName(area);
+    } else {
+        // Try to auto-detect on first load quietly
+        activateGPS(true);
     }
 
     return () => {
@@ -84,24 +88,34 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
       return <Map size={24} />;
   }
 
-  const activateGPS = () => {
-      setGpsLoading(true);
+  const activateGPS = (silent = false) => {
+      if (!silent) setGpsLoading(true);
+      if (!navigator.geolocation) {
+          if (!silent) setGpsLoading(false);
+          return;
+      }
+
       navigator.geolocation.getCurrentPosition(
           (pos) => {
-              setGpsLoading(false);
+              if (!silent) setGpsLoading(false);
               const lat = pos.coords.latitude;
               const lng = pos.coords.longitude;
               
+              // Smart detect neighborhood based on Defined Locations in DB
               const areaName = identifyNeighborhood(lat, lng);
               setLocationName(areaName);
               
-              // Store in session storage if needed for other components
+              // Store in session storage
               sessionStorage.setItem('user_gps', JSON.stringify({ lat, lng }));
           },
           (err) => {
-              setGpsLoading(false);
-              alert("Não foi possível obter sua localização. Verifique as permissões do navegador.");
-          }
+              if (!silent) {
+                  setGpsLoading(false);
+                  console.warn("GPS Denied or Error", err);
+                  // alert("Não foi possível obter sua localização. Verifique as permissões.");
+              }
+          },
+          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
   }
 
@@ -120,7 +134,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
       <div className="sticky top-0 md:top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm transition-all duration-300">
          <div className="flex justify-between items-center px-4 py-3 max-w-7xl mx-auto w-full">
              <div 
-                onClick={activateGPS}
+                onClick={() => activateGPS(false)}
                 className="flex items-center gap-2 text-ocean-950 cursor-pointer hover:bg-slate-50 px-2 py-1 rounded-lg transition-colors active:scale-95"
              >
                 <div className={`bg-ocean-100 p-1.5 rounded-full text-ocean-600 ${gpsLoading ? 'animate-pulse' : ''}`}>

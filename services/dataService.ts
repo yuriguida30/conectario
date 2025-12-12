@@ -16,7 +16,14 @@ let _collections: Collection[] = [];
 let _requests: CompanyRequest[] = [];
 let _support: SupportMessage[] = [];
 let _categories: AppCategory[] = [];
-let _locations: AppLocation[] = [];
+// Inicializando com coordenadas reais de Arraial do Cabo para fallback imediato
+let _locations: AppLocation[] = [
+    { id: 'centro', name: 'Centro', active: true, lat: -22.966, lng: -42.026 },
+    { id: 'prainha', name: 'Prainha', active: true, lat: -22.955, lng: -42.033 },
+    { id: 'anjos', name: 'Praia dos Anjos', active: true, lat: -22.969, lng: -42.023 },
+    { id: 'grande', name: 'Praia Grande', active: true, lat: -22.971, lng: -42.039 },
+    { id: 'pontal', name: 'Pontal', active: true, lat: -22.962, lng: -42.038 }
+];
 let _amenities: AppAmenity[] = [];
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
 let _featuredConfig: FeaturedConfig | null = null;
@@ -93,6 +100,12 @@ export const initFirebaseData = async () => {
             if (_amenities.length === 0) {
                 _amenities = DEFAULT_AMENITIES;
                 setDoc(doc(db, 'system', 'amenities'), { list: _amenities });
+            }
+            if (_locations.length === 0 && !db) {
+                // If using mocks, default locations are already set
+            } else if (_locations.length === 0) {
+                 // Initialize default locations in DB if empty
+                 setDoc(doc(db, 'system', 'locations'), { list: _locations });
             }
             notifyListeners();
         });
@@ -180,9 +193,15 @@ export const deleteCategory = async (id: string) => {
     }
 };
 
-export const addLocation = async (name: string) => {
+export const addLocation = async (name: string, lat?: number, lng?: number) => {
     if (db) {
-        const newLoc = { id: Date.now().toString(), name, active: true };
+        const newLoc = { 
+            id: Date.now().toString(), 
+            name, 
+            active: true,
+            lat: lat || -22.966, // Default fallback if not provided
+            lng: lng || -42.026 
+        };
         const updated = [..._locations, newLoc];
         await setDoc(doc(db, 'system', 'locations'), { list: updated });
     }
@@ -713,4 +732,24 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 }
 function deg2rad(deg: number) { return deg * (Math.PI / 180) }
 
-export const identifyNeighborhood = (lat: number, lng: number): string => "Arraial do Cabo";
+// IMPROVED IDENTIFY NEIGHBORHOOD
+export const identifyNeighborhood = (lat: number, lng: number): string => {
+    // Finds the closest defined location
+    let closest = "Arraial do Cabo";
+    let minDistance = 9999;
+
+    // Use predefined locations which have lat/lng
+    const locationsWithCoords = _locations.filter(l => l.lat && l.lng);
+
+    for (const loc of locationsWithCoords) {
+        const dist = calculateDistance(lat, lng, loc.lat!, loc.lng!);
+        if (dist < minDistance) {
+            minDistance = dist;
+            closest = loc.name;
+        }
+    }
+
+    // Only return the closest neighborhood if it's reasonably close (e.g., < 3km)
+    // Otherwise return default
+    return minDistance < 3 ? closest : "Arraial do Cabo";
+};

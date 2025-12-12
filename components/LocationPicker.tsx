@@ -136,17 +136,21 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
 
         {/* Search Overlay */}
         <div className="absolute top-3 left-3 right-3 z-[400]">
-            <form onSubmit={handleSearch} className="relative shadow-lg rounded-lg">
+            <form onSubmit={handleSearch} className="relative shadow-lg rounded-lg flex bg-white overflow-hidden border border-slate-200">
                 <input 
                     type="text" 
-                    placeholder="Buscar bairro (ex: Sepetiba, Campo Grande)..." 
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border-0 text-sm focus:ring-2 focus:ring-ocean-500 shadow-sm text-slate-800"
+                    placeholder="Buscar bairro (ex: Sepetiba)..." 
+                    className="flex-1 pl-4 pr-2 py-3 text-sm focus:outline-none text-slate-800 placeholder:text-slate-400"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
-                <div className="absolute left-3 top-2.5 text-slate-400">
-                    {isSearching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                </div>
+                <button 
+                    type="submit"
+                    className="px-4 bg-ocean-600 text-white hover:bg-ocean-700 transition-colors flex items-center justify-center border-l border-ocean-700 active:bg-ocean-800"
+                    disabled={isSearching}
+                >
+                    {isSearching ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
+                </button>
             </form>
         </div>
 

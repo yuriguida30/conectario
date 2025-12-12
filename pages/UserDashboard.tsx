@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { User, SavingsRecord, Coupon, BusinessProfile } from '../types';
 import { Tag, LogOut, ChevronRight, HelpCircle, Trophy, TrendingUp, Wallet, Star, Heart, Store, Ticket, Send, Camera } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getCoupons, getBusinesses, getBusinessById, sendSupportMessage, updateUser } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
+import { ImageUpload } from '../components/ImageUpload';
 
 interface UserDashboardProps {
   currentUser: User;
@@ -64,10 +66,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
 
   const handleUpdateAvatar = () => {
       if(!newAvatarUrl) return;
+      
       const updatedUser = { ...currentUser, avatarUrl: newAvatarUrl };
       updateUser(updatedUser);
+      
       setEditAvatar(false);
-      // Force reload or rely on parent state update if prop changes (App.tsx handles this via dataService usually)
+      setNewAvatarUrl('');
+      // Force reload to reflect changes immediately in navbar etc
       window.location.reload(); 
   };
 
@@ -102,18 +107,38 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
       </div>
 
       {editAvatar && (
-          <div className="mb-6 bg-white p-4 rounded-xl border border-slate-200 animate-in fade-in">
-              <label className="block text-xs font-bold text-slate-500 mb-2">URL da Nova Foto</label>
-              <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    className="flex-1 border rounded-lg p-2 text-sm"
-                    placeholder="https://..."
-                    value={newAvatarUrl}
-                    onChange={e => setNewAvatarUrl(e.target.value)}
-                  />
-                  <button onClick={handleUpdateAvatar} className="bg-ocean-600 text-white px-4 rounded-lg text-sm font-bold">Salvar</button>
-                  <button onClick={() => setEditAvatar(false)} className="text-slate-400 px-2">Cancelar</button>
+          <div className="mb-6 bg-white p-6 rounded-xl border border-slate-200 animate-in fade-in shadow-lg relative z-20">
+              <h3 className="font-bold text-ocean-900 mb-4 flex items-center gap-2"><Camera size={18}/> Alterar Foto de Perfil</h3>
+              
+              <div className="grid md:grid-cols-2 gap-6 items-center">
+                  <div className="w-full max-w-[200px] mx-auto md:mx-0">
+                    <div className="aspect-square rounded-full overflow-hidden border-4 border-ocean-50 shadow-inner">
+                        <ImageUpload 
+                            currentImage={newAvatarUrl || currentUser.avatarUrl} 
+                            onImageSelect={(base64) => setNewAvatarUrl(base64)}
+                            label="" 
+                            className="h-full w-full [&_div]:rounded-none [&_div]:border-none [&_div]:aspect-square"
+                        />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                      <p className="text-sm text-slate-500 mb-2">
+                          Selecione uma foto da sua galeria. Ela será comprimida automaticamente para economizar dados.
+                      </p>
+                      <button 
+                        onClick={handleUpdateAvatar} 
+                        disabled={!newAvatarUrl}
+                        className="bg-ocean-600 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-ocean-700 transition-colors w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                          Salvar Nova Foto
+                      </button>
+                      <button 
+                        onClick={() => { setEditAvatar(false); setNewAvatarUrl(''); }} 
+                        className="text-slate-500 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-50 w-full"
+                      >
+                          Cancelar
+                      </button>
+                  </div>
               </div>
           </div>
       )}

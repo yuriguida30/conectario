@@ -5,9 +5,7 @@ import { db, auth } from './firebase';
 import { collection, setDoc, doc, deleteDoc, onSnapshot, getDoc, updateDoc, arrayUnion, increment, addDoc, query, orderBy, getDocs, deleteField, writeBatch } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
-// --- IN-MEMORY CACHE (Substitui LocalStorage) ---
-// Estes dados vivem apenas na memória enquanto a aba está aberta
-// Eles são populados automaticamente pelos listeners do Firebase
+// --- IN-MEMORY CACHE (Sync with LocalStorage for F5 persistence) ---
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
@@ -16,7 +14,7 @@ let _collections: Collection[] = [];
 let _requests: CompanyRequest[] = [];
 let _support: SupportMessage[] = [];
 let _categories: AppCategory[] = [];
-// Inicializando com coordenadas reais do Rio de Janeiro para cobrir Zona Oeste, Centro e Sul
+// Inicializando com coordenadas reais do Rio de Janeiro
 let _locations: AppLocation[] = [
     { id: 'centro', name: 'Centro', active: true, lat: -22.9068, lng: -43.1729 },
     { id: 'copacabana', name: 'Copacabana', active: true, lat: -22.9694, lng: -43.1868 },
@@ -34,6 +32,53 @@ const notifyListeners = () => {
     window.dispatchEvent(new Event('appConfigUpdated'));
 };
 
+// --- LOCAL STORAGE CACHE HELPERS ---
+const saveToCache = (key: string, data: any) => {
+    try {
+        localStorage.setItem(`cr_cache_${key}`, JSON.stringify(data));
+    } catch (e) {
+        console.warn("Storage quota exceeded or error", e);
+    }
+}
+
+const loadFromCache = () => {
+    try {
+        const b = localStorage.getItem('cr_cache_businesses');
+        if (b) _businesses = JSON.parse(b);
+
+        const c = localStorage.getItem('cr_cache_coupons');
+        if (c) _coupons = JSON.parse(c);
+
+        const p = localStorage.getItem('cr_cache_posts');
+        if (p) _posts = JSON.parse(p);
+
+        const col = localStorage.getItem('cr_cache_collections');
+        if (col) _collections = JSON.parse(col);
+
+        const cat = localStorage.getItem('cr_cache_categories');
+        if (cat) _categories = JSON.parse(cat);
+
+        const loc = localStorage.getItem('cr_cache_locations');
+        if (loc) _locations = JSON.parse(loc);
+
+        const am = localStorage.getItem('cr_cache_amenities');
+        if (am) _amenities = JSON.parse(am);
+
+        const conf = localStorage.getItem('cr_cache_app_config');
+        if (conf) _appConfig = JSON.parse(conf);
+
+        const feat = localStorage.getItem('cr_cache_featured_config');
+        if (feat) _featuredConfig = JSON.parse(feat);
+
+        console.log("📦 Cache Local carregado com sucesso!");
+    } catch (e) {
+        console.error("Erro ao carregar cache local", e);
+    }
+};
+
+// Carrega o cache imediatamente ao importar o arquivo (Synchronous)
+loadFromCache();
+
 // --- REALTIME DATABASE LISTENERS ---
 export const initFirebaseData = async () => {
     console.log("Iniciando conexão Exclusiva com Banco de Dados...");
@@ -46,37 +91,40 @@ export const initFirebaseData = async () => {
 
     try {
         // Configura listeners para cada coleção do banco
-        // Assim que algo muda no banco, atualiza a variável em memória e a tela
         
         onSnapshot(collection(db, 'businesses'), (snap) => {
             _businesses = snap.docs.map(d => {
-                // Remover o campo reviews pesado da memória principal para não travar a UI
                 const data = d.data() as BusinessProfile;
                 if (data.reviews && data.reviews.length > 50) {
-                    data.reviews = data.reviews.slice(0, 5); // Mantém apenas preview se ainda existir
+                    data.reviews = data.reviews.slice(0, 5); 
                 }
                 return data;
             });
+            saveToCache('businesses', _businesses);
             notifyListeners();
         });
 
         onSnapshot(collection(db, 'coupons'), (snap) => {
             _coupons = snap.docs.map(d => d.data() as Coupon);
+            saveToCache('coupons', _coupons);
             notifyListeners();
         });
 
         onSnapshot(collection(db, 'users'), (snap) => {
             _users = snap.docs.map(d => d.data() as User);
+            // Users list usually not cached for security/size reasons, but kept in memory
             notifyListeners();
         });
 
         onSnapshot(collection(db, 'posts'), (snap) => {
             _posts = snap.docs.map(d => d.data() as BlogPost);
+            saveToCache('posts', _posts);
             notifyListeners();
         });
 
         onSnapshot(collection(db, 'collections'), (snap) => {
             _collections = snap.docs.map(d => d.data() as Collection);
+            saveToCache('collections', _collections);
             notifyListeners();
         });
 
@@ -93,13 +141,14 @@ export const initFirebaseData = async () => {
         // Configurações do Sistema
         onSnapshot(collection(db, 'system'), (snap) => {
             snap.forEach(doc => {
-                if(doc.id === 'app_config') _appConfig = doc.data() as AppConfig;
-                if(doc.id === 'featured_config') _featuredConfig = doc.data() as FeaturedConfig;
-                if(doc.id === 'categories' && doc.data().list) _categories = doc.data().list;
-                if(doc.id === 'locations' && doc.data().list) _locations = doc.data().list;
-                if(doc.id === 'amenities' && doc.data().list) _amenities = doc.data().list;
+                if(doc.id === 'app_config') { _appConfig = doc.data() as AppConfig; saveToCache('app_config', _appConfig); }
+                if(doc.id === 'featured_config') { _featuredConfig = doc.data() as FeaturedConfig; saveToCache('featured_config', _featuredConfig); }
+                if(doc.id === 'categories' && doc.data().list) { _categories = doc.data().list; saveToCache('categories', _categories); }
+                if(doc.id === 'locations' && doc.data().list) { _locations = doc.data().list; saveToCache('locations', _locations); }
+                if(doc.id === 'amenities' && doc.data().list) { _amenities = doc.data().list; saveToCache('amenities', _amenities); }
             });
-            // Se categorias estiverem vazias no banco, salva as padrões
+            
+            // Initial Seed checks...
             if (_categories.length === 0) {
                 _categories = DEFAULT_CATEGORIES.map(c => ({ id: c.toLowerCase(), name: c, subcategories: [] }));
                 setDoc(doc(db, 'system', 'categories'), { list: _categories });
@@ -108,10 +157,7 @@ export const initFirebaseData = async () => {
                 _amenities = DEFAULT_AMENITIES;
                 setDoc(doc(db, 'system', 'amenities'), { list: _amenities });
             }
-            if (_locations.length === 0 && !db) {
-                // If using mocks, default locations are already set
-            } else if (_locations.length === 0) {
-                 // Initialize default locations in DB if empty
+            if (_locations.length === 0 && db) {
                  setDoc(doc(db, 'system', 'locations'), { list: _locations });
             }
             notifyListeners();
@@ -125,17 +171,17 @@ export const initFirebaseData = async () => {
 
 const loadMocksToMemory = () => {
     // Fallback apenas se o banco falhar totalmente
-    _businesses = MOCK_BUSINESSES;
-    _coupons = MOCK_COUPONS;
-    _users = MOCK_USERS;
-    _posts = MOCK_POSTS;
-    _categories = DEFAULT_CATEGORIES.map(c => ({ id: c.toLowerCase(), name: c, subcategories: [] }));
-    _amenities = DEFAULT_AMENITIES;
+    if (_businesses.length === 0) _businesses = MOCK_BUSINESSES;
+    if (_coupons.length === 0) _coupons = MOCK_COUPONS;
+    if (_users.length === 0) _users = MOCK_USERS;
+    if (_posts.length === 0) _posts = MOCK_POSTS;
+    if (_categories.length === 0) _categories = DEFAULT_CATEGORIES.map(c => ({ id: c.toLowerCase(), name: c, subcategories: [] }));
+    if (_amenities.length === 0) _amenities = DEFAULT_AMENITIES;
     notifyListeners();
 };
 
 // --- DATA ACCESS METHODS (READ) ---
-// Agora apenas retornam a variável em memória, que está sincronizada com o banco
+// Agora apenas retornam a variável em memória (que já inicia com o Cache Local)
 
 export const getAppConfig = (): AppConfig => _appConfig;
 export const getFeaturedConfig = (): FeaturedConfig => _featuredConfig || {
@@ -154,6 +200,8 @@ export const getBusinesses = () => _businesses.map(b => ({ ...b, isOpenNow: chec
 export const getBusinessById = (id: string) => getBusinesses().find(b => b.id === id);
 
 export const getCoupons = async (): Promise<Coupon[]> => {
+    // Retorna imediatamente o que tem na memória (Cache Local)
+    // Se o Firebase atualizar depois, o listener vai atualizar a memória e disparar 'dataUpdated'
     return _coupons.map(coupon => {
         const business = _businesses.find(b => b.id === coupon.companyId);
         if (business) {
@@ -232,7 +280,7 @@ export const addLocation = async (name: string, lat?: number, lng?: number) => {
             id: Date.now().toString(), 
             name, 
             active: true,
-            lat: lat || -22.9068, // Default fallback
+            lat: lat || -22.9068, 
             lng: lng || -43.1729 
         };
         const updated = [..._locations, newLoc];
@@ -276,7 +324,6 @@ export const saveBusiness = async (business: BusinessProfile) => {
     }
 };
 
-// NOVO: ANALYTICS TRACKING
 export const incrementBusinessView = async (businessId: string) => {
     if (db) {
         const ref = doc(db, 'businesses', businessId);
@@ -295,22 +342,18 @@ export const incrementSocialClick = async (businessId: string, type: 'whatsapp' 
     }
 };
 
-// NOVO: Busca reviews da sub-coleção para não pesar o documento principal
 export const fetchReviewsForBusiness = async (businessId: string): Promise<Review[]> => {
     if (!db) return [];
     try {
-        // Busca da sub-coleção
         const reviewsRef = collection(db, 'businesses', businessId, 'reviews');
         const q = query(reviewsRef, orderBy('date', 'desc'));
         const snapshot = await getDocs(q);
         const subCollectionReviews = snapshot.docs.map(d => d.data() as Review);
 
-        // Se tiver reviews, retorna elas. Se não, verifica se ainda estão no documento principal (legado)
         if (subCollectionReviews.length > 0) {
             return subCollectionReviews;
         }
 
-        // Fallback para o modo legado (se existirem na memória)
         const business = getBusinessById(businessId);
         return business?.reviews || [];
     } catch (e) {
@@ -319,7 +362,6 @@ export const fetchReviewsForBusiness = async (businessId: string): Promise<Revie
     }
 };
 
-// FIX: Salva na sub-coleção e limpa o documento pai se necessário
 export const addBusinessReview = async (businessId: string, user: User, rating: number, comment: string) => {
     if (!db) {
         alert("Erro: Banco de dados não conectado.");
@@ -330,7 +372,7 @@ export const addBusinessReview = async (businessId: string, user: User, rating: 
         id: `rev_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         userId: user.id,
         userName: user.name,
-        userAvatar: user.avatarUrl || '', // Avatar pode ser pesado, mantenha strings curtas se possível
+        userAvatar: user.avatarUrl || '', 
         rating: rating,
         comment: comment,
         date: new Date().toISOString().split('T')[0]
@@ -344,51 +386,35 @@ export const addBusinessReview = async (businessId: string, user: User, rating: 
         if (docSnap.exists()) {
             const bizData = docSnap.data() as BusinessProfile;
             
-            // --- LÓGICA DE MIGRAÇÃO ---
-            // Se o documento tiver um array 'reviews' grande, vamos movê-lo para a sub-coleção
-            // para liberar espaço e resolver o erro "Document size exceeds 1MB"
             const legacyReviews = bizData.reviews || [];
             
             if (legacyReviews.length > 0) {
-                console.log("Migrando reviews antigos para sub-coleção...");
                 const batch = writeBatch(db);
-                
-                // Adiciona reviews antigos na sub-coleção
                 legacyReviews.forEach(rev => {
                     const revRef = doc(db, 'businesses', businessId, 'reviews', rev.id || `migrated_${Date.now()}_${Math.random()}`);
                     batch.set(revRef, rev);
                 });
-
-                // Executa a migração
                 await batch.commit();
             }
 
-            // --- SALVAR O NOVO REVIEW ---
-            // Salva na sub-coleção 'reviews'
             await addDoc(collection(db, 'businesses', businessId, 'reviews'), newReview);
 
-            // --- RECALCULAR MÉDIA ---
-            // Como agora pode estar híbrido ou na sub-coleção, fazemos uma conta aproximada baseada no count atual
-            // (Média Antiga * Contagem Antiga + Nova Nota) / (Contagem Antiga + 1)
             const oldRating = bizData.rating || 5.0;
             const oldCount = bizData.reviewCount || 0;
             const newCount = oldCount + 1;
             const newRating = parseFloat(((oldRating * oldCount + rating) / newCount).toFixed(1));
 
-            // --- ATUALIZAR DOCUMENTO PAI ---
-            // Removemos o campo 'reviews' do pai para evitar o erro de tamanho
             await updateDoc(businessRef, {
                 rating: newRating,
                 reviewCount: newCount,
-                reviews: deleteField() // CRUCIAL: Deleta o array gigante do documento pai
+                reviews: deleteField() 
             });
             
-            // Retorna dados atualizados para a UI (localmente)
             const updatedBiz = {
                 ...bizData,
                 rating: newRating,
                 reviewCount: newCount,
-                reviews: [newReview, ...legacyReviews] // Para display imediato
+                reviews: [newReview, ...legacyReviews] 
             };
             return updatedBiz;
         }
@@ -420,13 +446,10 @@ export const deleteCoupon = async (id: string) => {
 
 export const updateUser = async (user: User) => {
     if (db) {
-        // Salvamento Otimista: Salva local primeiro para feedback instantâneo
         if (currentUser && currentUser.id === user.id) {
             currentUser = user;
             localStorage.setItem('arraial_user_session', JSON.stringify(user));
         }
-        
-        // Salva no DB
         await setDoc(doc(db, 'users', user.id), user, { merge: true });
     }
 };
@@ -454,20 +477,17 @@ export const toggleFavorite = (type: 'coupon' | 'business', id: string) => {
         list.push(id);
     }
 
-    updateUser(user); // Salva no banco
+    updateUser(user); 
     return user;
 };
 
-// LOGICA DE RESGATE COM LIMITES
 export const redeemCoupon = async (userId: string, coupon: Coupon) => {
     const user = getCurrentUser();
     if (user && db) {
-        // 1. Validar Estoque Global
         if (coupon.maxRedemptions && (coupon.currentRedemptions || 0) >= coupon.maxRedemptions) {
-            throw new Error("Esgotado"); // Na prática, a UI deve prevenir, mas aqui é segurança
+            throw new Error("Esgotado"); 
         }
 
-        // 2. Validar Limite por Usuário
         const userUsage = user.history?.filter(h => h.couponId === coupon.id).length || 0;
         if (coupon.limitPerUser && userUsage >= coupon.limitPerUser) {
             throw new Error("Limite atingido");
@@ -478,25 +498,21 @@ export const redeemCoupon = async (userId: string, coupon: Coupon) => {
             date: new Date().toISOString().split('T')[0],
             amount: saved,
             couponTitle: coupon.title,
-            couponId: coupon.id // Importante para contagem
+            couponId: coupon.id 
         };
         
-        // Atualiza histórico do usuário
         const updatedUser = {
             ...user,
             savedAmount: (user.savedAmount || 0) + saved,
             history: [...(user.history || []), newRecord]
         };
         
-        // Atualiza DB do usuário
         await setDoc(doc(db, 'users', user.id), updatedUser, { merge: true });
         
-        // Incrementa contador global do cupom atomicamente
         await updateDoc(doc(db, 'coupons', coupon.id), {
             currentRedemptions: increment(1)
         });
 
-        // Atualiza sessão local
         currentUser = updatedUser;
         localStorage.setItem('arraial_user_session', JSON.stringify(updatedUser));
     }
@@ -545,7 +561,6 @@ export const createCompanyDirectly = async (data: {
 
     const userId = `comp_${Date.now()}`;
     
-    // 1. Create User
     const newUser: User = {
         id: userId,
         name: data.name,
@@ -557,10 +572,9 @@ export const createCompanyDirectly = async (data: {
         permissions: { canCreateCoupons: true, canManageBusiness: true },
         favorites: { coupons: [], businesses: [] },
         // @ts-ignore
-        _demo_password: btoa(data.password) // Store password for fallback auth
+        _demo_password: btoa(data.password) 
     };
     
-    // 2. Create Business Profile
     const newBusiness: BusinessProfile = {
         id: userId,
         name: data.companyName,
@@ -596,7 +610,6 @@ export const approveRequest = async (requestId: string) => {
             await setDoc(doc(db, 'requests', req.id), req);
             
             const userId = `comp_${Date.now()}`;
-            // Cria usuário empresa
             const newUser: User = {
                 id: userId,
                 name: req.ownerName,
@@ -609,11 +622,10 @@ export const approveRequest = async (requestId: string) => {
                 permissions: { canCreateCoupons: true, canManageBusiness: true },
                 favorites: { coupons: [], businesses: [] },
                 // @ts-ignore
-                _demo_password: btoa('123456') // Senha padrão para acesso imediato
+                _demo_password: btoa('123456') 
             };
             await setDoc(doc(db, 'users', userId), newUser);
 
-            // Cria perfil empresa
             const newBusiness: BusinessProfile = {
                 id: userId, 
                 name: req.companyName,
@@ -662,17 +674,15 @@ export const adminResetPassword = (email: string, newPass: string) => {
 
 export const getCurrentUser = (): User | null => {
     if (currentUser) return currentUser;
-    const stored = localStorage.getItem('arraial_user_session'); // Apenas sessão
+    const stored = localStorage.getItem('arraial_user_session'); 
     currentUser = stored ? JSON.parse(stored) : null;
     return currentUser;
 };
 
-// REGISTER: Tenta Firebase Auth, se falhar por configuração, cria direto no Firestore com senha simulada
 export const registerUser = async (name: string, email: string, password: string): Promise<User | null> => {
     try {
         if (!auth || !db) throw new Error("no_auth_service");
         
-        // Tenta criar usuário no Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const firebaseUser = userCredential.user;
 
@@ -692,12 +702,9 @@ export const registerUser = async (name: string, email: string, password: string
         return newUser;
 
     } catch (error: any) {
-        // FALLBACK: Se o Auth não estiver configurado no Console, simulamos a criação
-        // Salvando a senha (insegura, mas funcional para demo) dentro do documento do usuário
         if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed') {
             console.warn("⚠️ Auth não configurado. Usando modo de compatibilidade Firestore.");
             
-            // Verifica se já existe localmente (pela lista syncada)
             const existing = _users.find(u => u.email === email);
             if (existing) {
                 const e = new Error("email-already-in-use");
@@ -716,7 +723,6 @@ export const registerUser = async (name: string, email: string, password: string
                 favorites: { coupons: [], businesses: [] }
             };
 
-            // Salva usuário + senha simulada no Firestore para permitir login depois
             const userWithPass = { ...newUser, _demo_password: btoa(password) };
             
             if (db) {
@@ -731,9 +737,7 @@ export const registerUser = async (name: string, email: string, password: string
     }
 };
 
-// LOGIN: Tenta Firebase Auth, se falhar, verifica no Firestore se existe usuário com senha simulada
 export const login = async (email: string, password?: string): Promise<User | null> => {
-    // Fallback Admin Hardcoded
     if (email === 'admin@conectario.com' && password === '123456') {
         const adminUser: User = {
             id: 'admin_master',
@@ -764,15 +768,12 @@ export const login = async (email: string, password?: string): Promise<User | nu
             }
         }
     } catch (error: any) {
-        // FALLBACK: Tenta login simulado via Firestore se Auth falhar
         if (error.code === 'auth/configuration-not-found' || error.code === 'auth/operation-not-allowed' || error.code === 'auth/internal-error' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
              
-             // Procura na lista sincronizada
              const user = _users.find(u => u.email === email);
              
              if (user) {
                  const rawUser = user as any;
-                 // Verifica senha simulada (se existir) ou se é a conta demo da empresa
                  const isDemoAccount = email === 'empresa@email.com' && password === '123456';
                  const isPassCorrect = rawUser._demo_password && rawUser._demo_password === btoa(password || '');
 
@@ -782,7 +783,6 @@ export const login = async (email: string, password?: string): Promise<User | nu
                      localStorage.setItem('arraial_user_session', JSON.stringify(user));
                      return user;
                  } else {
-                     // Se achou usuário mas senha errada
                      if (rawUser._demo_password) {
                         const e = new Error("wrong-password");
                         (e as any).code = "auth/wrong-password";
@@ -826,7 +826,6 @@ const checkIsOpen = (hours: { [key: string]: string } | undefined): boolean => {
     let endMinutes = endH * 60 + (endM || 0);
 
     if (endMinutes < startMinutes) {
-        const extendedEnd = endMinutes + 1440;
         if (currentMinutes >= startMinutes) return true;
         if (currentMinutes < endMinutes) return true;
         return false;
@@ -848,13 +847,10 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 }
 function deg2rad(deg: number) { return deg * (Math.PI / 180) }
 
-// IMPROVED IDENTIFY NEIGHBORHOOD
 export const identifyNeighborhood = (lat: number, lng: number): string => {
-    // Finds the closest defined location
-    let closest = "Rio de Janeiro"; // Padrão agora é Rio geral
+    let closest = "Rio de Janeiro"; 
     let minDistance = 9999;
 
-    // Use predefined locations which have lat/lng
     const locationsWithCoords = _locations.filter(l => l.lat && l.lng);
 
     for (const loc of locationsWithCoords) {
@@ -865,7 +861,5 @@ export const identifyNeighborhood = (lat: number, lng: number): string => {
         }
     }
 
-    // Only return the closest neighborhood if it's reasonably close (e.g., < 3km)
-    // Otherwise return default
     return minDistance < 5 ? closest : "Rio de Janeiro";
 };

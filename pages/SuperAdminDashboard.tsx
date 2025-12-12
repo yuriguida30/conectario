@@ -36,7 +36,7 @@ import {
     removeSubCategory
 } from '../services/dataService';
 import { 
-    Check, X, Clock, Shield, Users, Settings, LayoutGrid, Map, Plus, Trash2, BookOpen, Edit, Save, Coffee, LogOut, User as UserIcon, Mail, Layers, Search, Star, MessageSquare, Palette, Lock, Unlock, Key, Building2, MapPin, Store, Crown
+    Check, X, Clock, Shield, Users, Settings, LayoutGrid, Map, Plus, Trash2, BookOpen, Edit, Save, Coffee, LogOut, User as UserIcon, Mail, Layers, Search, Star, MessageSquare, Palette, Lock, Unlock, Key, Building2, MapPin, Store, Crown, Filter
 } from 'lucide-react';
 import { ImageUpload } from '../components/ImageUpload';
 import { LocationPicker } from '../components/LocationPicker';
@@ -64,6 +64,10 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   const [featuredConfig, setFeaturedConfig] = useState<FeaturedConfig>({ title: '', subtitle: '', imageUrl: '', buttonText: '' });
   const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([]);
   const [appConfig, setAppConfig] = useState<AppConfig>({ appName: '', appNameHighlight: '' });
+
+  // Filter States for Businesses Tab
+  const [businessFilter, setBusinessFilter] = useState<'ALL' | 'FEATURED'>('ALL');
+  const [businessSearch, setBusinessSearch] = useState('');
 
   // Inputs
   const [newCatName, setNewCatName] = useState('');
@@ -152,7 +156,8 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   const handleToggleFeaturedBusiness = (biz: BusinessProfile) => {
       const updated = { ...biz, isFeatured: !biz.isFeatured };
       saveBusiness(updated);
-      refreshAll();
+      // Otimistic UI Update
+      setAllBusinesses(prev => prev.map(b => b.id === biz.id ? updated : b));
   };
 
   const handlePasswordReset = (e: React.FormEvent) => {
@@ -304,6 +309,14 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
 
   const pendingRequests = requests.filter(r => r.status === 'PENDING');
 
+  // Filter Businesses for Tab
+  const filteredBusinesses = allBusinesses.filter(b => {
+      const matchesSearch = b.name.toLowerCase().includes(businessSearch.toLowerCase()) || 
+                            b.category.toLowerCase().includes(businessSearch.toLowerCase());
+      const matchesFilter = businessFilter === 'ALL' || (businessFilter === 'FEATURED' && b.isFeatured);
+      return matchesSearch && matchesFilter;
+  });
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50 pt-16">
       
@@ -445,46 +458,93 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
           {/* TAB: BUSINESSES MANAGEMENT */}
           {activeTab === 'BUSINESSES' && (
               <div className="max-w-5xl">
-                  <h1 className="text-2xl font-bold text-ocean-950 mb-6">Gestão de Empresas & Destaques</h1>
-                  
+                  <div className="flex justify-between items-center mb-6">
+                      <h1 className="text-2xl font-bold text-ocean-950">Gestão de Empresas & Destaques</h1>
+                  </div>
+
                   <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                      {/* Toolbar */}
+                      <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between bg-slate-50/50">
+                          <div className="relative flex-1 w-full md:max-w-sm">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                              <input 
+                                type="text" 
+                                placeholder="Buscar empresa..." 
+                                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-ocean-500 outline-none"
+                                value={businessSearch}
+                                onChange={e => setBusinessSearch(e.target.value)}
+                              />
+                          </div>
+                          <div className="flex gap-2 w-full md:w-auto">
+                              <button 
+                                onClick={() => setBusinessFilter('ALL')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors ${businessFilter === 'ALL' ? 'bg-ocean-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}
+                              >
+                                  Todas
+                              </button>
+                              <button 
+                                onClick={() => setBusinessFilter('FEATURED')}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 ${businessFilter === 'FEATURED' ? 'bg-gold-500 text-ocean-950' : 'bg-white border border-slate-200 text-slate-600'}`}
+                              >
+                                  <Crown size={16} fill="currentColor"/> Destaques
+                              </button>
+                          </div>
+                      </div>
+
                       <table className="w-full text-left border-collapse">
-                          <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
+                          <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold border-b border-slate-100">
                               <tr>
-                                  <th className="p-4">Empresa</th>
-                                  <th className="p-4">Categoria</th>
-                                  <th className="p-4">Reviews</th>
-                                  <th className="p-4 text-center">Destaque</th>
+                                  <th className="p-4 w-1/2">Empresa</th>
+                                  <th className="p-4 hidden md:table-cell">Categoria</th>
+                                  <th className="p-4 hidden md:table-cell">Reviews</th>
+                                  <th className="p-4 text-center">Ação de Destaque</th>
                               </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-sm">
-                              {allBusinesses.map(biz => (
-                                  <tr key={biz.id} className="hover:bg-slate-50 transition-colors">
+                              {filteredBusinesses.map(biz => (
+                                  <tr key={biz.id} className={`transition-colors ${biz.isFeatured ? 'bg-gold-50/50' : 'hover:bg-slate-50'}`}>
                                       <td className="p-4">
-                                          <div className="font-bold text-ocean-900">{biz.name}</div>
-                                          <div className="text-xs text-slate-500">{biz.address}</div>
+                                          <div className="flex items-center gap-3">
+                                              <div className="w-10 h-10 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 shrink-0">
+                                                  <img src={biz.coverImage} className="w-full h-full object-cover" />
+                                              </div>
+                                              <div>
+                                                  <div className="font-bold text-ocean-900 flex items-center gap-2">
+                                                      {biz.name}
+                                                      {biz.isFeatured && <Crown size={14} className="text-gold-500 fill-gold-500"/>}
+                                                  </div>
+                                                  <div className="text-xs text-slate-500 truncate max-w-[200px]">{biz.address}</div>
+                                              </div>
+                                          </div>
                                       </td>
-                                      <td className="p-4">
-                                          <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">{biz.category}</span>
+                                      <td className="p-4 hidden md:table-cell">
+                                          <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold border border-slate-200">{biz.category}</span>
                                       </td>
-                                      <td className="p-4 font-mono font-bold text-slate-700">
+                                      <td className="p-4 font-mono font-bold text-slate-700 hidden md:table-cell">
                                           {biz.reviewCount || 0}
                                       </td>
                                       <td className="p-4 text-center">
                                           <button 
                                             onClick={() => handleToggleFeaturedBusiness(biz)}
-                                            className={`p-2 rounded-full transition-all ${biz.isFeatured ? 'bg-gold-100 text-gold-600 shadow-sm ring-2 ring-gold-200' : 'bg-slate-100 text-slate-300 hover:text-gold-400'}`}
-                                            title={biz.isFeatured ? "Remover Destaque" : "Tornar Destaque"}
+                                            className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center justify-center gap-2 transition-all w-full md:w-auto mx-auto ${
+                                                biz.isFeatured 
+                                                ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100' 
+                                                : 'bg-gold-100 text-gold-700 border border-gold-300 hover:bg-gold-200'
+                                            }`}
                                           >
-                                              <Crown size={20} fill={biz.isFeatured ? "currentColor" : "none"} />
+                                              <Crown size={14} fill={biz.isFeatured ? "none" : "currentColor"} />
+                                              {biz.isFeatured ? "Remover Destaque" : "Tornar Destaque"}
                                           </button>
                                       </td>
                                   </tr>
                               ))}
                           </tbody>
                       </table>
-                      {allBusinesses.length === 0 && (
-                          <div className="p-8 text-center text-slate-400">Nenhuma empresa cadastrada.</div>
+                      {filteredBusinesses.length === 0 && (
+                          <div className="p-12 text-center text-slate-400 bg-slate-50">
+                              <Search size={32} className="mx-auto mb-2 opacity-50"/>
+                              <p>Nenhuma empresa encontrada com os filtros atuais.</p>
+                          </div>
                       )}
                   </div>
               </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Search as SearchIcon, X, SlidersHorizontal, Frown, Loader2, Navigation } from 'lucide-react';
 import { Coupon, AppCategory } from '../types';
@@ -22,17 +23,25 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
   const [nearby, setNearby] = useState(false);
   const [locating, setLocating] = useState(false);
 
+  const fetch = async () => {
+      const data = await getCoupons();
+      const cats = getCategories();
+      
+      // Se não vier nada e o app acabou de carregar (F5), talvez ainda esteja em sync.
+      // Porém com o Cache Local, isso deve retornar algo imediatamente se já acessou antes.
+      const activeData = data.filter(c => c.active);
+      setCoupons(activeData);
+      setCategories(cats);
+      
+      // Importante: Só para de carregar se vier algo OU se passar um tempo seguro
+      // Para evitar o flash de "0 ofertas"
+      setLoading(false);
+  };
+
   useEffect(() => {
-    const fetch = async () => {
-        const data = await getCoupons();
-        const cats = getCategories();
-        const activeData = data.filter(c => c.active);
-        setCoupons(activeData);
-        setFilteredCoupons(activeData);
-        setCategories(cats);
-        setLoading(false);
-    };
     fetch();
+    window.addEventListener('dataUpdated', fetch);
+    return () => window.removeEventListener('dataUpdated', fetch);
   }, []);
 
   useEffect(() => {
@@ -58,13 +67,11 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
         const storedGps = sessionStorage.getItem('user_gps');
         if (storedGps) {
             const { lat, lng } = JSON.parse(storedGps);
-            // Enrich with distance and sort
             const withDist = result.map(c => ({
                 ...c,
                 distance: calculateDistance(lat, lng, c.lat || 0, c.lng || 0)
             }));
             
-            // Filter < 10km and Sort
             result = withDist
                 .filter(c => (c.distance || 9999) < 15) // 15km radius
                 .sort((a, b) => (a.distance || 9999) - (b.distance || 9999));
@@ -135,7 +142,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
                 </button>
             </div>
 
-            {/* Filter Chips / Tabs */}
+            {/* Filter Chips */}
             <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
                 <button 
                     onClick={() => setSelectedCategory('Todos')}
@@ -161,7 +168,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
           
           <div className="flex justify-between items-end mb-6">
               <h2 className="text-xl font-bold text-ocean-950">
-                  {loading ? 'Carregando...' : `${filteredCoupons.length} ${filteredCoupons.length === 1 ? 'oferta encontrada' : 'ofertas encontradas'}`}
+                  {loading ? 'Buscando ofertas...' : `${filteredCoupons.length} ${filteredCoupons.length === 1 ? 'oferta encontrada' : 'ofertas encontradas'}`}
                   {nearby && <span className="text-sm font-normal text-slate-500 ml-2">(Próximas a você)</span>}
               </h2>
               {(selectedCategory !== 'Todos' || nearby || query) && (
@@ -172,8 +179,16 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
           </div>
           
           {loading ? (
-               <div className="flex justify-center py-20">
-                   <Loader2 className="animate-spin text-ocean-300" size={48} />
+               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                   {[1,2,3,4,5,6].map(i => (
+                       <div key={i} className="h-80 bg-white rounded-2xl border border-slate-100 animate-pulse">
+                           <div className="h-40 bg-slate-200 w-full rounded-t-2xl"></div>
+                           <div className="p-4 space-y-3">
+                               <div className="h-4 bg-slate-200 w-3/4 rounded"></div>
+                               <div className="h-3 bg-slate-200 w-1/2 rounded"></div>
+                           </div>
+                       </div>
+                   ))}
                </div>
           ) : filteredCoupons.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Filter, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass } from 'lucide-react';
+import { Search, MapPin, Filter, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon } from 'lucide-react';
 import { BusinessProfile, AppCategory, AppLocation, AppAmenity, User } from '../types';
 import { getBusinesses, getCategories, getLocations, getAmenities, toggleFavorite, calculateDistance } from '../services/dataService';
 
@@ -9,32 +9,46 @@ interface BusinessGuideProps {
   onNavigate: (page: string, params?: any) => void;
 }
 
-// --- SPLASH COMPONENT ---
+// --- SPLASH COMPONENT (Tela de Carregamento) ---
 const GuideSplash = () => (
-    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col items-center justify-center animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[100] bg-slate-50 flex flex-col items-center justify-center animate-in fade-in duration-200">
         <div className="relative mb-8">
-            {/* Pulsing Rings */}
-            <div className="absolute inset-0 bg-ocean-200 rounded-full animate-ping opacity-20"></div>
-            <div className="absolute inset-[-12px] bg-ocean-100 rounded-full animate-pulse opacity-30"></div>
+            {/* Radar / Pulsing Effect */}
+            <div className="absolute inset-0 bg-ocean-200 rounded-full animate-ping opacity-20 duration-1000"></div>
+            <div className="absolute inset-[-20px] bg-ocean-100 rounded-full animate-pulse opacity-30"></div>
             
             {/* Center Icon */}
-            <div className="relative w-24 h-24 bg-white rounded-3xl shadow-xl border-4 border-ocean-50 flex items-center justify-center transform rotate-3">
-                <Compass size={48} className="text-ocean-600 animate-[spin_3s_linear_infinite]" />
-                <div className="absolute -bottom-2 -right-2 bg-gold-500 p-2 rounded-full border-2 border-white shadow-lg">
-                    <MapPin size={16} className="text-white fill-current" />
+            <div className="relative w-28 h-28 bg-white rounded-3xl shadow-[0_10px_40px_-10px_rgba(14,165,233,0.3)] border-4 border-ocean-50 flex items-center justify-center transform -rotate-6">
+                <Compass size={56} className="text-ocean-600 animate-[spin_4s_linear_infinite]" strokeWidth={1.5} />
+                <div className="absolute -bottom-3 -right-3 bg-gold-500 p-2.5 rounded-full border-4 border-slate-50 shadow-lg">
+                    <MapIcon size={20} className="text-white fill-current" />
                 </div>
             </div>
         </div>
         
-        <h2 className="text-2xl font-bold text-ocean-950 mb-2 tracking-tight">Explorando o Rio...</h2>
-        <p className="text-slate-500 text-sm font-medium animate-pulse">Buscando os melhores lugares para você.</p>
+        <h2 className="text-2xl font-bold text-ocean-950 mb-2 tracking-tight animate-pulse">Explorando o Rio...</h2>
+        <p className="text-slate-500 text-sm font-medium">Conectando aos melhores lugares.</p>
+        
+        <div className="mt-8 w-48 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-full bg-ocean-500 rounded-full animate-[loading_1.5s_ease-in-out_infinite]"></div>
+        </div>
+        <style>{`
+            @keyframes loading {
+                0% { width: 0%; transform: translateX(-100%); }
+                50% { width: 100%; transform: translateX(0%); }
+                100% { width: 0%; transform: translateX(100%); }
+            }
+        `}</style>
     </div>
 );
 
 export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNavigate }) => {
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
   const [filtered, setFiltered] = useState<BusinessProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Estado inicial: Se não tiver empresas na memória, está carregando.
+  // Isso garante que o F5 mostre o Splash imediatamente.
+  const [isLoadingDB, setIsLoadingDB] = useState(() => getBusinesses().length === 0);
   
   // Config Data
   const [categories, setCategories] = useState<AppCategory[]>([]);
@@ -53,39 +67,36 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
 
   const [favorites, setFavorites] = useState<string[]>(currentUser?.favorites?.businesses || []);
 
-  const refreshData = (forceStopLoading = false) => {
+  // Função principal de atualização
+  const syncData = () => {
     const biz = getBusinesses();
     setBusinesses(biz);
     setCategories(getCategories());
     setLocations(getLocations());
     setAmenities(getAmenities());
-    
-    // Lógica de Loading Inteligente:
-    // Se vieram dados, para de carregar imediatamente.
-    // Se não vieram dados mas o flag 'forceStopLoading' é true (veio do evento ou timeout), para de carregar.
-    if (biz.length > 0 || forceStopLoading) {
-        setLoading(false);
+
+    // Regra de Ouro: Só sai do loading se houver dados reais.
+    if (biz.length > 0) {
+        setIsLoadingDB(false);
     }
   };
 
   useEffect(() => {
-    // 1. Tenta carregar do Cache Local imediatamente
-    refreshData();
+    // 1. Tenta carregar imediatamente (se vier do cache, já libera)
+    syncData();
 
-    // 2. Ouve atualizações do Firebase (que chegam depois se não houver cache)
-    const handleUpdate = () => {
-        refreshData(true); // Força parada do loading pois o banco respondeu
-    };
-    window.addEventListener('dataUpdated', handleUpdate);
+    // 2. Escuta o Firebase atualizar
+    window.addEventListener('dataUpdated', syncData);
 
-    // 3. Fallback: Se o banco demorar mais de 8s ou estiver vazio, libera a tela
-    const timeout = setTimeout(() => {
-        setLoading(false);
-    }, 8000);
+    // 3. Timeout de Segurança (10s): Se o banco estiver vazio ou offline, libera a tela vazia
+    // para não travar o usuário para sempre no splash.
+    const safetyTimeout = setTimeout(() => {
+        setIsLoadingDB(false);
+    }, 10000);
 
     return () => {
-        window.removeEventListener('dataUpdated', handleUpdate);
-        clearTimeout(timeout);
+        window.removeEventListener('dataUpdated', syncData);
+        clearTimeout(safetyTimeout);
     };
   }, []);
 
@@ -194,8 +205,10 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
       }
   };
 
-  // Se estiver carregando (e não tiver dados em cache), mostra o Splash
-  if (loading && businesses.length === 0) {
+  // --- RENDER LOGIC ---
+  
+  // Se estiver carregando o DB (inicialmente vazio), mostra o Splash
+  if (isLoadingDB) {
       return <GuideSplash />;
   }
 
@@ -410,7 +423,9 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                   </div>
               );
           })}
-          {!loading && filtered.length === 0 && (
+          
+          {/* Empty State - Only shows if not loadingDB and no results */}
+          {!isLoadingDB && filtered.length === 0 && (
               <div className="col-span-full text-center py-10 text-slate-400">
                   <p>Nenhum local encontrado com os filtros selecionados.</p>
                   {nearby && <p className="text-xs mt-2">Tente aumentar o raio ou desativar o filtro "Perto de Mim".</p>}

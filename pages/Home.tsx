@@ -40,6 +40,8 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [featured, setFeatured] = useState<FeaturedConfig | null>(null);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+  
+  // Start loading if no data in memory
   const [loading, setLoading] = useState(true);
 
   // GPS State
@@ -60,13 +62,20 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
       setCategories(catData);
       setCollections(colData);
       setFeatured(featData);
-      setLoading(false);
+      
+      // Stop loading only if we got some critical data
+      if (couponData.length > 0 || businessData.length > 0 || catData.length > 0) {
+          setLoading(false);
+      }
   };
 
   useEffect(() => {
     fetchData();
     window.addEventListener('dataUpdated', fetchData);
     
+    // Safety timeout for loading state
+    const timeout = setTimeout(() => setLoading(false), 8000);
+
     const storedGps = sessionStorage.getItem('user_gps');
     if (storedGps) {
         const { lat, lng } = JSON.parse(storedGps);
@@ -78,6 +87,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
 
     return () => {
         window.removeEventListener('dataUpdated', fetchData);
+        clearTimeout(timeout);
     }
   }, []);
 
@@ -130,6 +140,9 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
       );
   }
 
+  // FORCE LOADING STATE if data is empty (prevents "0 offers" flash)
+  const isActuallyLoading = loading || (coupons.length === 0 && businesses.length === 0 && categories.length === 0);
+
   return (
     <div className="pb-28 bg-slate-50 min-h-screen">
       
@@ -160,11 +173,11 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
           <div className="h-72 md:h-[400px] w-full relative bg-slate-900">
             <img 
                 src={featured?.imageUrl || "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=1600"} 
-                className={`w-full h-full object-cover transition-opacity duration-700 ${loading ? 'opacity-0' : 'opacity-100'}`}
+                className={`w-full h-full object-cover transition-opacity duration-700 ${isActuallyLoading ? 'opacity-0' : 'opacity-100'}`}
                 alt="Featured" 
                 onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
             />
-            {loading && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="animate-spin text-white/50" /></div>}
+            {isActuallyLoading && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="animate-spin text-white/50" /></div>}
             
             <div className="absolute inset-0 bg-gradient-to-t from-ocean-950/90 via-ocean-900/40 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 max-w-7xl mx-auto w-full">
@@ -207,7 +220,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
         {/* Categories */}
         <div>
             <h3 className="text-ocean-950 font-bold mb-4 px-1 text-lg">O que procura hoje?</h3>
-            {loading ? (
+            {isActuallyLoading ? (
                 <div className="flex gap-4 overflow-hidden">
                     {[1,2,3,4].map(i => <div key={i} className="w-16 h-24 bg-slate-200 rounded-2xl animate-pulse shrink-0"></div>)}
                 </div>
@@ -226,7 +239,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
         </div>
 
         {/* COLLECTIONS */}
-        {loading ? <SkeletonList /> : collections.length > 0 && (
+        {isActuallyLoading ? <SkeletonList /> : collections.length > 0 && (
             <div>
                 <div className="flex justify-between items-center mb-4 px-1">
                     <h3 className="text-ocean-950 text-xl font-bold tracking-tight">Coleções Especiais</h3>
@@ -271,7 +284,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                 </button>
             </div>
             
-            {loading ? <SkeletonList /> : coupons.length > 0 ? (
+            {isActuallyLoading ? <SkeletonList /> : coupons.length > 0 ? (
                 <div className="flex overflow-x-auto hide-scrollbar gap-5 -mx-4 px-4 pb-4 md:grid md:grid-cols-3 lg:grid-cols-4 md:mx-0 md:px-0 md:overflow-visible">
                     {coupons.slice(0, 4).map(coupon => (
                         <div key={coupon.id} className="w-72 flex-shrink-0 md:w-auto h-full">
@@ -287,7 +300,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
         </div>
 
         {/* GUIDE */}
-        {loading ? <SkeletonList /> : businesses.length > 0 && (
+        {isActuallyLoading ? <SkeletonList /> : businesses.length > 0 && (
             <div>
                 <div className="flex justify-between items-center mb-4 px-1">
                     <h3 className="text-ocean-950 text-xl font-bold tracking-tight">Lugares Incríveis</h3>

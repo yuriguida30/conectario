@@ -185,6 +185,7 @@ export interface BusinessProfile {
   rating: number;
   reviewCount?: number;
   isOpenNow?: boolean; // Mock helper
+  isFeatured?: boolean; // NOVO: Define se a empresa é destaque no ranking
   lat?: number; // GPS Latitude
   lng?: number; // GPS Longitude
   

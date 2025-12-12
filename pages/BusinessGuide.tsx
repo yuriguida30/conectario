@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Filter, Star, Clock, Check, Heart, Navigation, Loader2 } from 'lucide-react';
+import { Search, MapPin, Filter, Star, Clock, Check, Heart, Navigation, Loader2, Crown } from 'lucide-react';
 import { BusinessProfile, AppCategory, AppLocation, AppAmenity, User } from '../types';
 import { getBusinesses, getCategories, getLocations, getAmenities, toggleFavorite, calculateDistance } from '../services/dataService';
 
@@ -45,7 +45,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   }, []);
 
   useEffect(() => {
-    let result = businesses;
+    let result = [...businesses];
 
     // Filter by Query
     if (query) {
@@ -82,19 +82,31 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
         });
     }
 
-    // Filter Nearby (using mocked or stored GPS)
+    // RANKING LOGIC (TIERED SORTING)
+    // 1. Featured First
+    // 2. Then by Review Count (descending) in both tiers
     if (nearby) {
+        // If nearby is active, distance takes priority over ranking, or ranking applies within distance?
+        // Usually proximity implies sorting by distance.
         const storedGps = sessionStorage.getItem('user_gps');
         if (storedGps) {
             const { lat, lng } = JSON.parse(storedGps);
-            // Sort by distance and filter within 10km radius
             result = result
                 .map(b => ({...b, distance: b.lat && b.lng ? calculateDistance(lat, lng, b.lat, b.lng) : 9999}))
                 .filter(b => (b.distance || 0) < 10) 
                 .sort((a, b) => (a.distance || 0) - (b.distance || 0));
-        } else {
-            // Wait for GPS activation via button if not stored
         }
+    } else {
+        // Standard Ranking
+        result.sort((a, b) => {
+            // Tier 1: Featured Check
+            if (a.isFeatured && !b.isFeatured) return -1; // a comes first
+            if (!a.isFeatured && b.isFeatured) return 1;  // b comes first
+            
+            // Tier 2: Review Count (Highest first)
+            // Using actual review count data
+            return (b.reviewCount || 0) - (a.reviewCount || 0);
+        });
     }
 
     setFiltered(result);
@@ -292,8 +304,15 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                   <div 
                     key={business.id} 
                     onClick={() => onNavigate('business-detail', { businessId: business.id })}
-                    className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100 hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full group relative"
+                    className={`bg-white rounded-xl overflow-hidden shadow-sm border hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full group relative ${business.isFeatured ? 'border-gold-300 ring-1 ring-gold-200' : 'border-slate-100'}`}
                   >
+                      {/* FEATURED BADGE */}
+                      {business.isFeatured && (
+                          <div className="absolute top-2 z-20 left-1/2 -translate-x-1/2 bg-gradient-to-r from-gold-400 to-gold-600 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1">
+                              <Crown size={12} fill="currentColor" /> DESTAQUE
+                          </div>
+                      )}
+
                       <div className="h-40 w-full relative shrink-0">
                           <img src={business.coverImage} className="w-full h-full object-cover" alt={business.name} />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
@@ -323,6 +342,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                                   <div className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded">
                                       <Star size={12} className="text-gold-500 fill-gold-500" />
                                       <span className="text-xs font-bold text-slate-700">{business.rating}</span>
+                                      <span className="text-[10px] text-slate-400">({business.reviewCount || 0})</span>
                                   </div>
                               </div>
                               <div className="flex flex-wrap items-center gap-2 mb-2">

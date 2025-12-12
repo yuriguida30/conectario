@@ -70,7 +70,8 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['wifi', 'ac', 'kids', 'access', 'wine'],
     openingHours: { 'Seg-Dom': '11:00 - 23:00' },
     rating: 4.9,
-    reviewCount: 3,
+    reviewCount: 156, // High count
+    isFeatured: true, // DESTAQUE
     reviews: [
         { id: 'r1', userId: 'u99', userName: 'Maria Silva', rating: 5, comment: 'Simplesmente divino! O bolinho de bacalhau é o melhor que já comi.', date: '2024-02-10' },
         { id: 'r2', userId: 'u98', userName: 'João Souza', rating: 5, comment: 'Atendimento impecável e comida saborosa.', date: '2024-02-15' },
@@ -96,7 +97,8 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['pool', 'wifi', 'ac', 'breakfast', 'parking'],
     openingHours: { 'Recepção': '24h' },
     rating: 4.8,
-    reviewCount: 2,
+    reviewCount: 42,
+    isFeatured: false,
     reviews: [
         { id: 'r4', userId: 'u96', userName: 'Pedro H.', rating: 5, comment: 'A vista do quarto é inacreditável. Voltarei com certeza!', date: '2024-01-20' },
         { id: 'r5', userId: 'u95', userName: 'Carla Dias', rating: 4.5, comment: 'Café da manhã muito bom.', date: '2024-02-05' }
@@ -121,7 +123,8 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['bar', 'wifi', 'guide', 'photo'],
     openingHours: { 'Seg-Dom': '08:00 - 18:00' },
     rating: 5.0,
-    reviewCount: 1,
+    reviewCount: 89, // High count but less than b1
+    isFeatured: true, // DESTAQUE (concorrendo com b1)
     reviews: [
         { id: 'r6', userId: 'u94', userName: 'Lucas M.', rating: 5, comment: 'Melhor passeio de barco da vida! A equipe é animada demais.', date: '2024-03-10' }
     ],
@@ -142,7 +145,8 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['beach', 'bar', 'live_music'],
     openingHours: { 'Ter-Dom': '10:00 - 22:00' },
     rating: 4.6,
-    reviewCount: 0,
+    reviewCount: 12,
+    isFeatured: false,
     reviews: [],
     isOpenNow: true,
     lat: -22.9712,
@@ -161,7 +165,8 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['equipment', 'photo', 'shower'],
     openingHours: { 'Seg-Sáb': '08:00 - 18:00' },
     rating: 4.9,
-    reviewCount: 0,
+    reviewCount: 30,
+    isFeatured: false,
     reviews: [],
     isOpenNow: true,
     lat: -22.9680,
@@ -180,7 +185,8 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     amenities: ['ac', 'wifi'],
     openingHours: { 'Seg-Dom': '13:00 - 00:00' },
     rating: 4.7,
-    reviewCount: 0,
+    reviewCount: 55, // Should rank higher than b4
+    isFeatured: false,
     reviews: [],
     isOpenNow: true,
     lat: -22.9660,

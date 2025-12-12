@@ -24,6 +24,7 @@ import {
     saveCollection,
     deleteCollection,
     getBusinesses,
+    saveBusiness,
     getFeaturedConfig,
     saveFeaturedConfig,
     getSupportMessages,
@@ -35,7 +36,7 @@ import {
     removeSubCategory
 } from '../services/dataService';
 import { 
-    Check, X, Clock, Shield, Users, Settings, LayoutGrid, Map, Plus, Trash2, BookOpen, Edit, Save, Coffee, LogOut, User as UserIcon, Mail, Layers, Search, Star, MessageSquare, Palette, Lock, Unlock, Key, Building2, MapPin
+    Check, X, Clock, Shield, Users, Settings, LayoutGrid, Map, Plus, Trash2, BookOpen, Edit, Save, Coffee, LogOut, User as UserIcon, Mail, Layers, Search, Star, MessageSquare, Palette, Lock, Unlock, Key, Building2, MapPin, Store, Crown
 } from 'lucide-react';
 import { ImageUpload } from '../components/ImageUpload';
 import { LocationPicker } from '../components/LocationPicker';
@@ -46,7 +47,7 @@ interface SuperAdminDashboardProps {
   onLogout: () => void;
 }
 
-type Tab = 'REQUESTS' | 'USERS' | 'SETTINGS' | 'BLOG' | 'COLLECTIONS' | 'FEATURED' | 'SUPPORT' | 'BRANDING';
+type Tab = 'REQUESTS' | 'BUSINESSES' | 'USERS' | 'SETTINGS' | 'BLOG' | 'COLLECTIONS' | 'FEATURED' | 'SUPPORT' | 'BRANDING';
 
 export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavigate, currentUser, onLogout }) => {
   const [activeTab, setActiveTab] = useState<Tab>('REQUESTS');
@@ -145,6 +146,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       }
       const updatedUser = { ...user, isBlocked: !user.isBlocked };
       updateUser(updatedUser);
+      refreshAll();
+  };
+
+  const handleToggleFeaturedBusiness = (biz: BusinessProfile) => {
+      const updated = { ...biz, isFeatured: !biz.isFeatured };
+      saveBusiness(updated);
       refreshAll();
   };
 
@@ -320,6 +327,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                  )}
              </button>
              <button 
+                onClick={() => setActiveTab('BUSINESSES')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'BUSINESSES' ? 'bg-ocean-50 text-ocean-700' : 'text-slate-500 hover:bg-slate-50'}`}
+             >
+                 <Store size={18} /> Empresas
+             </button>
+             <button 
                 onClick={() => setActiveTab('BRANDING')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === 'BRANDING' ? 'bg-ocean-50 text-ocean-700' : 'text-slate-500 hover:bg-slate-50'}`}
              >
@@ -426,6 +439,54 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                           ))}
                       </div>
                   )}
+              </div>
+          )}
+
+          {/* TAB: BUSINESSES MANAGEMENT */}
+          {activeTab === 'BUSINESSES' && (
+              <div className="max-w-5xl">
+                  <h1 className="text-2xl font-bold text-ocean-950 mb-6">Gestão de Empresas & Destaques</h1>
+                  
+                  <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                      <table className="w-full text-left border-collapse">
+                          <thead className="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
+                              <tr>
+                                  <th className="p-4">Empresa</th>
+                                  <th className="p-4">Categoria</th>
+                                  <th className="p-4">Reviews</th>
+                                  <th className="p-4 text-center">Destaque</th>
+                              </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-sm">
+                              {allBusinesses.map(biz => (
+                                  <tr key={biz.id} className="hover:bg-slate-50 transition-colors">
+                                      <td className="p-4">
+                                          <div className="font-bold text-ocean-900">{biz.name}</div>
+                                          <div className="text-xs text-slate-500">{biz.address}</div>
+                                      </td>
+                                      <td className="p-4">
+                                          <span className="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs font-bold">{biz.category}</span>
+                                      </td>
+                                      <td className="p-4 font-mono font-bold text-slate-700">
+                                          {biz.reviewCount || 0}
+                                      </td>
+                                      <td className="p-4 text-center">
+                                          <button 
+                                            onClick={() => handleToggleFeaturedBusiness(biz)}
+                                            className={`p-2 rounded-full transition-all ${biz.isFeatured ? 'bg-gold-100 text-gold-600 shadow-sm ring-2 ring-gold-200' : 'bg-slate-100 text-slate-300 hover:text-gold-400'}`}
+                                            title={biz.isFeatured ? "Remover Destaque" : "Tornar Destaque"}
+                                          >
+                                              <Crown size={20} fill={biz.isFeatured ? "currentColor" : "none"} />
+                                          </button>
+                                      </td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                      {allBusinesses.length === 0 && (
+                          <div className="p-8 text-center text-slate-400">Nenhuma empresa cadastrada.</div>
+                      )}
+                  </div>
               </div>
           )}
 

@@ -276,6 +276,25 @@ export const saveBusiness = async (business: BusinessProfile) => {
     }
 };
 
+// NOVO: ANALYTICS TRACKING
+export const incrementBusinessView = async (businessId: string) => {
+    if (db) {
+        const ref = doc(db, 'businesses', businessId);
+        await updateDoc(ref, {
+            views: increment(1)
+        });
+    }
+};
+
+export const incrementSocialClick = async (businessId: string, type: 'whatsapp' | 'instagram' | 'website' | 'phone' | 'map') => {
+    if (db) {
+        const ref = doc(db, 'businesses', businessId);
+        await updateDoc(ref, {
+            [`socialClicks.${type}`]: increment(1)
+        });
+    }
+};
+
 // NOVO: Busca reviews da sub-coleção para não pesar o documento principal
 export const fetchReviewsForBusiness = async (businessId: string): Promise<Review[]> => {
     if (!db) return [];

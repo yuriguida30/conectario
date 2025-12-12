@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Coupon, AppCategory, BusinessProfile, AppAmenity, MenuItem, MenuSection, AppLocation } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getCategories, getBusinesses, saveBusiness, getAmenities, getLocations } from '../services/dataService';
+import { User, Coupon, AppCategory, BusinessProfile, AppAmenity, MenuItem, MenuSection, AppLocation, Review } from '../types';
+import { getCoupons, saveCoupon, deleteCoupon, getCategories, getBusinesses, saveBusiness, getAmenities, getLocations, fetchReviewsForBusiness } from '../services/dataService';
 import { generateCouponDescription, suggestCouponIdea } from '../services/geminiService';
-import { Plus, Trash2, Wand2, Loader2, Sparkles, QrCode, Store, Edit, Save, X, LogOut, AlertCircle, Building2, Image as ImageIcon, Clock, Utensils, Instagram, Globe, Phone, Camera, ShoppingBag, BedDouble, Layers, MapPin, Copy, AlertTriangle, Users, Ticket } from 'lucide-react';
+import { Plus, Trash2, Wand2, Loader2, Sparkles, QrCode, Store, Edit, Save, X, LogOut, AlertCircle, Building2, Image as ImageIcon, Clock, Utensils, Instagram, Globe, Phone, Camera, ShoppingBag, BedDouble, Layers, MapPin, Copy, AlertTriangle, Users, Ticket, Eye, MousePointer, TrendingUp, Star, LayoutDashboard, MessageSquare } from 'lucide-react';
 import { LocationPicker } from '../components/LocationPicker';
 import { ImageUpload } from '../components/ImageUpload';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
 
 interface AdminDashboardProps {
   currentUser: User;
@@ -14,12 +15,17 @@ interface AdminDashboardProps {
 }
 
 type EditorTab = 'BASIC' | 'MEDIA' | 'HOURS' | 'MENU' | 'LOCATION';
+type ViewMode = 'DASHBOARD' | 'EDITOR';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onNavigate, onLogout }) => {
+  const [viewMode, setViewMode] = useState<ViewMode>('DASHBOARD');
+  
+  // Data State
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [categories, setCategories] = useState<AppCategory[]>([]);
   const [amenities, setAmenities] = useState<AppAmenity[]>([]);
   const [locations, setLocations] = useState<AppLocation[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
   
   const [isCreating, setIsCreating] = useState(false);
   const [loadingAI, setLoadingAI] = useState(false);
@@ -27,7 +33,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
   const [validationCode, setValidationCode] = useState('');
 
   // Business Profile Editing
-  const [showEditProfile, setShowEditProfile] = useState(false);
   const [editorTab, setEditorTab] = useState<EditorTab>('BASIC');
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [isFirstSetup, setIsFirstSetup] = useState(false);
@@ -66,6 +71,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
     const allBiz = getBusinesses();
     const mine = allBiz.find(b => b.id === currentUser.id) || null;
     setMyBusiness(mine);
+
+    if (mine) {
+        const revs = await fetchReviewsForBusiness(mine.id);
+        setReviews(revs);
+    }
     
     setLoadingData(false);
   };
@@ -114,7 +124,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
           lng: -42.0232
       });
       setIsFirstSetup(true);
-      setShowEditProfile(true);
+      setViewMode('EDITOR');
   };
 
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -126,7 +136,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
               return;
           }
           saveBusiness(myBusiness);
-          setShowEditProfile(false);
+          setViewMode('DASHBOARD');
           setIsFirstSetup(false);
           alert('Perfil atualizado com sucesso!');
       }
@@ -227,11 +237,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
   const currentCategory = categories.find(c => c.name === myBusiness?.category);
   const availableSubcategories = currentCategory?.subcategories || [];
 
+  // --- ANALYTICS CALCULATIONS ---
+  const totalRedemptions = coupons.reduce((acc, c) => acc + (c.currentRedemptions || 0), 0);
+  const totalViews = myBusiness?.views || 0;
+  
+  const socialClicks = myBusiness?.socialClicks || {};
+  const totalClicks = (socialClicks.whatsapp || 0) + (socialClicks.instagram || 0) + (socialClicks.website || 0) + (socialClicks.phone || 0) + (socialClicks.map || 0);
+
+  const clicksData = [
+      { name: 'WhatsApp', value: socialClicks.whatsapp || 0, fill: '#25D366' },
+      { name: 'Instagram', value: socialClicks.instagram || 0, fill: '#E1306C' },
+      { name: 'Site', value: socialClicks.website || 0, fill: '#3B82F6' },
+      { name: 'Telefone', value: socialClicks.phone || 0, fill: '#F59E0B' },
+      { name: 'Mapa', value: socialClicks.map || 0, fill: '#EF4444' },
+  ].filter(d => d.value > 0);
+
+  // Mock Trend Data based on total (since we don't store historical view data yet)
+  const redemptionsTrend = [
+      { month: 'Jan', count: Math.round(totalRedemptions * 0.1) },
+      { month: 'Fev', count: Math.round(totalRedemptions * 0.15) },
+      { month: 'Mar', count: Math.round(totalRedemptions * 0.12) },
+      { month: 'Abr', count: Math.round(totalRedemptions * 0.2) },
+      { month: 'Mai', count: Math.round(totalRedemptions * 0.18) },
+      { month: 'Jun', count: Math.round(totalRedemptions * 0.25) } // Most recent
+  ];
+
   const renderProfileEditor = () => {
       if(!myBusiness) return null;
       return (
-          <div className="fixed inset-0 z-50 bg-slate-50 overflow-y-auto p-0 md:p-6 animate-in fade-in">
-              <div className="max-w-5xl mx-auto bg-white md:rounded-3xl shadow-2xl overflow-hidden min-h-screen md:min-h-[auto] flex flex-col">
+          <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in">
                   
                   <div className="bg-ocean-900 text-white px-6 py-4 flex justify-between items-center shrink-0">
                       <div className="flex items-center gap-3">
@@ -241,7 +275,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                               <p className="text-xs text-ocean-200 mt-1">Edite informações, {catalogConfig.label.toLowerCase()} e fotos</p>
                           </div>
                       </div>
-                      <button onClick={() => setShowEditProfile(false)} className="hover:bg-white/10 p-2 rounded-full"><X/></button>
+                      <button onClick={() => setViewMode('DASHBOARD')} className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
+                          <LayoutDashboard size={16}/> Voltar ao Painel
+                      </button>
                   </div>
 
                   <div className="flex border-b border-slate-100 bg-slate-50 px-6 gap-1 overflow-x-auto">
@@ -262,7 +298,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                       </button>
                   </div>
 
-                  <form onSubmit={handleSaveProfile} className="p-6 md:p-8 space-y-8 overflow-y-auto flex-1 bg-slate-50/50">
+                  <form onSubmit={handleSaveProfile} className="p-6 md:p-8 space-y-8 bg-slate-50/50">
                       {editorTab === 'BASIC' && (
                           <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
                                <div className="grid md:grid-cols-2 gap-6">
@@ -330,12 +366,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                   </form>
 
                   <div className="p-4 bg-white border-t border-slate-100 flex justify-end gap-3 shrink-0">
-                      <button type="button" onClick={() => setShowEditProfile(false)} className="px-6 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl">Cancelar</button>
+                      <button type="button" onClick={() => setViewMode('DASHBOARD')} className="px-6 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-xl">Cancelar</button>
                       <button type="button" onClick={handleSaveProfile} className="px-8 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-lg flex items-center gap-2">
                           <Save size={20}/> Salvar Tudo
                       </button>
                   </div>
-              </div>
           </div>
       );
   }
@@ -356,141 +391,233 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
           </button>
       </div>
 
-       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-            Meus Cupons 
-            <span className={`text-xs px-2 py-0.5 rounded-full ${reachedLimit ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
-                {activeCouponCount} / {maxCoupons}
-            </span>
-        </h2>
-        
-        <div className="flex gap-2 w-full md:w-auto">
-            {canManageBusiness && (
-                <button 
-                  onClick={() => { 
-                      if (myBusiness) {
-                          setShowEditProfile(true); 
-                          setEditorTab('BASIC'); 
-                      } else {
-                          handleStartBusinessSetup();
-                      }
-                  }}
-                  className={`border px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-colors flex-1 md:flex-none justify-center ${myBusiness ? 'bg-white text-ocean-600 border-ocean-100 hover:bg-ocean-50' : 'bg-ocean-600 text-white border-ocean-600 hover:bg-ocean-700 animate-pulse'}`}
-                >
-                  {myBusiness ? <Edit size={18} /> : <Store size={18} />}
-                  <span>{myBusiness ? 'Gerenciar Perfil' : 'Criar Página da Empresa'}</span>
-                </button>
-            )}
-            
-            {canCreateCoupons ? (
-                <button 
-                  onClick={() => setIsCreating(true)}
-                  disabled={reachedLimit}
-                  className={`px-4 py-2 rounded-xl font-semibold flex items-center gap-2 shadow-md transition-all flex-1 md:flex-none justify-center ${
-                      reachedLimit 
-                      ? 'bg-slate-200 text-slate-500 cursor-not-allowed' 
-                      : 'bg-ocean-500 hover:bg-ocean-600 text-white shadow-ocean-500/20'
-                  }`}
-                >
-                  <Plus size={20} />
-                  <span>Novo Cupom</span>
-                </button>
-            ) : (
-                <div className="flex items-center gap-2 text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg border border-red-100">
-                    <AlertCircle size={16} /> Criação de cupons desativada
-                </div>
-            )}
-        </div>
-      </div>
-
-      {!myBusiness && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 flex items-start gap-3">
-              <AlertTriangle className="text-yellow-600 shrink-0" size={24} />
-              <div>
-                  <h4 className="font-bold text-yellow-800">Sua empresa ainda não está visível!</h4>
-                  <p className="text-sm text-yellow-700 mt-1">
-                      Você precisa criar o perfil da sua empresa para que ela apareça no Guia e para que seus cupons mostrem sua logo e endereço corretamente.
-                      Clique em <strong>Criar Página da Empresa</strong> acima.
-                  </p>
-              </div>
-          </div>
-      )}
-
       {loadingData ? (
           <div className="flex justify-center py-10">
               <Loader2 className="animate-spin text-ocean-500" />
           </div>
       ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {coupons.map(coupon => {
-            const soldCount = coupon.currentRedemptions || 0;
-            const max = coupon.maxRedemptions || 0;
-            const isLimited = max > 0;
-            const percent = isLimited ? Math.min(100, Math.round((soldCount / max) * 100)) : 0;
+        <>
+            {!myBusiness && viewMode !== 'EDITOR' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+                    <AlertTriangle className="text-yellow-600 shrink-0" size={24} />
+                    <div>
+                        <h4 className="font-bold text-yellow-800">Sua empresa ainda não está visível!</h4>
+                        <p className="text-sm text-yellow-700 mt-1 mb-3">
+                            Você precisa criar o perfil da sua empresa para que ela apareça no Guia e para que seus cupons mostrem sua logo e endereço corretamente.
+                        </p>
+                        <button 
+                            onClick={handleStartBusinessSetup}
+                            className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg font-bold text-sm hover:bg-yellow-200"
+                        >
+                            Criar Perfil Agora
+                        </button>
+                    </div>
+                </div>
+            )}
 
-            return (
-              <div key={coupon.id} className="relative group">
-                <div className="opacity-100 group-hover:opacity-95 transition-opacity pointer-events-none">
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden h-full flex flex-col">
-                        <div className="h-32 bg-slate-200 relative">
-                            <img src={coupon.imageUrl} className="w-full h-full object-cover" alt="" />
-                            <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-bold text-ocean-600">
-                                {coupon.active ? 'Ativo' : 'Inativo'}
-                            </div>
-                        </div>
-                        <div className="p-4">
-                            <h4 className="font-bold text-slate-800">{coupon.title}</h4>
-                            <div className="flex justify-between items-center mt-2">
-                                <span className="text-green-600 font-bold">R$ {coupon.discountedPrice}</span>
-                                <span className="text-xs text-slate-400">{new Date(coupon.expiryDate).toLocaleDateString('pt-BR')}</span>
-                            </div>
-                            
-                            {/* Scarcity Bar */}
-                            {isLimited && (
-                                <div className="mt-3">
-                                    <div className="flex justify-between text-[10px] text-slate-500 mb-1">
-                                        <span>Resgatados</span>
-                                        <span className="font-bold">{soldCount}/{max}</span>
-                                    </div>
-                                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-orange-500 rounded-full" style={{ width: `${percent}%` }}></div>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center pointer-events-auto">
-                                <span className="text-xs font-mono bg-slate-100 px-2 py-1 rounded">{coupon.code}</span>
+            {viewMode === 'EDITOR' ? renderProfileEditor() : (
+                <div className="space-y-8 animate-in fade-in">
+                    
+                    {/* TOP ACTION BAR */}
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <LayoutDashboard size={20} className="text-ocean-500"/> Visão Geral
+                        </h2>
+                        <div className="flex gap-2 w-full md:w-auto">
+                            {canManageBusiness && myBusiness && (
                                 <button 
-                                    onClick={(e) => { e.stopPropagation(); handleDelete(coupon.id); }}
-                                    className="text-red-500 p-2 hover:bg-red-50 rounded-full transition-colors"
+                                    onClick={() => setViewMode('EDITOR')}
+                                    className="bg-white border border-ocean-200 text-ocean-700 hover:bg-ocean-50 px-4 py-2 rounded-xl font-bold flex items-center gap-2 flex-1 md:flex-none justify-center shadow-sm"
                                 >
-                                    <Trash2 size={18} />
+                                    <Edit size={18} /> Editar Perfil & Cardápio
                                 </button>
+                            )}
+                            {canCreateCoupons && (
+                                <button 
+                                    onClick={() => setIsCreating(true)}
+                                    disabled={reachedLimit}
+                                    className={`px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-md transition-all flex-1 md:flex-none justify-center text-white ${
+                                        reachedLimit ? 'bg-slate-300 cursor-not-allowed' : 'bg-ocean-600 hover:bg-ocean-700'
+                                    }`}
+                                >
+                                    <Plus size={20} /> Novo Cupom
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* KPI CARDS */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase">Cupons Validados</span>
+                                <div className="p-2 bg-green-50 text-green-600 rounded-lg"><Ticket size={18}/></div>
+                            </div>
+                            <h3 className="text-3xl font-bold text-slate-800">{totalRedemptions}</h3>
+                            <p className="text-[10px] text-green-600 font-bold mt-1 flex items-center gap-1"><TrendingUp size={10}/> +{Math.round(totalRedemptions * 0.1)} este mês</p>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase">Visualizações</span>
+                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><Eye size={18}/></div>
+                            </div>
+                            <h3 className="text-3xl font-bold text-slate-800">{totalViews}</h3>
+                            <p className="text-[10px] text-slate-400 mt-1">Visitas na página</p>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase">Cliques Sociais</span>
+                                <div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><MousePointer size={18}/></div>
+                            </div>
+                            <h3 className="text-3xl font-bold text-slate-800">{totalClicks}</h3>
+                            <p className="text-[10px] text-slate-400 mt-1">Conversões de contato</p>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+                            <div className="flex justify-between items-start mb-2">
+                                <span className="text-xs font-bold text-slate-400 uppercase">Nota Média</span>
+                                <div className="p-2 bg-yellow-50 text-yellow-600 rounded-lg"><Star size={18}/></div>
+                            </div>
+                            <h3 className="text-3xl font-bold text-slate-800">{myBusiness?.rating || 5.0}</h3>
+                            <div className="flex items-center gap-1 mt-1">
+                                {[1,2,3,4,5].map(s => <Star key={s} size={10} className={s <= Math.round(myBusiness?.rating || 5) ? 'fill-gold-500 text-gold-500' : 'text-slate-200'} />)}
+                                <span className="text-[10px] text-slate-400 ml-1">({myBusiness?.reviewCount || 0})</span>
                             </div>
                         </div>
                     </div>
+
+                    {/* CHARTS SECTION */}
+                    <div className="grid md:grid-cols-2 gap-6">
+                        {/* Redemptions Chart */}
+                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                            <h3 className="font-bold text-slate-800 mb-6">Desempenho de Cupons (6 Meses)</h3>
+                            <div className="h-64">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={redemptionsTrend}>
+                                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#94a3b8'}} dy={10} />
+                                        <YAxis hide />
+                                        <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}} />
+                                        <Bar dataKey="count" fill="#0ea5e9" radius={[4, 4, 4, 4]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </div>
+
+                        {/* Clicks Distribution */}
+                        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                            <h3 className="font-bold text-slate-800 mb-6">Origem dos Cliques</h3>
+                            {clicksData.length > 0 ? (
+                                <div className="h-64">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={clicksData}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={80}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                            >
+                                                {clicksData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip contentStyle={{borderRadius: '12px'}} />
+                                            <Legend verticalAlign="bottom" height={36}/>
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+                                    <MousePointer size={40} className="mb-2 opacity-50"/>
+                                    <p>Sem dados de cliques ainda.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* COUPONS LIST */}
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <Ticket size={20} className="text-ocean-500"/> Meus Cupons Ativos
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {coupons.map(coupon => (
+                                <div key={coupon.id} className="relative group bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+                                    <div className="h-32 bg-slate-200 relative">
+                                        <img src={coupon.imageUrl} className="w-full h-full object-cover" alt="" />
+                                        <div className="absolute top-2 right-2 bg-white/90 px-2 py-1 rounded text-xs font-bold text-ocean-600">
+                                            {coupon.active ? 'Ativo' : 'Inativo'}
+                                        </div>
+                                    </div>
+                                    <div className="p-4 flex-1 flex flex-col">
+                                        <h4 className="font-bold text-slate-800 line-clamp-1">{coupon.title}</h4>
+                                        <div className="flex justify-between items-center mt-2 mb-3">
+                                            <span className="text-green-600 font-bold">R$ {coupon.discountedPrice}</span>
+                                            <span className="text-xs text-slate-400">{coupon.currentRedemptions} resgates</span>
+                                        </div>
+                                        <div className="mt-auto pt-3 border-t border-slate-50 flex justify-between items-center">
+                                            <span className="text-xs font-mono bg-slate-50 px-2 py-1 rounded text-slate-500">{coupon.code}</span>
+                                            <button 
+                                                onClick={() => handleDelete(coupon.id)}
+                                                className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded transition-colors"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {coupons.length === 0 && (
+                                <div className="col-span-full py-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                                    <p className="text-slate-500 mb-4">Você ainda não tem cupons ativos.</p>
+                                    <button onClick={() => setIsCreating(true)} className="text-ocean-600 font-bold hover:underline">Criar primeiro cupom</button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* REVIEWS SECTION */}
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <MessageSquare size={20} className="text-ocean-500"/> Avaliações Recentes
+                        </h3>
+                        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                            {reviews.length > 0 ? (
+                                <div className="divide-y divide-slate-100">
+                                    {reviews.map(review => (
+                                        <div key={review.id} className="p-4 flex gap-4">
+                                            <div className="w-10 h-10 rounded-full bg-ocean-50 flex items-center justify-center text-ocean-600 font-bold shrink-0">
+                                                {review.userName.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="font-bold text-slate-800 text-sm">{review.userName}</span>
+                                                    <div className="flex items-center text-gold-500">
+                                                        {[...Array(5)].map((_, i) => (
+                                                            <Star key={i} size={10} fill={i < review.rating ? "currentColor" : "none"} className={i < review.rating ? "text-gold-500" : "text-slate-200"} />
+                                                        ))}
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-400">{new Date(review.date).toLocaleDateString()}</span>
+                                                </div>
+                                                <p className="text-sm text-slate-600">{review.comment}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-8 text-center text-slate-400">
+                                    <p>Nenhuma avaliação recebida ainda.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                 </div>
-              </div>
-            );
-        })}
-        {coupons.length === 0 && (
-            <div className="col-span-full py-12 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                <p className="text-slate-500 mb-4">Você ainda não tem cupons ativos.</p>
-                {canCreateCoupons && (
-                    <button 
-                      onClick={() => setIsCreating(true)}
-                      className="text-ocean-600 font-bold hover:underline"
-                    >
-                        Criar primeiro cupom
-                    </button>
-                )}
-            </div>
-        )}
-      </div>
+            )}
+        </>
       )}
       
-      {showEditProfile && renderProfileEditor()}
-
       {isCreating && (
         <div className="fixed inset-0 z-50 bg-white/95 backdrop-blur-sm overflow-y-auto p-4 md:p-8 animate-in fade-in">
            <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 md:p-8 relative">

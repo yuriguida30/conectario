@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, Wifi, Car, Tv, Utensils, Accessibility, CheckCircle2, ChevronDown, ChevronUp, Ticket, Heart, ShoppingBag, BedDouble, Layers, Star, MessageCircle, Map, Share2, Camera, MessageSquare, Send } from 'lucide-react';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, Review } from '../types';
-import { getBusinessById, getCoupons, getCurrentUser, redeemCoupon, toggleFavorite, addBusinessReview, fetchReviewsForBusiness } from '../services/dataService';
+import { getBusinessById, getCoupons, getCurrentUser, redeemCoupon, toggleFavorite, addBusinessReview, fetchReviewsForBusiness, incrementBusinessView, incrementSocialClick } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 
@@ -44,6 +44,11 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
     const loadData = async () => {
         const busData = getBusinessById(businessId);
         setBusiness(busData);
+        
+        // Track View
+        if (busData) {
+            incrementBusinessView(businessId);
+        }
         
         // Fetch coupons for this business
         const allCoupons = await getCoupons();
@@ -151,6 +156,7 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
   };
 
   const openMap = () => {
+      incrementSocialClick(businessId, 'map');
       if(business?.lat && business?.lng) {
           window.open(`https://www.google.com/maps/search/?api=1&query=${business.lat},${business.lng}`, '_blank');
       }
@@ -260,7 +266,11 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
             <div className="bg-white rounded-2xl shadow-lg border border-slate-100 p-4 mb-6">
                 <div className="flex justify-between md:justify-start md:gap-8 items-center overflow-x-auto hide-scrollbar pb-2">
                     {business.phone && (
-                        <a href={`tel:${business.phone}`} className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-ocean-600 transition-colors">
+                        <a 
+                            href={`tel:${business.phone}`} 
+                            onClick={() => incrementSocialClick(businessId, 'phone')}
+                            className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-ocean-600 transition-colors"
+                        >
                             <div className="w-10 h-10 bg-ocean-50 rounded-full flex items-center justify-center text-ocean-600"><Phone size={20}/></div>
                             <span className="text-xs font-bold">Ligar</span>
                         </a>
@@ -269,6 +279,7 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
                         <a 
                             href={getWhatsAppLink(business.whatsapp, business.name)} 
                             target="_blank" 
+                            onClick={() => incrementSocialClick(businessId, 'whatsapp')}
                             className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-green-600 transition-colors"
                         >
                             <div className="w-10 h-10 bg-green-50 rounded-full flex items-center justify-center text-green-600"><MessageCircle size={20}/></div>
@@ -276,13 +287,23 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
                         </a>
                     )}
                     {business.instagram && (
-                        <a href={`https://instagram.com/${business.instagram.replace('@','')}`} target="_blank" className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-pink-600 transition-colors">
+                        <a 
+                            href={`https://instagram.com/${business.instagram.replace('@','')}`} 
+                            target="_blank" 
+                            onClick={() => incrementSocialClick(businessId, 'instagram')}
+                            className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-pink-600 transition-colors"
+                        >
                             <div className="w-10 h-10 bg-pink-50 rounded-full flex items-center justify-center text-pink-600"><Instagram size={20}/></div>
                             <span className="text-xs font-bold">Insta</span>
                         </a>
                     )}
                     {business.website && (
-                        <a href={business.website.startsWith('http') ? business.website : `https://${business.website}`} target="_blank" className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-blue-600 transition-colors">
+                        <a 
+                            href={business.website.startsWith('http') ? business.website : `https://${business.website}`} 
+                            target="_blank" 
+                            onClick={() => incrementSocialClick(businessId, 'website')}
+                            className="flex flex-col items-center gap-1 min-w-[70px] text-slate-600 hover:text-blue-600 transition-colors"
+                        >
                             <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600"><Globe size={20}/></div>
                             <span className="text-xs font-bold">Site</span>
                         </a>

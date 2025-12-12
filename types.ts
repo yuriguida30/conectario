@@ -180,6 +180,16 @@ export interface BusinessProfile {
   isOpenNow?: boolean; // Mock helper
   lat?: number; // GPS Latitude
   lng?: number; // GPS Longitude
+  
+  // Analytics
+  views?: number;
+  socialClicks?: {
+      whatsapp?: number;
+      instagram?: number;
+      website?: number;
+      phone?: number;
+      map?: number;
+  };
 }
 
 export interface Collection {

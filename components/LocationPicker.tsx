@@ -95,10 +95,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
       }
   }, [initialLat, initialLng]);
 
-  const handleSearch = async (e: React.FormEvent) => {
-      e.preventDefault(); // CRUCIAL: Previne o reload da página
-      e.stopPropagation(); // Previne eventos de clique no mapa por baixo
-
+  const performSearch = async () => {
       if (!searchQuery) return;
 
       setIsSearching(true);
@@ -137,6 +134,13 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
       }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+          e.preventDefault(); // Impede submissão de formulários pai
+          performSearch();
+      }
+  };
+
   return (
     <div className="relative w-full h-full min-h-[300px] rounded-xl overflow-hidden shadow-inner border-2 border-slate-200 group isolate">
         
@@ -145,25 +149,24 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
 
         {/* Search Overlay - Estilo Mobile Safe */}
         <div className="absolute top-2 left-2 right-2 z-[1000]">
-            <form 
-                onSubmit={handleSearch} 
-                className="relative shadow-lg rounded-lg flex items-center bg-white overflow-hidden border border-slate-200 w-full"
-            >
+            <div className="relative shadow-lg rounded-lg flex items-center bg-white overflow-hidden border border-slate-200 w-full">
                 <input 
                     type="text" 
                     placeholder="Buscar local..." 
                     className="flex-1 min-w-0 pl-3 pr-2 py-3 text-sm focus:outline-none text-slate-800 placeholder:text-slate-400 bg-transparent"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={handleKeyDown}
                 />
                 <button 
-                    type="submit" 
+                    type="button" 
+                    onClick={performSearch}
                     className="px-4 py-3 bg-ocean-600 text-white hover:bg-ocean-700 transition-colors flex items-center justify-center border-l border-ocean-700 active:bg-ocean-800 shrink-0"
                     disabled={isSearching}
                 >
                     {isSearching ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
                 </button>
-            </form>
+            </div>
         </div>
 
         {/* Pin Center Marker (Visual Aid) */}

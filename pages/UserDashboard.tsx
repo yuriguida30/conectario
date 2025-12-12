@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, SavingsRecord, Coupon, BusinessProfile } from '../types';
-import { Tag, LogOut, ChevronRight, HelpCircle, Trophy, TrendingUp, Wallet, Star, Heart, Store, Ticket, Send, Camera } from 'lucide-react';
+import { Tag, LogOut, ChevronRight, HelpCircle, Trophy, TrendingUp, Wallet, Star, Heart, Store, Ticket, Send, Camera, Loader2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { getCoupons, getBusinesses, getBusinessById, sendSupportMessage, updateUser } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
@@ -24,6 +24,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
   // Profile Edit State
   const [editAvatar, setEditAvatar] = useState(false);
   const [newAvatarUrl, setNewAvatarUrl] = useState('');
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false);
 
   useEffect(() => {
       if (activeTab === 'favorites') {
@@ -64,16 +65,27 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
       setShowSupport(false);
   };
 
-  const handleUpdateAvatar = () => {
+  const handleUpdateAvatar = async () => {
       if(!newAvatarUrl) return;
+      setIsSavingAvatar(true);
       
-      const updatedUser = { ...currentUser, avatarUrl: newAvatarUrl };
-      updateUser(updatedUser);
-      
-      setEditAvatar(false);
-      setNewAvatarUrl('');
-      // Force reload to reflect changes immediately in navbar etc
-      window.location.reload(); 
+      try {
+          const updatedUser = { ...currentUser, avatarUrl: newAvatarUrl };
+          
+          // 1. Salva no Banco de Dados e LocalStorage
+          await updateUser(updatedUser);
+          
+          // 2. Dispara evento para o App.tsx atualizar o estado global (NavBar e Dashboard) sem reload
+          window.dispatchEvent(new Event('dataUpdated'));
+          
+          setEditAvatar(false);
+          setNewAvatarUrl('');
+      } catch (error) {
+          console.error("Erro ao atualizar avatar:", error);
+          alert("Erro ao salvar a foto. Tente novamente.");
+      } finally {
+          setIsSavingAvatar(false);
+      }
   };
 
   return (
@@ -127,14 +139,16 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                       </p>
                       <button 
                         onClick={handleUpdateAvatar} 
-                        disabled={!newAvatarUrl}
-                        className="bg-ocean-600 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-ocean-700 transition-colors w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!newAvatarUrl || isSavingAvatar}
+                        className="bg-ocean-600 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-md hover:bg-ocean-700 transition-colors w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
-                          Salvar Nova Foto
+                          {isSavingAvatar ? <Loader2 className="animate-spin" size={18}/> : null}
+                          {isSavingAvatar ? 'Salvando...' : 'Salvar Nova Foto'}
                       </button>
                       <button 
                         onClick={() => { setEditAvatar(false); setNewAvatarUrl(''); }} 
                         className="text-slate-500 px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-50 w-full"
+                        disabled={isSavingAvatar}
                       >
                           Cancelar
                       </button>

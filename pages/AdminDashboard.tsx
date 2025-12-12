@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Coupon, AppCategory, BusinessProfile, AppAmenity, MenuItem, MenuSection, AppLocation } from '../types';
 import { getCoupons, saveCoupon, deleteCoupon, getCategories, getBusinesses, saveBusiness, getAmenities, getLocations } from '../services/dataService';
 import { generateCouponDescription, suggestCouponIdea } from '../services/geminiService';
-import { Plus, Trash2, Wand2, Loader2, Sparkles, QrCode, Store, Edit, Save, X, LogOut, AlertCircle, Building2, Image as ImageIcon, Clock, Utensils, Instagram, Globe, Phone, Camera, ShoppingBag, BedDouble, Layers, MapPin, Copy } from 'lucide-react';
+import { Plus, Trash2, Wand2, Loader2, Sparkles, QrCode, Store, Edit, Save, X, LogOut, AlertCircle, Building2, Image as ImageIcon, Clock, Utensils, Instagram, Globe, Phone, Camera, ShoppingBag, BedDouble, Layers, MapPin, Copy, AlertTriangle } from 'lucide-react';
 import { LocationPicker } from '../components/LocationPicker';
 import { ImageUpload } from '../components/ImageUpload';
 
@@ -240,8 +240,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
       if (!myBusiness) return;
       const current = myBusiness.amenities || [];
       const newAmenities = current.includes(id) 
-        ? current.filter(x => x !== id) 
-        : [...current, id];
+        ? current.filter(x => x !== id) : [...current, id];
       setMyBusiness({ ...myBusiness, amenities: newAmenities });
   };
 
@@ -696,13 +695,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
         </h2>
         
         <div className="flex gap-2 w-full md:w-auto">
-            {myBusiness && canManageBusiness && (
+            {canManageBusiness && (
                 <button 
-                  onClick={() => { setShowEditProfile(true); setEditorTab('BASIC'); }}
-                  className="bg-white text-ocean-600 border border-ocean-100 px-4 py-2 rounded-xl font-semibold flex items-center gap-2 hover:bg-ocean-50 transition-colors flex-1 md:flex-none justify-center"
+                  onClick={() => { 
+                      if (myBusiness) {
+                          setShowEditProfile(true); 
+                          setEditorTab('BASIC'); 
+                      } else {
+                          handleStartBusinessSetup();
+                      }
+                  }}
+                  className={`border px-4 py-2 rounded-xl font-semibold flex items-center gap-2 transition-colors flex-1 md:flex-none justify-center ${myBusiness ? 'bg-white text-ocean-600 border-ocean-100 hover:bg-ocean-50' : 'bg-ocean-600 text-white border-ocean-600 hover:bg-ocean-700 animate-pulse'}`}
                 >
-                  <Edit size={18} />
-                  <span>Gerenciar Perfil</span>
+                  {myBusiness ? <Edit size={18} /> : <Store size={18} />}
+                  <span>{myBusiness ? 'Gerenciar Perfil' : 'Criar Página da Empresa'}</span>
                 </button>
             )}
             
@@ -726,6 +732,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
             )}
         </div>
       </div>
+
+      {!myBusiness && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 flex items-start gap-3">
+              <AlertTriangle className="text-yellow-600 shrink-0" size={24} />
+              <div>
+                  <h4 className="font-bold text-yellow-800">Sua empresa ainda não está visível!</h4>
+                  <p className="text-sm text-yellow-700 mt-1">
+                      Você precisa criar o perfil da sua empresa para que ela apareça no Guia e para que seus cupons mostrem sua logo e endereço corretamente.
+                      Clique em <strong>Criar Página da Empresa</strong> acima.
+                  </p>
+              </div>
+          </div>
+      )}
 
       {loadingData ? (
           <div className="flex justify-center py-10">

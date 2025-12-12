@@ -376,6 +376,60 @@ export const createCompanyRequest = async (request: Omit<CompanyRequest, 'id' | 
     }
 };
 
+export const createCompanyDirectly = async (data: {
+    name: string, 
+    email: string, 
+    password: string, 
+    companyName: string, 
+    category: string
+}) => {
+    if (!db) return;
+
+    const userId = `comp_${Date.now()}`;
+    
+    // 1. Create User
+    const newUser: User = {
+        id: userId,
+        name: data.name,
+        email: data.email,
+        role: UserRole.COMPANY,
+        companyName: data.companyName,
+        category: data.category,
+        maxCoupons: 10,
+        permissions: { canCreateCoupons: true, canManageBusiness: true },
+        favorites: { coupons: [], businesses: [] },
+        // @ts-ignore
+        _demo_password: btoa(data.password) // Store password for fallback auth
+    };
+    
+    // 2. Create Business Profile
+    const newBusiness: BusinessProfile = {
+        id: userId,
+        name: data.companyName,
+        category: data.category,
+        description: `Bem-vindo à ${data.companyName}`,
+        coverImage: 'https://images.unsplash.com/photo-1556740738-b6a63e27c4df?auto=format&fit=crop&q=80&w=800',
+        gallery: [],
+        address: 'Endereço a definir',
+        phone: '',
+        whatsapp: '',
+        amenities: [],
+        openingHours: { 'Segunda': '09:00 - 18:00' },
+        rating: 5.0,
+        lat: -22.9691,
+        lng: -42.0232
+    };
+
+    try {
+        await setDoc(doc(db, 'users', userId), newUser);
+        await setDoc(doc(db, 'businesses', userId), newBusiness);
+        return newUser;
+    } catch (e) {
+        console.error("Error creating company directly", e);
+        throw e;
+    }
+};
+
 export const approveRequest = async (requestId: string) => {
     if (db) {
         const req = _requests.find(r => r.id === requestId);
@@ -395,7 +449,9 @@ export const approveRequest = async (requestId: string) => {
                 phone: req.phone,
                 maxCoupons: 5,
                 permissions: { canCreateCoupons: true, canManageBusiness: true },
-                favorites: { coupons: [], businesses: [] }
+                favorites: { coupons: [], businesses: [] },
+                // @ts-ignore
+                _demo_password: btoa('123456') // Senha padrão para acesso imediato
             };
             await setDoc(doc(db, 'users', userId), newUser);
 

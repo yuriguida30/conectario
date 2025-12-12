@@ -29,10 +29,11 @@ import {
     getSupportMessages,
     getAppConfig,
     saveAppConfig,
-    adminResetPassword
+    adminResetPassword,
+    createCompanyDirectly
 } from '../services/dataService';
 import { 
-    Check, X, Clock, Shield, Users, Settings, LayoutGrid, Map, Plus, Trash2, BookOpen, Edit, Save, Coffee, LogOut, User as UserIcon, Mail, Layers, Search, Star, MessageSquare, Palette, Lock, Unlock, Key
+    Check, X, Clock, Shield, Users, Settings, LayoutGrid, Map, Plus, Trash2, BookOpen, Edit, Save, Coffee, LogOut, User as UserIcon, Mail, Layers, Search, Star, MessageSquare, Palette, Lock, Unlock, Key, Building2
 } from 'lucide-react';
 import { ImageUpload } from '../components/ImageUpload';
 
@@ -78,6 +79,16 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   // Password Reset State
   const [passwordResetModal, setPasswordResetModal] = useState<{user: User, pass: string} | null>(null);
 
+  // New Company Modal State
+  const [showNewCompany, setShowNewCompany] = useState(false);
+  const [newCompanyForm, setNewCompanyForm] = useState({
+      name: '',
+      email: '',
+      password: '',
+      companyName: '',
+      category: 'Gastronomia'
+  });
+
   useEffect(() => {
     refreshAll();
   }, []);
@@ -99,7 +110,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   // --- ACTIONS ---
 
   const handleApprove = (id: string) => {
-    if (window.confirm('Aprovar empresa e criar login?')) {
+    if (window.confirm('Aprovar empresa e criar login? A senha padrão será "123456".')) {
         approveRequest(id);
         refreshAll();
     }
@@ -138,8 +149,30 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       if (!passwordResetModal || !passwordResetModal.pass) return;
       
       adminResetPassword(passwordResetModal.user.email, passwordResetModal.pass);
+      // Simula a troca local para o fallback funcionar
+      const localAuth = JSON.parse(localStorage.getItem('arraial_local_auth_db') || '{}');
+      localAuth[passwordResetModal.user.email] = btoa(passwordResetModal.pass);
+      localStorage.setItem('arraial_local_auth_db', JSON.stringify(localAuth));
+      
       alert(`Senha de ${passwordResetModal.user.name} alterada com sucesso!`);
       setPasswordResetModal(null);
+  };
+
+  const handleCreateCompany = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if(!newCompanyForm.email || !newCompanyForm.password || !newCompanyForm.companyName) {
+          alert("Preencha todos os campos obrigatórios.");
+          return;
+      }
+      try {
+          await createCompanyDirectly(newCompanyForm);
+          alert("Empresa criada com sucesso!");
+          setShowNewCompany(false);
+          setNewCompanyForm({ name: '', email: '', password: '', companyName: '', category: 'Gastronomia' });
+          refreshAll();
+      } catch (e) {
+          alert("Erro ao criar empresa. Tente novamente.");
+      }
   };
 
   const handleUpdateUserPermissions = () => {
@@ -487,9 +520,59 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
           {/* TAB: USERS */}
           {activeTab === 'USERS' && (
               <div className="max-w-5xl">
-                   {/* ... Keep existing USERS content ... */}
-                   <h1 className="text-2xl font-bold text-ocean-950 mb-6">Controle de Usuários e Permissões</h1>
+                   <div className="flex justify-between items-center mb-6">
+                       <h1 className="text-2xl font-bold text-ocean-950">Controle de Usuários e Permissões</h1>
+                       <button 
+                           onClick={() => setShowNewCompany(true)}
+                           className="bg-ocean-600 hover:bg-ocean-700 text-white font-bold py-2 px-4 rounded-xl flex items-center gap-2 shadow-lg"
+                       >
+                           <Plus size={20} /> Nova Empresa
+                       </button>
+                   </div>
                    
+                   {/* Create Company Modal */}
+                   {showNewCompany && (
+                       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in">
+                           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
+                               <div className="bg-ocean-900 px-6 py-4 flex justify-between items-center">
+                                   <h3 className="text-white font-bold flex items-center gap-2"><Building2 size={20}/> Criar Nova Empresa</h3>
+                                   <button onClick={() => setShowNewCompany(false)} className="text-white/80 hover:text-white"><X size={20}/></button>
+                               </div>
+                               <form onSubmit={handleCreateCompany} className="p-6 space-y-4">
+                                   <div className="grid grid-cols-2 gap-4">
+                                       <div>
+                                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome do Dono</label>
+                                           <input required className="w-full border p-2.5 rounded-lg" value={newCompanyForm.name} onChange={e => setNewCompanyForm({...newCompanyForm, name: e.target.value})} />
+                                       </div>
+                                       <div>
+                                           <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome da Empresa</label>
+                                           <input required className="w-full border p-2.5 rounded-lg" value={newCompanyForm.companyName} onChange={e => setNewCompanyForm({...newCompanyForm, companyName: e.target.value})} />
+                                       </div>
+                                   </div>
+                                   <div>
+                                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                                       <select className="w-full border p-2.5 rounded-lg" value={newCompanyForm.category} onChange={e => setNewCompanyForm({...newCompanyForm, category: e.target.value})}>
+                                           {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                       </select>
+                                   </div>
+                                   <div>
+                                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email de Login</label>
+                                       <input required type="email" className="w-full border p-2.5 rounded-lg" value={newCompanyForm.email} onChange={e => setNewCompanyForm({...newCompanyForm, email: e.target.value})} />
+                                   </div>
+                                   <div>
+                                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Senha de Acesso</label>
+                                       <input required type="text" className="w-full border p-2.5 rounded-lg font-mono bg-slate-50" value={newCompanyForm.password} onChange={e => setNewCompanyForm({...newCompanyForm, password: e.target.value})} />
+                                   </div>
+                                   <div className="pt-2">
+                                       <button type="submit" className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 shadow-lg">
+                                           Criar Empresa & Perfil
+                                       </button>
+                                   </div>
+                               </form>
+                           </div>
+                       </div>
+                   )}
+
                    {passwordResetModal && (
                        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                            <div className="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm">

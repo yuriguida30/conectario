@@ -95,8 +95,10 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
       }
   }, [initialLat, initialLng]);
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = async (e: React.SyntheticEvent) => {
       e.preventDefault();
+      e.stopPropagation(); // Previne que o evento suba para pais e cause comportamento inesperado
+
       if (!searchQuery) return;
 
       setIsSearching(true);
@@ -129,24 +131,25 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
   };
 
   return (
-    <div className="relative w-full h-full min-h-[300px] rounded-xl overflow-hidden shadow-inner border-2 border-slate-200 group">
+    <div className="relative w-full h-full min-h-[300px] rounded-xl overflow-hidden shadow-inner border-2 border-slate-200 group isolate">
         
         {/* Map Container */}
         <div ref={mapContainerRef} className="absolute inset-0 z-0 bg-slate-100" />
 
         {/* Search Overlay */}
-        <div className="absolute top-3 left-3 right-3 z-[400]">
-            <form onSubmit={handleSearch} className="relative shadow-lg rounded-lg flex bg-white overflow-hidden border border-slate-200">
+        <div className="absolute top-2 left-2 right-2 z-[1000]">
+            <form onSubmit={handleSearch} className="relative shadow-lg rounded-lg flex bg-white overflow-hidden border border-slate-200 w-full">
                 <input 
                     type="text" 
-                    placeholder="Buscar bairro (ex: Sepetiba)..." 
-                    className="flex-1 pl-4 pr-2 py-3 text-sm focus:outline-none text-slate-800 placeholder:text-slate-400"
+                    placeholder="Buscar bairro..." 
+                    className="flex-1 min-w-0 pl-3 pr-2 py-3 text-sm focus:outline-none text-slate-800 placeholder:text-slate-400"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                 />
                 <button 
-                    type="submit"
-                    className="px-4 bg-ocean-600 text-white hover:bg-ocean-700 transition-colors flex items-center justify-center border-l border-ocean-700 active:bg-ocean-800"
+                    type="button" 
+                    onClick={handleSearch}
+                    className="px-4 bg-ocean-600 text-white hover:bg-ocean-700 transition-colors flex items-center justify-center border-l border-ocean-700 active:bg-ocean-800 shrink-0"
                     disabled={isSearching}
                 >
                     {isSearching ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
@@ -161,7 +164,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
 
         <div className="absolute bottom-3 right-3 z-[400] bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg shadow-sm border border-slate-200 pointer-events-none">
             <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
-                <Navigation size={10} /> Arraste o mapa para ajustar
+                <Navigation size={10} /> Arraste o mapa
             </p>
         </div>
     </div>

@@ -325,11 +325,26 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                                       <span className="text-xs font-bold text-slate-700">{business.rating}</span>
                                   </div>
                               </div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <p className="text-slate-500 text-xs">{business.category}</p>
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <p className="text-slate-500 text-xs font-medium">{business.category}</p>
+                                
+                                {business.locationId && (
+                                    <>
+                                        <span className="text-slate-300 text-[10px]">•</span>
+                                        <div className="flex items-center gap-0.5 text-slate-500 text-xs">
+                                            <MapPin size={10} />
+                                            <span>{business.locationId}</span>
+                                        </div>
+                                    </>
+                                )}
+
                                 {business.subcategory && <span className="bg-ocean-50 text-ocean-700 text-[10px] font-bold px-1.5 py-0.5 rounded">{business.subcategory}</span>}
                               </div>
-                              <p className="text-slate-600 text-sm line-clamp-2 min-h-[2.5rem]">{business.description}</p>
+                              <p className="text-slate-600 text-sm min-h-[2.5rem]">
+                                  {business.description.length > 200 
+                                    ? `${business.description.substring(0, 200)}...` 
+                                    : business.description}
+                              </p>
                           </div>
                           <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-2 text-xs text-slate-400 overflow-hidden whitespace-nowrap">
                               {business.amenities.slice(0, 3).map((am: any) => (

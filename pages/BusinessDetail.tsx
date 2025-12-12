@@ -336,25 +336,6 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
                 </div>
             )}
 
-            {/* ACTIVE COUPONS */}
-            {coupons.length > 0 && (
-                <div className="bg-gradient-to-br from-ocean-50 to-white rounded-2xl p-6 border border-ocean-100 shadow-sm animate-in slide-in-from-bottom-4 mb-8">
-                    <div className="flex items-center gap-2 mb-4">
-                        <div className="bg-ocean-100 p-2 rounded-lg text-ocean-600">
-                            <Ticket size={20} />
-                        </div>
-                        <h3 className="font-bold text-ocean-900 text-lg">Cupons Disponíveis</h3>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {coupons.map(coupon => (
-                            <div key={coupon.id} className="h-full">
-                                <CouponCard coupon={coupon} onGetCoupon={setSelectedCoupon} />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
             {/* Tabs */}
             <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto hide-scrollbar mb-6">
                 <button 
@@ -381,55 +362,76 @@ export const BusinessDetail: React.FC<BusinessDetailProps> = ({ businessId, onNa
 
             {/* TAB CONTENT: SOBRE */}
             {activeTab === 'info' && (
-                <div className="grid md:grid-cols-3 gap-6 animate-in fade-in">
-                    <div className="md:col-span-2 space-y-6">
-                        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                            <h3 className="font-bold text-ocean-950 mb-3 text-lg">Sobre o Local</h3>
-                            <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">{business.description}</p>
-                        </div>
-
-                        {business.amenities.length > 0 && (
+                <div className="space-y-8 animate-in fade-in">
+                    <div className="grid md:grid-cols-3 gap-6">
+                        <div className="md:col-span-2 space-y-6">
                             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-                                <h3 className="font-bold text-ocean-950 mb-4 text-lg">Comodidades</h3>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    {business.amenities.map(am => (
-                                        <div key={am} className="flex items-center gap-2 text-slate-600 text-sm bg-slate-50 p-3 rounded-xl">
-                                            <span className="text-ocean-500"><AmenityIcon name={am} /></span>
-                                            <span>{AMENITIES_LABELS[am] || am}</span>
-                                        </div>
-                                    ))}
+                                <h3 className="font-bold text-ocean-950 mb-3 text-lg">Sobre o Local</h3>
+                                <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">{business.description}</p>
+                            </div>
+
+                            {business.amenities.length > 0 && (
+                                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+                                    <h3 className="font-bold text-ocean-950 mb-4 text-lg">Comodidades</h3>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        {business.amenities.map(am => (
+                                            <div key={am} className="flex items-center gap-2 text-slate-600 text-sm bg-slate-50 p-3 rounded-xl">
+                                                <span className="text-ocean-500"><AmenityIcon name={am} /></span>
+                                                <span>{AMENITIES_LABELS[am] || am}</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
 
-                    {/* Right Column (Moved inside Info Tab) */}
-                    <div className="md:col-span-1 space-y-6">
-                        <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm md:sticky md:top-24">
-                            <div className="flex items-center gap-2 mb-4">
-                                <Clock className="text-ocean-500" size={20} />
-                                <h3 className="font-bold text-ocean-950">Horários</h3>
-                            </div>
-                            
-                            <div className="space-y-2 mb-6">
-                                {Object.entries(business.openingHours).map(([day, hours]) => {
-                                    const isToday = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][new Date().getDay()] === day;
-                                    return (
-                                        <div key={day} className={`flex justify-between text-sm border-b border-slate-50 last:border-0 pb-2 last:pb-0 ${isToday ? 'bg-ocean-50 p-2 rounded-lg -mx-2 font-bold' : ''}`}>
-                                            <span className={isToday ? 'text-ocean-700' : 'text-slate-500'}>{day}</span>
-                                            <span className={isToday ? 'text-ocean-900' : 'text-slate-900 font-medium'}>{hours}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                        {/* Right Column (Moved inside Info Tab) */}
+                        <div className="md:col-span-1 space-y-6">
+                            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm md:sticky md:top-24">
+                                <div className="flex items-center gap-2 mb-4">
+                                    <Clock className="text-ocean-500" size={20} />
+                                    <h3 className="font-bold text-ocean-950">Horários</h3>
+                                </div>
+                                
+                                <div className="space-y-2 mb-6">
+                                    {Object.entries(business.openingHours).map(([day, hours]) => {
+                                        const isToday = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][new Date().getDay()] === day;
+                                        return (
+                                            <div key={day} className={`flex justify-between text-sm border-b border-slate-50 last:border-0 pb-2 last:pb-0 ${isToday ? 'bg-ocean-50 p-2 rounded-lg -mx-2 font-bold' : ''}`}>
+                                                <span className={isToday ? 'text-ocean-700' : 'text-slate-500'}>{day}</span>
+                                                <span className={isToday ? 'text-ocean-900' : 'text-slate-900 font-medium'}>{hours}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
 
-                            <div className="flex items-center gap-2 mb-2">
-                                <MapPin className="text-ocean-500" size={20} />
-                                <h3 className="font-bold text-ocean-950">Endereço</h3>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <MapPin className="text-ocean-500" size={20} />
+                                    <h3 className="font-bold text-ocean-950">Endereço</h3>
+                                </div>
+                                <p className="text-slate-600 text-sm mb-6 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">{business.address}</p>
                             </div>
-                            <p className="text-slate-600 text-sm mb-6 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">{business.address}</p>
                         </div>
                     </div>
+
+                    {/* ACTIVE COUPONS (Moved Below Info Grid) */}
+                    {coupons.length > 0 && (
+                        <div className="bg-gradient-to-br from-ocean-50 to-white rounded-2xl p-6 border border-ocean-100 shadow-sm animate-in slide-in-from-bottom-4">
+                            <div className="flex items-center gap-2 mb-4">
+                                <div className="bg-ocean-100 p-2 rounded-lg text-ocean-600">
+                                    <Ticket size={20} />
+                                </div>
+                                <h3 className="font-bold text-ocean-900 text-lg">Cupons Disponíveis</h3>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {coupons.map(coupon => (
+                                    <div key={coupon.id} className="h-full">
+                                        <CouponCard coupon={coupon} onGetCoupon={setSelectedCoupon} />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

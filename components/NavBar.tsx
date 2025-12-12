@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState } from 'react';
 import { Home, Ticket, User, Gem, Compass, BookOpen, ShieldCheck } from 'lucide-react';
 import { User as UserType, UserRole, AppConfig } from '../types';
-import { getAppConfig } from '../services/dataService';
+import { getAppConfig, getCoupons } from '../services/dataService';
 
 interface NavBarProps {
   currentUser: UserType | null;
@@ -12,17 +13,49 @@ interface NavBarProps {
 
 export const NavBar: React.FC<NavBarProps> = ({ currentUser, onNavigate, currentPage, onLogout }) => {
   const [config, setConfig] = useState<AppConfig>(getAppConfig());
+  const [newCouponsCount, setNewCouponsCount] = useState(0);
 
   useEffect(() => {
       // Listen for branding changes
       const handleConfigUpdate = () => setConfig(getAppConfig());
       window.addEventListener('appConfigUpdated', handleConfigUpdate);
-      return () => window.removeEventListener('appConfigUpdated', handleConfigUpdate);
+      
+      // Check for new coupons logic
+      const checkNewCoupons = async () => {
+          const allCoupons = await getCoupons();
+          const activeCount = allCoupons.filter(c => c.active).length;
+          const lastSeen = parseInt(localStorage.getItem('last_seen_coupon_count') || '0', 10);
+          
+          if (activeCount > lastSeen) {
+              setNewCouponsCount(activeCount - lastSeen);
+          } else {
+              setNewCouponsCount(0);
+          }
+      };
+
+      checkNewCoupons();
+      // Re-check whenever data updates
+      window.addEventListener('dataUpdated', checkNewCoupons);
+
+      return () => {
+          window.removeEventListener('appConfigUpdated', handleConfigUpdate);
+          window.removeEventListener('dataUpdated', checkNewCoupons);
+      };
   }, []);
   
+  const handleNavigateToSearch = () => {
+      onNavigate('search');
+      // Reset notification badge
+      getCoupons().then(all => {
+          const activeCount = all.filter(c => c.active).length;
+          localStorage.setItem('last_seen_coupon_count', activeCount.toString());
+          setNewCouponsCount(0);
+      });
+  };
+
   const navItemClass = (page: string) => {
     const isActive = currentPage === page;
-    const baseClass = "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors py-1";
+    const baseClass = "flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors py-1 relative";
     return `${baseClass} ${isActive ? 'text-ocean-600 font-medium' : 'text-slate-400 hover:text-slate-600'}`;
   };
 
@@ -39,8 +72,15 @@ export const NavBar: React.FC<NavBarProps> = ({ currentUser, onNavigate, current
         <span className="text-[9px]">Guia</span>
       </button>
 
-      <button onClick={() => onNavigate('search')} className={navItemClass('search')}>
-        <Ticket size={20} />
+      <button onClick={handleNavigateToSearch} className={navItemClass('search')}>
+        <div className="relative">
+            <Ticket size={20} />
+            {newCouponsCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full shadow-sm animate-pulse border border-white">
+                    {newCouponsCount > 9 ? '9+' : newCouponsCount}
+                </span>
+            )}
+        </div>
         <span className="text-[9px]">Cupons</span>
       </button>
 
@@ -99,7 +139,14 @@ export const NavBar: React.FC<NavBarProps> = ({ currentUser, onNavigate, current
       <div className="flex items-center gap-8">
         <button onClick={() => onNavigate('home')} className={`font-medium hover:text-gold-500 ${currentPage === 'home' ? 'text-ocean-950' : 'text-slate-500'}`}>Início</button>
         <button onClick={() => onNavigate('guide')} className={`font-medium hover:text-gold-500 ${currentPage === 'guide' ? 'text-ocean-950' : 'text-slate-500'}`}>Guia</button>
-        <button onClick={() => onNavigate('search')} className={`font-medium hover:text-gold-500 ${currentPage === 'search' ? 'text-ocean-950' : 'text-slate-500'}`}>Cupons</button>
+        <button onClick={handleNavigateToSearch} className={`font-medium hover:text-gold-500 relative ${currentPage === 'search' ? 'text-ocean-950' : 'text-slate-500'}`}>
+            Cupons
+            {newCouponsCount > 0 && (
+                <span className="absolute -top-2 -right-3 bg-red-500 text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full animate-pulse border border-white">
+                    {newCouponsCount}
+                </span>
+            )}
+        </button>
         <button onClick={() => onNavigate('blog')} className={`font-medium hover:text-gold-500 ${currentPage === 'blog' ? 'text-ocean-950' : 'text-slate-500'}`}>Dicas & Blog</button>
         
         {currentUser ? (

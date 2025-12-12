@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Filter, Star, Clock, Check, Heart, Navigation, Loader2, Crown } from 'lucide-react';
+import { Search, MapPin, Filter, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass } from 'lucide-react';
 import { BusinessProfile, AppCategory, AppLocation, AppAmenity, User } from '../types';
 import { getBusinesses, getCategories, getLocations, getAmenities, toggleFavorite, calculateDistance } from '../services/dataService';
 
@@ -8,6 +8,28 @@ interface BusinessGuideProps {
   currentUser: User | null;
   onNavigate: (page: string, params?: any) => void;
 }
+
+// --- SPLASH COMPONENT ---
+const GuideSplash = () => (
+    <div className="fixed inset-0 z-50 bg-slate-50 flex flex-col items-center justify-center animate-in fade-in duration-300">
+        <div className="relative mb-8">
+            {/* Pulsing Rings */}
+            <div className="absolute inset-0 bg-ocean-200 rounded-full animate-ping opacity-20"></div>
+            <div className="absolute inset-[-12px] bg-ocean-100 rounded-full animate-pulse opacity-30"></div>
+            
+            {/* Center Icon */}
+            <div className="relative w-24 h-24 bg-white rounded-3xl shadow-xl border-4 border-ocean-50 flex items-center justify-center transform rotate-3">
+                <Compass size={48} className="text-ocean-600 animate-[spin_3s_linear_infinite]" />
+                <div className="absolute -bottom-2 -right-2 bg-gold-500 p-2 rounded-full border-2 border-white shadow-lg">
+                    <MapPin size={16} className="text-white fill-current" />
+                </div>
+            </div>
+        </div>
+        
+        <h2 className="text-2xl font-bold text-ocean-950 mb-2 tracking-tight">Explorando o Rio...</h2>
+        <p className="text-slate-500 text-sm font-medium animate-pulse">Buscando os melhores lugares para você.</p>
+    </div>
+);
 
 export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNavigate }) => {
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
@@ -31,18 +53,40 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
 
   const [favorites, setFavorites] = useState<string[]>(currentUser?.favorites?.businesses || []);
 
-  const refreshData = () => {
-    setBusinesses(getBusinesses());
+  const refreshData = (forceStopLoading = false) => {
+    const biz = getBusinesses();
+    setBusinesses(biz);
     setCategories(getCategories());
     setLocations(getLocations());
     setAmenities(getAmenities());
-    setLoading(false);
+    
+    // Lógica de Loading Inteligente:
+    // Se vieram dados, para de carregar imediatamente.
+    // Se não vieram dados mas o flag 'forceStopLoading' é true (veio do evento ou timeout), para de carregar.
+    if (biz.length > 0 || forceStopLoading) {
+        setLoading(false);
+    }
   };
 
   useEffect(() => {
+    // 1. Tenta carregar do Cache Local imediatamente
     refreshData();
-    window.addEventListener('dataUpdated', refreshData);
-    return () => window.removeEventListener('dataUpdated', refreshData);
+
+    // 2. Ouve atualizações do Firebase (que chegam depois se não houver cache)
+    const handleUpdate = () => {
+        refreshData(true); // Força parada do loading pois o banco respondeu
+    };
+    window.addEventListener('dataUpdated', handleUpdate);
+
+    // 3. Fallback: Se o banco demorar mais de 8s ou estiver vazio, libera a tela
+    const timeout = setTimeout(() => {
+        setLoading(false);
+    }, 8000);
+
+    return () => {
+        window.removeEventListener('dataUpdated', handleUpdate);
+        clearTimeout(timeout);
+    };
   }, []);
 
   useEffect(() => {
@@ -150,6 +194,11 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
       }
   };
 
+  // Se estiver carregando (e não tiver dados em cache), mostra o Splash
+  if (loading && businesses.length === 0) {
+      return <GuideSplash />;
+  }
+
   const currentCategory = categories.find(c => c.name === selectedCategory);
   const currentSubcategories = currentCategory?.subcategories || [];
 
@@ -201,7 +250,37 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                   </div>
               </div>
 
-              {/* ... (Subcategories and Toggles remain same) ... */}
+              {/* Subcategories Chips */}
+              {selectedCategory !== 'Todos' && currentSubcategories.length > 0 && (
+                  <div className="mb-4">
+                      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                          <button
+                              onClick={() => setSelectedSubCategory('Todos')}
+                              className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${
+                                  selectedSubCategory === 'Todos'
+                                  ? 'bg-ocean-600 text-white border-ocean-600'
+                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                              }`}
+                          >
+                              Todos
+                          </button>
+                          {currentSubcategories.map(sub => (
+                              <button
+                                  key={sub}
+                                  onClick={() => setSelectedSubCategory(sub)}
+                                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${
+                                      selectedSubCategory === sub
+                                      ? 'bg-ocean-600 text-white border-ocean-600'
+                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                                  }`}
+                              >
+                                  {sub}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+              )}
+
               {/* Row 3: Quick Toggles */}
               <div className="flex gap-2 mb-4">
                   <button 
@@ -219,23 +298,42 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                       <Clock size={14}/> Aberto Agora
                   </button>
               </div>
+
+              {/* Row 4: Amenities Filter */}
+              <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-2 ml-1 uppercase flex justify-between">
+                      <span>Filtrar por comodidades</span>
+                      {selectedAmenities.length > 0 && (
+                          <button onClick={() => setSelectedAmenities([])} className="text-ocean-600 hover:underline">Limpar</button>
+                      )}
+                  </label>
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                      {amenities.map(amenity => {
+                          const isSelected = selectedAmenities.includes(amenity.id);
+                          return (
+                              <button
+                                key={amenity.id}
+                                onClick={() => toggleAmenity(amenity.id)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1 ${
+                                    isSelected 
+                                    ? 'bg-ocean-100 border-ocean-200 text-ocean-700' 
+                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                                }`}
+                              >
+                                  {isSelected && <Check size={12} />}
+                                  {amenity.label}
+                              </button>
+                          );
+                      })}
+                  </div>
+              </div>
+
           </div>
       </div>
 
       {/* Results List */}
       <div className="px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto">
-          {loading ? (
-              // Skeleton Loader
-              [1,2,3,4,5,6].map(i => (
-                  <div key={i} className="bg-white rounded-xl overflow-hidden border border-slate-100 h-64 animate-pulse">
-                      <div className="h-32 bg-slate-200 w-full"></div>
-                      <div className="p-4 space-y-3">
-                          <div className="h-5 bg-slate-200 w-3/4 rounded"></div>
-                          <div className="h-3 bg-slate-200 w-1/2 rounded"></div>
-                      </div>
-                  </div>
-              ))
-          ) : filtered.map((business: any) => {
+          {filtered.map((business: any) => {
               const isFav = favorites.includes(business.id);
               const hasDistance = nearby && business.distance !== undefined && business.distance < 9999;
               
@@ -294,6 +392,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                                         </div>
                                     </>
                                 )}
+                                {business.subcategory && <span className="bg-ocean-50 text-ocean-700 text-[10px] font-bold px-1.5 py-0.5 rounded">{business.subcategory}</span>}
                               </div>
                               <p className="text-slate-600 text-sm min-h-[2.5rem]">
                                   {business.description.length > 200 

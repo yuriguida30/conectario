@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
-import { MapPin, Navigation } from 'lucide-react';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { MapPin, Navigation, Search, Loader2 } from 'lucide-react';
 
 interface LocationPickerProps {
   initialLat?: number;
@@ -7,77 +8,157 @@ interface LocationPickerProps {
   onLocationSelect: (lat: number, lng: number) => void;
 }
 
-// Bounds of Arraial do Cabo (Must match MapPage logic)
-const BOUNDS_NW = { lat: -22.92, lng: -42.06 };
-const BOUNDS_SE = { lat: -22.98, lng: -42.00 };
+// Declare Leaflet global (loaded via CDN in index.html)
+declare const L: any;
 
 export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, initialLng, onLocationSelect }) => {
-  const [marker, setMarker] = useState<{lat: number, lng: number} | null>(
-      initialLat && initialLng ? { lat: initialLat, lng: initialLng } : null
-  );
-  const containerRef = useRef<HTMLDivElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!containerRef.current) return;
+  // Arraial Default Center
+  const DEFAULT_LAT = -22.966;
+  const DEFAULT_LNG = -42.026;
 
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
 
-      // Calculate percentages
-      const xPercent = x / rect.width;
-      const yPercent = y / rect.height;
+    // Initialize Map only once
+    if (!mapInstanceRef.current) {
+        const startLat = initialLat || DEFAULT_LAT;
+        const startLng = initialLng || DEFAULT_LNG;
 
-      // Inverse projection: Map % back to Lat/Lng
-      const latRange = BOUNDS_SE.lat - BOUNDS_NW.lat;
-      const lngRange = BOUNDS_SE.lng - BOUNDS_NW.lng;
+        // Create Map
+        const map = L.map(mapContainerRef.current, {
+            center: [startLat, startLng],
+            zoom: 14,
+            zoomControl: false, // We'll add it in a better position or keep UI clean
+            attributionControl: false
+        });
 
-      const newLat = BOUNDS_NW.lat + (yPercent * latRange);
-      const newLng = BOUNDS_NW.lng + (xPercent * lngRange);
+        // Add OpenStreetMap Tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
 
-      setMarker({ lat: newLat, lng: newLng });
-      onLocationSelect(newLat, newLng);
-  };
+        // Custom Icon
+        const customIcon = L.divIcon({
+            className: 'custom-pin',
+            html: `<div style="background-color: #ef4444; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6]
+        });
 
-  const getPosition = (lat: number, lng: number) => {
-      const latRange = BOUNDS_SE.lat - BOUNDS_NW.lat;
-      const lngRange = BOUNDS_SE.lng - BOUNDS_NW.lng;
+        // Add Marker
+        const marker = L.marker([startLat, startLng], { 
+            draggable: true,
+            icon: customIcon 
+        }).addTo(map);
 
-      const latPercent = ((lat - BOUNDS_NW.lat) / latRange) * 100;
-      const lngPercent = ((lng - BOUNDS_NW.lng) / lngRange) * 100;
+        marker.on('dragend', function(event: any) {
+            const position = marker.getLatLng();
+            onLocationSelect(position.lat, position.lng);
+        });
 
-      return { top: `${Math.max(0, Math.min(100, latPercent))}%`, left: `${Math.max(0, Math.min(100, lngPercent))}%` };
+        // Map Click Event
+        map.on('click', function(e: any) {
+            marker.setLatLng(e.latlng);
+            onLocationSelect(e.latlng.lat, e.latlng.lng);
+        });
+
+        mapInstanceRef.current = map;
+        markerRef.current = marker;
+    }
+
+    // Cleanup
+    return () => {
+        if (mapInstanceRef.current) {
+            mapInstanceRef.current.remove();
+            mapInstanceRef.current = null;
+        }
+    };
+  }, []); // Run once on mount
+
+  // Update marker if props change externally (e.g. loading saved data)
+  useEffect(() => {
+      if (mapInstanceRef.current && markerRef.current && initialLat && initialLng) {
+          const currentPos = markerRef.current.getLatLng();
+          // Only update if significantly different to avoid loops
+          if (Math.abs(currentPos.lat - initialLat) > 0.0001 || Math.abs(currentPos.lng - initialLng) > 0.0001) {
+              const newLatLng = new L.LatLng(initialLat, initialLng);
+              markerRef.current.setLatLng(newLatLng);
+              mapInstanceRef.current.setView(newLatLng, 15);
+          }
+      }
+  }, [initialLat, initialLng]);
+
+  const handleSearch = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!searchQuery) return;
+
+      setIsSearching(true);
+      try {
+          // Use OpenStreetMap Nominatim API (Free)
+          const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery + ' Arraial do Cabo')}`);
+          const data = await response.json();
+
+          if (data && data.length > 0) {
+              const { lat, lon } = data[0];
+              const newLat = parseFloat(lat);
+              const newLng = parseFloat(lon);
+
+              if (mapInstanceRef.current && markerRef.current) {
+                  const newLatLng = new L.LatLng(newLat, newLng);
+                  markerRef.current.setLatLng(newLatLng);
+                  mapInstanceRef.current.setView(newLatLng, 16);
+                  onLocationSelect(newLat, newLng);
+              }
+          } else {
+              alert("Local não encontrado. Tente algo como 'Praia Grande' ou 'Centro'.");
+          }
+      } catch (err) {
+          console.error("Geocoding error:", err);
+          alert("Erro ao buscar local.");
+      } finally {
+          setIsSearching(false);
+      }
   };
 
   return (
-    <div className="w-full aspect-video bg-[#eef6f8] rounded-xl overflow-hidden relative cursor-crosshair border-2 border-slate-200 shadow-inner group" ref={containerRef} onClick={handleClick}>
+    <div className="relative w-full h-full min-h-[300px] rounded-xl overflow-hidden shadow-inner border-2 border-slate-200 group">
         
-        {/* Simplified Map Visualization */}
-        <div className="absolute inset-0 pointer-events-none opacity-50">
-            <div className="absolute top-0 left-0 w-full h-full bg-[#cbd5e1] opacity-30"></div>
-            <div className="absolute top-[40%] right-0 w-[60%] h-[60%] bg-[#eef6f8] rounded-tl-[100px]"></div>
-            <div className="absolute top-[10%] left-[20%] w-[30%] h-[30%] bg-[#0ea5e9] opacity-10 rounded-full blur-3xl"></div>
-            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)', backgroundSize: '20px 20px', opacity: 0.5 }}></div>
-        </div>
+        {/* Map Container */}
+        <div ref={mapContainerRef} className="absolute inset-0 z-0 bg-slate-100" />
 
-        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-2 rounded-lg text-xs text-slate-600 shadow-sm pointer-events-none z-10">
-            <p className="font-bold flex items-center gap-1"><Navigation size={12}/> Definir Localização</p>
-            <p>Clique no mapa onde fica sua empresa.</p>
-        </div>
-
-        {marker && (
-            <div 
-                className="absolute -translate-x-1/2 -translate-y-1/2 z-20 transition-all duration-200"
-                style={getPosition(marker.lat, marker.lng)}
-            >
-                <div className="relative">
-                    <MapPin size={32} className="text-red-500 drop-shadow-lg fill-current" />
-                    <div className="w-2 h-2 bg-black/20 rounded-full blur-sm absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1"></div>
+        {/* Search Overlay */}
+        <div className="absolute top-3 left-3 right-3 z-[400]">
+            <form onSubmit={handleSearch} className="relative shadow-lg rounded-lg">
+                <input 
+                    type="text" 
+                    placeholder="Buscar bairro ou rua..." 
+                    className="w-full pl-10 pr-4 py-2.5 rounded-lg border-0 text-sm focus:ring-2 focus:ring-ocean-500 shadow-sm text-slate-800"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <div className="absolute left-3 top-2.5 text-slate-400">
+                    {isSearching ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                 </div>
-            </div>
-        )}
+            </form>
+        </div>
 
-        <div className="absolute inset-0 bg-ocean-500/0 group-hover:bg-ocean-500/5 transition-colors pointer-events-none"></div>
+        {/* Pin Center Marker (Visual Aid) */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-[400] text-red-600 drop-shadow-md pb-8">
+             <MapPin size={36} fill="currentColor" className="animate-bounce" />
+        </div>
+
+        <div className="absolute bottom-3 right-3 z-[400] bg-white/90 backdrop-blur px-3 py-1.5 rounded-lg shadow-sm border border-slate-200 pointer-events-none">
+            <p className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
+                <Navigation size={10} /> Arraste o mapa para posicionar
+            </p>
+        </div>
     </div>
   );
 };

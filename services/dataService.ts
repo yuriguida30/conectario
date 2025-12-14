@@ -39,8 +39,12 @@ const saveToCache = (key: string, data: any) => {
     } catch (e: any) {
         // CORREÇÃO: Trata erro de cota excedida silenciosamente para não quebrar o app
         if (e.name === 'QuotaExceededError' || e.code === 22) {
-            console.warn(`⚠️ Cache cheio para ${key}. O app continuará funcionando em memória.`);
-            // Opcional: Limpar cache antigo se necessário, mas seguro apenas ignorar
+            console.warn(`⚠️ Cache cheio para ${key}. Limpando cache antigo...`);
+            try {
+                localStorage.clear();
+            } catch(clearErr) {
+                console.error("Falha ao limpar cache", clearErr);
+            }
         } else {
             console.error("Erro ao salvar cache:", e);
         }
@@ -108,6 +112,8 @@ export const initFirebaseData = async () => {
                     ...data,
                     amenities: data.amenities || [], // Garante array
                     gallery: data.gallery || [],
+                    description: data.description || '', // Garante string
+                    name: data.name || 'Sem Nome',
                     reviews: (data.reviews && data.reviews.length > 50) ? data.reviews.slice(0, 5) : (data.reviews || [])
                 };
             });
@@ -207,7 +213,12 @@ export const getLocations = () => _locations || [];
 export const getAmenities = () => _amenities || [];
 
 export const getAllUsers = () => _users || [];
-export const getBusinesses = () => (_businesses || []).map(b => ({ ...b, isOpenNow: checkIsOpen(b.openingHours), amenities: b.amenities || [] }));
+export const getBusinesses = () => (_businesses || []).map(b => ({ 
+    ...b, 
+    isOpenNow: checkIsOpen(b.openingHours), 
+    amenities: b.amenities || [],
+    description: b.description || '' 
+}));
 export const getBusinessById = (id: string) => getBusinesses().find(b => b.id === id);
 
 export const getCoupons = async (): Promise<Coupon[]> => {

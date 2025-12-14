@@ -105,8 +105,8 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
 
     if (query) {
       result = result.filter(b => 
-        b.name.toLowerCase().includes(query.toLowerCase()) || 
-        b.description.toLowerCase().includes(query.toLowerCase())
+        (b.name || '').toLowerCase().includes(query.toLowerCase()) || 
+        (b.description || '').toLowerCase().includes(query.toLowerCase())
       );
     }
 
@@ -119,7 +119,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     }
 
     if (selectedLocation !== 'Todos') {
-        result = result.filter(b => b.address.includes(selectedLocation) || (b.locationId && b.locationId === selectedLocation));
+        result = result.filter(b => (b.address || '').includes(selectedLocation) || (b.locationId && b.locationId === selectedLocation));
     }
 
     if (onlyOpen) {
@@ -407,8 +407,8 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                                 {business.subcategory && <span className="bg-ocean-50 text-ocean-700 text-[10px] font-bold px-1.5 py-0.5 rounded">{business.subcategory}</span>}
                               </div>
                               <p className="text-slate-600 text-sm min-h-[2.5rem]">
-                                  {business.description.length > 200 
-                                    ? `${business.description.substring(0, 200)}...` 
+                                  {(business.description || '').length > 200 
+                                    ? `${(business.description || '').substring(0, 200)}...` 
                                     : business.description}
                               </p>
                           </div>

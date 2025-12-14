@@ -36,33 +36,39 @@ const notifyListeners = () => {
 const saveToCache = (key: string, data: any) => {
     try {
         localStorage.setItem(`cr_cache_${key}`, JSON.stringify(data));
-    } catch (e) {
-        console.warn("Storage quota exceeded or error", e);
+    } catch (e: any) {
+        // CORREÇÃO: Trata erro de cota excedida silenciosamente para não quebrar o app
+        if (e.name === 'QuotaExceededError' || e.code === 22) {
+            console.warn(`⚠️ Cache cheio para ${key}. O app continuará funcionando em memória.`);
+            // Opcional: Limpar cache antigo se necessário, mas seguro apenas ignorar
+        } else {
+            console.error("Erro ao salvar cache:", e);
+        }
     }
 }
 
 const loadFromCache = () => {
     try {
         const b = localStorage.getItem('cr_cache_businesses');
-        if (b) _businesses = JSON.parse(b);
+        if (b) _businesses = JSON.parse(b) || [];
 
         const c = localStorage.getItem('cr_cache_coupons');
-        if (c) _coupons = JSON.parse(c);
+        if (c) _coupons = JSON.parse(c) || [];
 
         const p = localStorage.getItem('cr_cache_posts');
-        if (p) _posts = JSON.parse(p);
+        if (p) _posts = JSON.parse(p) || [];
 
         const col = localStorage.getItem('cr_cache_collections');
-        if (col) _collections = JSON.parse(col);
+        if (col) _collections = JSON.parse(col) || [];
 
         const cat = localStorage.getItem('cr_cache_categories');
-        if (cat) _categories = JSON.parse(cat);
+        if (cat) _categories = JSON.parse(cat) || [];
 
         const loc = localStorage.getItem('cr_cache_locations');
-        if (loc) _locations = JSON.parse(loc);
+        if (loc) _locations = JSON.parse(loc) || [];
 
         const am = localStorage.getItem('cr_cache_amenities');
-        if (am) _amenities = JSON.parse(am);
+        if (am) _amenities = JSON.parse(am) || [];
 
         const conf = localStorage.getItem('cr_cache_app_config');
         if (conf) _appConfig = JSON.parse(conf);
@@ -73,6 +79,8 @@ const loadFromCache = () => {
         console.log("📦 Cache Local carregado com sucesso!");
     } catch (e) {
         console.error("Erro ao carregar cache local", e);
+        // Reset crítico em caso de corrupção
+        _businesses = [];
     }
 };
 
@@ -95,10 +103,13 @@ export const initFirebaseData = async () => {
         onSnapshot(collection(db, 'businesses'), (snap) => {
             _businesses = snap.docs.map(d => {
                 const data = d.data() as BusinessProfile;
-                if (data.reviews && data.reviews.length > 50) {
-                    data.reviews = data.reviews.slice(0, 5); 
-                }
-                return data;
+                // Higienização de dados
+                return {
+                    ...data,
+                    amenities: data.amenities || [], // Garante array
+                    gallery: data.gallery || [],
+                    reviews: (data.reviews && data.reviews.length > 50) ? data.reviews.slice(0, 5) : (data.reviews || [])
+                };
             });
             saveToCache('businesses', _businesses);
             notifyListeners();
@@ -143,9 +154,9 @@ export const initFirebaseData = async () => {
             snap.forEach(doc => {
                 if(doc.id === 'app_config') { _appConfig = doc.data() as AppConfig; saveToCache('app_config', _appConfig); }
                 if(doc.id === 'featured_config') { _featuredConfig = doc.data() as FeaturedConfig; saveToCache('featured_config', _featuredConfig); }
-                if(doc.id === 'categories' && doc.data().list) { _categories = doc.data().list; saveToCache('categories', _categories); }
-                if(doc.id === 'locations' && doc.data().list) { _locations = doc.data().list; saveToCache('locations', _locations); }
-                if(doc.id === 'amenities' && doc.data().list) { _amenities = doc.data().list; saveToCache('amenities', _amenities); }
+                if(doc.id === 'categories' && doc.data().list) { _categories = doc.data().list || []; saveToCache('categories', _categories); }
+                if(doc.id === 'locations' && doc.data().list) { _locations = doc.data().list || []; saveToCache('locations', _locations); }
+                if(doc.id === 'amenities' && doc.data().list) { _amenities = doc.data().list || []; saveToCache('amenities', _amenities); }
             });
             
             // Initial Seed checks...
@@ -191,18 +202,18 @@ export const getFeaturedConfig = (): FeaturedConfig => _featuredConfig || {
     buttonText: "Explorar"
 };
 
-export const getCategories = () => _categories;
-export const getLocations = () => _locations;
-export const getAmenities = () => _amenities;
+export const getCategories = () => _categories || [];
+export const getLocations = () => _locations || [];
+export const getAmenities = () => _amenities || [];
 
-export const getAllUsers = () => _users;
-export const getBusinesses = () => _businesses.map(b => ({ ...b, isOpenNow: checkIsOpen(b.openingHours) }));
+export const getAllUsers = () => _users || [];
+export const getBusinesses = () => (_businesses || []).map(b => ({ ...b, isOpenNow: checkIsOpen(b.openingHours), amenities: b.amenities || [] }));
 export const getBusinessById = (id: string) => getBusinesses().find(b => b.id === id);
 
 export const getCoupons = async (): Promise<Coupon[]> => {
     // Retorna imediatamente o que tem na memória (Cache Local)
     // Se o Firebase atualizar depois, o listener vai atualizar a memória e disparar 'dataUpdated'
-    return _coupons.map(coupon => {
+    return (_coupons || []).map(coupon => {
         const business = _businesses.find(b => b.id === coupon.companyId);
         if (business) {
             return {
@@ -216,12 +227,12 @@ export const getCoupons = async (): Promise<Coupon[]> => {
     });
 };
 
-export const getCollections = () => _collections;
+export const getCollections = () => _collections || [];
 export const getCollectionById = (id: string) => _collections.find(c => c.id === id);
-export const getBlogPosts = () => _posts;
+export const getBlogPosts = () => _posts || [];
 export const getBlogPostById = (id: string) => _posts.find(p => p.id === id);
-export const getCompanyRequests = () => _requests;
-export const getSupportMessages = () => _support;
+export const getCompanyRequests = () => _requests || [];
+export const getSupportMessages = () => _support || [];
 
 // --- DATA MODIFICATION METHODS (WRITE TO DB) ---
 

@@ -59,12 +59,12 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
       setCoupons(couponData.filter(c => c.active));
       setBusinesses(businessData);
       setPosts(postData);
-      setCategories(catData);
-      setCollections(colData);
+      setCategories(catData || []);
+      setCollections(colData || []);
       setFeatured(featData);
       
       // Stop loading only if we got some critical data
-      if (couponData.length > 0 || businessData.length > 0 || catData.length > 0) {
+      if (couponData.length > 0 || businessData.length > 0 || (catData && catData.length > 0)) {
           setLoading(false);
       }
   };
@@ -263,7 +263,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                             <div className="absolute bottom-0 left-0 p-4 w-full">
                                 <h4 className="text-white text-lg font-bold mb-1 leading-tight">{col.title}</h4>
                                 <div className="flex items-center gap-2 text-white/80 text-xs">
-                                    <span className="bg-white/20 backdrop-blur-md px-2 py-0.5 rounded">{col.businessIds.length} lugares</span>
+                                    <span className="bg-white/20 backdrop-blur-md px-2 py-0.5 rounded">{(col.businessIds || []).length} lugares</span>
                                 </div>
                             </div>
                         </div>

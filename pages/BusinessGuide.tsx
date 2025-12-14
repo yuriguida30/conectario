@@ -119,7 +119,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     }
 
     if (selectedLocation !== 'Todos') {
-        result = result.filter(b => b.address.includes(selectedLocation) || b.locationId === selectedLocation);
+        result = result.filter(b => b.address.includes(selectedLocation) || (b.locationId && b.locationId === selectedLocation));
     }
 
     if (onlyOpen) {
@@ -128,7 +128,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
 
     if (selectedAmenities.length > 0) {
         result = result.filter(b => {
-            return selectedAmenities.every(sa => b.amenities.includes(sa));
+            return selectedAmenities.every(sa => (b.amenities || []).includes(sa));
         });
     }
 
@@ -413,10 +413,10 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                               </p>
                           </div>
                           <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-2 text-xs text-slate-400 overflow-hidden whitespace-nowrap">
-                              {business.amenities.slice(0, 3).map((am: any) => (
+                              {(business.amenities || []).slice(0, 3).map((am: any) => (
                                   <span key={am} className="bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{getAmenityLabel(am)}</span>
                               ))}
-                              {business.amenities.length > 3 && <span>+{business.amenities.length - 3}</span>}
+                              {(business.amenities || []).length > 3 && <span>+{(business.amenities || []).length - 3}</span>}
                           </div>
                       </div>
                   </div>

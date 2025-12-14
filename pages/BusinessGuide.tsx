@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Filter, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon } from 'lucide-react';
+import { Search, MapPin, Filter, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon, X, ChevronDown, ListFilter } from 'lucide-react';
 import { BusinessProfile, AppCategory, AppLocation, AppAmenity, User } from '../types';
 import { getBusinesses, getCategories, getLocations, getAmenities, toggleFavorite, calculateDistance } from '../services/dataService';
 
@@ -219,11 +219,11 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     <div className="pb-24 pt-4 min-h-screen bg-slate-50">
       
       {/* Header Search Engine Style */}
-      <div className="px-4 mb-6 max-w-7xl mx-auto w-full">
+      <div className="px-4 mb-4 max-w-7xl mx-auto w-full">
           <h1 className="text-2xl font-bold text-ocean-950 mb-1">Guia Comercial</h1>
           <p className="text-sm text-slate-500 mb-4">Explore os melhores lugares de Arraial.</p>
           
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+          <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
               
               {/* Search Inputs */}
               <div className="relative mb-3">
@@ -237,108 +237,107 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                   />
               </div>
 
-              {/* Filters */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1 ml-1 uppercase">Categoria</label>
+              {/* Compact Selects Row */}
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                  
+                  {/* Category Select */}
+                  <div className="relative">
                       <select 
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-ocean-500 text-sm text-slate-700"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2.5 outline-none focus:border-ocean-500 text-xs font-bold text-slate-600 appearance-none truncate pr-6"
                         value={selectedCategory}
                         onChange={(e) => { setSelectedCategory(e.target.value); setSelectedSubCategory('Todos'); }}
                       >
-                          <option value="Todos">Todas Categorias</option>
+                          <option value="Todos">Categoria</option>
                           {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
                       </select>
+                      <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                   </div>
-                  <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1 ml-1 uppercase">Local</label>
+
+                  {/* Location Select */}
+                  <div className="relative">
                       <select 
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 outline-none focus:ring-2 focus:ring-ocean-500 text-sm text-slate-700"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2.5 outline-none focus:border-ocean-500 text-xs font-bold text-slate-600 appearance-none truncate pr-6"
                         value={selectedLocation}
                         onChange={(e) => setSelectedLocation(e.target.value)}
                       >
-                          <option value="Todos">Toda a Região</option>
+                          <option value="Todos">Local</option>
                           {locations.map(loc => <option key={loc.id} value={loc.name}>{loc.name}</option>)}
                       </select>
+                      <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                  </div>
+
+                  {/* Amenities Select (Acts as Adder) */}
+                  <div className="relative">
+                      <select 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2.5 outline-none focus:border-ocean-500 text-xs font-bold text-slate-600 appearance-none truncate pr-6"
+                        onChange={(e) => {
+                            if (e.target.value) {
+                                toggleAmenity(e.target.value);
+                                e.target.value = ""; // Reset to default after selecting
+                            }
+                        }}
+                      >
+                          <option value="">Filtros</option>
+                          {amenities.map(am => (
+                              <option key={am.id} value={am.id} disabled={selectedAmenities.includes(am.id)}>
+                                  {am.label}
+                              </option>
+                          ))}
+                      </select>
+                      <ListFilter className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                   </div>
               </div>
 
-              {/* Subcategories Chips */}
-              {selectedCategory !== 'Todos' && currentSubcategories.length > 0 && (
-                  <div className="mb-4">
-                      <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
-                          <button
-                              onClick={() => setSelectedSubCategory('Todos')}
-                              className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${
-                                  selectedSubCategory === 'Todos'
-                                  ? 'bg-ocean-600 text-white border-ocean-600'
-                                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                              }`}
-                          >
-                              Todos
-                          </button>
-                          {currentSubcategories.map(sub => (
-                              <button
-                                  key={sub}
-                                  onClick={() => setSelectedSubCategory(sub)}
-                                  className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border ${
-                                      selectedSubCategory === sub
-                                      ? 'bg-ocean-600 text-white border-ocean-600'
-                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                                  }`}
-                              >
-                                  {sub}
-                              </button>
-                          ))}
-                      </div>
-                  </div>
-              )}
-
-              {/* Row 3: Quick Toggles */}
-              <div className="flex gap-2 mb-4">
+              {/* Active Filters & Toggles Row */}
+              <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1 items-center">
+                  
+                  {/* Quick Toggles */}
                   <button 
                     onClick={handleNearbyClick}
                     disabled={locating}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1 transition-colors ${nearby ? 'bg-ocean-100 border-ocean-200 text-ocean-700' : 'bg-white border-slate-200 text-slate-600'}`}
+                    className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1 transition-colors ${nearby ? 'bg-ocean-100 border-ocean-200 text-ocean-700' : 'bg-white border-slate-200 text-slate-500'}`}
                   >
-                      {locating ? <Loader2 className="animate-spin" size={14}/> : <Navigation size={14}/>} 
-                      {locating ? 'Localizando...' : 'Perto de Mim'}
+                      {locating ? <Loader2 className="animate-spin" size={12}/> : <Navigation size={12} className={nearby ? "fill-current" : ""}/>} 
+                      Perto
                   </button>
+                  
                   <button 
                     onClick={() => setOnlyOpen(!onlyOpen)}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold border flex items-center justify-center gap-1 transition-colors ${onlyOpen ? 'bg-green-100 border-green-200 text-green-700' : 'bg-white border-slate-200 text-slate-600'}`}
+                    className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1 transition-colors ${onlyOpen ? 'bg-green-100 border-green-200 text-green-700' : 'bg-white border-slate-200 text-slate-500'}`}
                   >
-                      <Clock size={14}/> Aberto Agora
+                      <Clock size={12}/> Aberto
                   </button>
-              </div>
 
-              {/* Row 4: Amenities Filter */}
-              <div>
-                  <label className="block text-xs font-bold text-slate-500 mb-2 ml-1 uppercase flex justify-between">
-                      <span>Filtrar por comodidades</span>
-                      {selectedAmenities.length > 0 && (
-                          <button onClick={() => setSelectedAmenities([])} className="text-ocean-600 hover:underline">Limpar</button>
-                      )}
-                  </label>
-                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-                      {amenities.map(amenity => {
-                          const isSelected = selectedAmenities.includes(amenity.id);
-                          return (
-                              <button
-                                key={amenity.id}
-                                onClick={() => toggleAmenity(amenity.id)}
-                                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1 ${
-                                    isSelected 
-                                    ? 'bg-ocean-100 border-ocean-200 text-ocean-700' 
-                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                                }`}
-                              >
-                                  {isSelected && <Check size={12} />}
-                                  {amenity.label}
-                              </button>
-                          );
-                      })}
-                  </div>
+                  <div className="w-px h-6 bg-slate-200 shrink-0 mx-1"></div>
+
+                  {/* Subcategories Chips */}
+                  {selectedCategory !== 'Todos' && currentSubcategories.length > 0 && (
+                      currentSubcategories.map(sub => (
+                          <button
+                              key={sub}
+                              onClick={() => setSelectedSubCategory(selectedSubCategory === sub ? 'Todos' : sub)}
+                              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                                  selectedSubCategory === sub
+                                  ? 'bg-ocean-600 text-white border-ocean-600'
+                                  : 'bg-white text-slate-600 border-slate-200'
+                              }`}
+                          >
+                              {sub}
+                          </button>
+                      ))
+                  )}
+
+                  {/* Active Amenities Chips */}
+                  {selectedAmenities.map(id => (
+                      <button
+                        key={id}
+                        onClick={() => toggleAmenity(id)}
+                        className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-ocean-600 text-white text-xs font-bold border border-ocean-600 group"
+                      >
+                          <Check size={12} /> {getAmenityLabel(id)}
+                          <X size={12} className="opacity-50 group-hover:opacity-100 ml-1"/>
+                      </button>
+                  ))}
               </div>
 
           </div>

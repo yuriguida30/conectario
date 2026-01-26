@@ -26,15 +26,9 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
   const fetch = async () => {
       const data = await getCoupons();
       const cats = getCategories();
-      
-      // Se não vier nada e o app acabou de carregar (F5), talvez ainda esteja em sync.
-      // Porém com o Cache Local, isso deve retornar algo imediatamente se já acessou antes.
       const activeData = data.filter(c => c.active);
       setCoupons(activeData);
       setCategories(cats);
-      
-      // Importante: Só para de carregar se vier algo OU se passar um tempo seguro
-      // Para evitar o flash de "0 ofertas"
       setLoading(false);
   };
 
@@ -45,20 +39,20 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
   }, []);
 
   useEffect(() => {
-    let result = coupons;
+    let result = [...coupons];
 
     // Filter by Category
     if (selectedCategory !== 'Todos') {
       result = result.filter(c => c.category === selectedCategory);
     }
 
-    // Filter by Text
+    // Filter by Text - CRITICAL FIX: added null checks (|| '')
     if (query) {
       const lowerQuery = query.toLowerCase();
       result = result.filter(c => 
-        c.title.toLowerCase().includes(lowerQuery) || 
-        c.companyName.toLowerCase().includes(lowerQuery) ||
-        c.description.toLowerCase().includes(lowerQuery)
+        (c.title || '').toLowerCase().includes(lowerQuery) || 
+        (c.companyName || '').toLowerCase().includes(lowerQuery) ||
+        (c.description || '').toLowerCase().includes(lowerQuery)
       );
     }
 
@@ -109,7 +103,6 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
       
-      {/* Sticky Header Container */}
       <div className="sticky top-0 md:top-16 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] transition-all duration-300">
           <div className="max-w-7xl mx-auto px-4 py-4">
             
@@ -142,7 +135,6 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
                 </button>
             </div>
 
-            {/* Filter Chips */}
             <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0">
                 <button 
                     onClick={() => setSelectedCategory('Todos')}
@@ -163,7 +155,6 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
           </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
           
           <div className="flex justify-between items-end mb-6">
@@ -224,7 +215,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
           <CouponModal 
             coupon={selectedCoupon} 
             onClose={() => setSelectedCoupon(null)} 
-            onRedeem={() => {}} // Mock redeem in search page
+            onRedeem={() => {}} 
             isRedeemed={false}
           />
       )}

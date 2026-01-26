@@ -48,20 +48,13 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     setCategories(getCategories());
     setLocations(getLocations());
     setAmenities(getAmenities());
-    
-    // Se o banco retornar algo (ou se o cache local já tiver carregado)
-    if (biz.length > 0 || getCategories().length > 0) {
-        setIsLoadingDB(false);
-    }
+    setIsLoadingDB(false);
   };
 
   useEffect(() => {
     syncData();
     window.addEventListener('dataUpdated', syncData);
-    
-    // Safety Timeout: Se o Firebase travar (ex: erro de permissão), libera a tela após 4s
     const timer = setTimeout(() => setIsLoadingDB(false), 4000);
-
     return () => {
         window.removeEventListener('dataUpdated', syncData);
         clearTimeout(timer);
@@ -71,16 +64,21 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   useEffect(() => {
     let result = [...businesses];
 
+    // FIX: Protective check for name/description to avoid toLowerCase crash
     if (query) {
       const q = query.toLowerCase();
-      result = result.filter(b => (b.name || '').toLowerCase().includes(q) || (b.description || '').toLowerCase().includes(q));
+      result = result.filter(b => 
+        (b.name || '').toLowerCase().includes(q) || 
+        (b.description || '').toLowerCase().includes(q)
+      );
     }
 
     if (selectedCategory !== 'Todos') result = result.filter(b => b.category === selectedCategory);
     if (selectedSubCategory !== 'Todos') result = result.filter(b => b.subcategory === selectedSubCategory);
     if (selectedLocation !== 'Todos') result = result.filter(b => b.locationId === selectedLocation || (b.address || '').includes(selectedLocation));
     if (onlyOpen) result = result.filter(b => b.isOpenNow);
-    if (selectedAmenities.length > 0) {
+    
+    if (selectedAmenities && selectedAmenities.length > 0) {
         result = result.filter(b => selectedAmenities.every(sa => (b.amenities || []).includes(sa)));
     }
 

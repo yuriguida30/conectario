@@ -19,24 +19,15 @@ type ViewMode = 'DASHBOARD' | 'EDITOR' | 'TABLES';
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onNavigate, onLogout }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('DASHBOARD');
-  
-  // Data State
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [categories, setCategories] = useState<AppCategory[]>([]);
   const [amenities, setAmenities] = useState<AppAmenity[]>([]);
   const [locations, setLocations] = useState<AppLocation[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [tables, setTables] = useState<Table[]>([]);
-  
   const [loadingData, setLoadingData] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [loadingAI, setLoadingAI] = useState(false);
-
-  // Business Profile
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
-  const [editorTab, setEditorTab] = useState<EditorTab>('BASIC');
-
-  // Tables UI state
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [itemSearch, setItemSearch] = useState('');
 
@@ -60,31 +51,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
   useEffect(() => {
     refreshAll();
     window.addEventListener('dataUpdated', refreshAll);
-    
-    // Subscrição em tempo real para Mesas
     const unsubscribe = subscribeToTables(currentUser.id, (updatedTables) => {
         setTables(updatedTables);
-        // Atualiza a mesa selecionada se ela estiver aberta
         if (selectedTable) {
             const up = updatedTables.find(t => t.id === selectedTable.id);
             if (up) setSelectedTable(up);
         }
     });
-
     return () => {
         window.removeEventListener('dataUpdated', refreshAll);
         unsubscribe();
     };
   }, [currentUser.id]);
 
-  // --- ACTIONS ---
   const handleOpenTable = async (table: Table) => {
       const updated = { ...table, status: 'OCCUPIED' as TableStatus, openedAt: new Date().toISOString(), items: [], total: 0 };
       await updateTable(currentUser.id, updated);
   };
 
   const handleAddItem = async (table: Table, item: MenuItem) => {
-      const items = [...table.items];
+      const items = [...(table.items || [])];
       const existing = items.find(i => i.id === item.id);
       if (existing) {
           existing.quantity += 1;
@@ -96,14 +82,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
   };
 
   const handleRemoveItem = async (table: Table, itemId: string) => {
-    const items = table.items.filter(i => i.id !== itemId);
+    const items = (table.items || []).filter(i => i.id !== itemId);
     const total = items.reduce((acc, i) => acc + (i.price * i.quantity), 0);
     await updateTable(currentUser.id, { ...table, items, total });
   };
 
   const handleCloseTable = async (table: Table) => {
       if (!confirm(`Deseja fechar a conta da mesa ${table.number}? Valor: R$ ${table.total.toFixed(2)}`)) return;
-      // CRITICAL FIX: Sincronização e Reset completo
       await closeTableAndReset(currentUser.id, table.id);
       setSelectedTable(null);
   };
@@ -115,7 +100,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
       }
   };
 
-  // --- RENDERS ---
   const renderTables = () => (
       <div className="animate-in fade-in space-y-6">
           <div className="flex justify-between items-center">
@@ -147,8 +131,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                       <span className="text-4xl font-black">{t.number}</span>
                       {t.status !== 'AVAILABLE' && (
                           <div className="mt-1">
-                              <p className="text-sm font-bold">R$ {t.total.toFixed(2)}</p>
-                              <p className="text-[10px] opacity-60">{t.items.length} itens</p>
+                              <p className="text-sm font-bold">R$ {(t.total || 0).toFixed(2)}</p>
+                              <p className="text-[10px] opacity-60">{(t.items || []).length} itens</p>
                           </div>
                       )}
                       {t.status === 'AVAILABLE' && <span className="text-[10px] font-bold text-green-500">LIVRE</span>}
@@ -156,7 +140,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
               ))}
           </div>
 
-          {/* Table Detail Modal */}
           {selectedTable && (
               <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
                   <div className="bg-white w-full max-w-4xl rounded-[2rem] shadow-2xl overflow-hidden h-[85vh] flex flex-col">
@@ -174,12 +157,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                       </div>
 
                       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-                          {/* Left: Current Bill */}
                           <div className="w-full md:w-1/2 p-6 border-r border-slate-100 flex flex-col h-full bg-slate-50/50">
                               <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Utensils size={18}/> Consumo Atual</h4>
-                              
                               <div className="flex-1 overflow-y-auto space-y-2 mb-4">
-                                  {selectedTable.items.length > 0 ? selectedTable.items.map((it, idx) => (
+                                  {selectedTable.items && selectedTable.items.length > 0 ? selectedTable.items.map((it, idx) => (
                                       <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200 flex justify-between items-center animate-in slide-in-from-left-2">
                                           <div>
                                               <p className="font-bold text-sm text-slate-800">{it.name}</p>
@@ -201,51 +182,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                               <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
                                   <div className="flex justify-between items-end mb-4">
                                       <span className="text-slate-400 font-bold text-xs uppercase">Total da Conta</span>
-                                      <span className="text-3xl font-black text-ocean-950">R$ {selectedTable.total.toFixed(2)}</span>
+                                      <span className="text-3xl font-black text-ocean-950">R$ {(selectedTable.total || 0).toFixed(2)}</span>
                                   </div>
-                                  
                                   {selectedTable.status === 'AVAILABLE' ? (
-                                      <button 
-                                        onClick={() => handleOpenTable(selectedTable)}
-                                        className="w-full bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 shadow-lg flex items-center justify-center gap-2"
-                                      >
+                                      <button onClick={() => handleOpenTable(selectedTable)} className="w-full bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 shadow-lg flex items-center justify-center gap-2">
                                           <Check/> ABRIR MESA
                                       </button>
                                   ) : (
-                                      <div className="flex gap-2">
-                                          <button 
-                                            onClick={() => handleCloseTable(selectedTable)}
-                                            className="flex-1 bg-ocean-600 text-white font-bold py-4 rounded-xl hover:bg-ocean-700 shadow-lg flex items-center justify-center gap-2"
-                                          >
-                                              <Save size={18}/> FECHAR CONTA
-                                          </button>
-                                      </div>
+                                      <button onClick={() => handleCloseTable(selectedTable)} className="w-full bg-ocean-600 text-white font-bold py-4 rounded-xl hover:bg-ocean-700 shadow-lg flex items-center justify-center gap-2">
+                                          <Save size={18}/> FECHAR CONTA
+                                      </button>
                                   )}
                               </div>
                           </div>
 
-                          {/* Right: Menu Selection */}
                           <div className="w-full md:w-1/2 p-6 flex flex-col h-full overflow-hidden">
                               <div className="relative mb-4">
                                   <Search size={18} className="absolute left-3 top-3 text-slate-400" />
                                   <input 
-                                    type="text" 
-                                    placeholder="Buscar no cardápio..." 
+                                    type="text" placeholder="Buscar no cardápio..." 
                                     className="w-full pl-10 pr-4 py-2.5 bg-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-ocean-500"
-                                    value={itemSearch}
-                                    onChange={e => setItemSearch(e.target.value)}
+                                    value={itemSearch} onChange={e => setItemSearch(e.target.value)}
                                   />
                               </div>
-                              
                               <div className="flex-1 overflow-y-auto space-y-6 pr-2">
                                   {myBusiness?.menu?.map((section, sIdx) => (
                                       <div key={sIdx}>
                                           <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">{section.title}</h5>
                                           <div className="grid grid-cols-1 gap-2">
-                                              {section.items.filter(i => i.name.toLowerCase().includes(itemSearch.toLowerCase())).map((item, iIdx) => (
+                                              {section.items.filter(i => (i.name || '').toLowerCase().includes(itemSearch.toLowerCase())).map((item, iIdx) => (
                                                   <button 
-                                                    key={iIdx}
-                                                    disabled={selectedTable.status === 'AVAILABLE'}
+                                                    key={iIdx} disabled={selectedTable.status === 'AVAILABLE'}
                                                     onClick={() => handleAddItem(selectedTable, item)}
                                                     className="p-3 bg-white border border-slate-100 rounded-xl flex justify-between items-center hover:border-ocean-300 hover:shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group"
                                                   >
@@ -270,13 +237,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
       </div>
   );
 
-  // --- RENDER DASHBOARD (KPIs) ---
   const renderKPIs = () => {
     const totalRedemptions = coupons.reduce((acc, c) => acc + (c.currentRedemptions || 0), 0);
     const totalViews = myBusiness?.views || 0;
-    const socialClicks = myBusiness?.socialClicks || {};
-    const totalClicks = (socialClicks.whatsapp || 0) + (socialClicks.instagram || 0) + (socialClicks.website || 0) + (socialClicks.phone || 0) + (socialClicks.map || 0);
-
     return (
         <div className="space-y-8 animate-in fade-in">
              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -284,24 +247,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                     <LayoutDashboard size={20} className="text-ocean-500"/> Visão Geral
                 </h2>
                 <div className="flex gap-2 w-full md:w-auto">
-                    <button 
-                        onClick={() => setViewMode('TABLES')}
-                        className="bg-white border border-green-200 text-green-700 hover:bg-green-50 px-4 py-2 rounded-xl font-bold flex items-center gap-2 flex-1 md:flex-none justify-center shadow-sm"
-                    >
+                    <button onClick={() => setViewMode('TABLES')} className="bg-white border border-green-200 text-green-700 hover:bg-green-50 px-4 py-2 rounded-xl font-bold flex items-center gap-2 flex-1 md:flex-none justify-center shadow-sm">
                         <Coffee size={18} /> Gestão de Mesas (PDV)
-                    </button>
-                    <button 
-                        onClick={() => setViewMode('EDITOR')}
-                        className="bg-white border border-ocean-200 text-ocean-700 hover:bg-ocean-50 px-4 py-2 rounded-xl font-bold flex items-center gap-2 flex-1 md:flex-none justify-center shadow-sm"
-                    >
-                        <Edit size={18} /> Perfil & Cardápio
                     </button>
                     <button onClick={() => setIsCreating(true)} className="px-4 py-2 rounded-xl font-bold flex items-center gap-2 shadow-md bg-ocean-600 hover:bg-ocean-700 text-white">
                         <Plus size={20} /> Novo Cupom
                     </button>
                 </div>
             </div>
-
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
                     <div className="flex justify-between items-start mb-2">
@@ -336,8 +289,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
     );
   };
 
-  // ... (renderProfileEditor logic preserved but tabs simplified for brevity in this response) ...
-
   return (
     <div className="pb-24 pt-8 md:pt-24 px-4 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-8">
@@ -347,26 +298,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
           </div>
           <button onClick={onLogout} className="text-red-500 bg-red-50 px-4 py-2 rounded-xl font-medium text-sm">Sair</button>
       </div>
-
       {loadingData ? (
           <div className="flex justify-center py-10"><Loader2 className="animate-spin text-ocean-500" /></div>
       ) : (
-          <>
-            {viewMode === 'TABLES' ? renderTables() : renderKPIs()}
-            {/* O Editor de Perfil e Criar Cupom seriam renderizados aqui se viewMode fosse EDITOR ou isCreating fosse true */}
-          </>
-      )}
-
-      {isCreating && (
-          <div className="fixed inset-0 z-50 bg-white/95 backdrop-blur-sm overflow-y-auto p-4 md:p-8 animate-in fade-in">
-              {/* Formulário de Cupom Preservado */}
-              <div className="max-w-3xl mx-auto bg-white rounded-3xl p-6 shadow-2xl relative">
-                  <button onClick={() => setIsCreating(false)} className="absolute top-4 right-4"><X/></button>
-                  <h2 className="text-2xl font-bold mb-6">Novo Cupom</h2>
-                  {/* ... conteúdo do formulário ... */}
-                  <button onClick={() => setIsCreating(false)} className="w-full bg-ocean-600 text-white py-3 rounded-xl">Publicar</button>
-              </div>
-          </div>
+          viewMode === 'TABLES' ? renderTables() : renderKPIs()
       )}
     </div>
   );

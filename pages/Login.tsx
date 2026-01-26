@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserRole, AppCategory, AppConfig } from '../types';
 import { login, registerUser, createCompanyRequest, getCategories, getAppConfig } from '../services/dataService';
-import { Building2, User, ChevronLeft, CheckCircle2, Loader2, Instagram, Globe, Phone, Mail, Lock, UserPlus, LogIn, Eye, EyeOff } from 'lucide-react';
+import { Building2, User, ChevronLeft, CheckCircle2, Loader2, Instagram, Globe, Phone, Mail, Lock, UserPlus, LogIn, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 interface LoginProps {
   onLogin: () => void;
@@ -73,7 +73,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         } else if (err.code === 'auth/too-many-requests') {
             setError('Muitas tentativas. Tente novamente mais tarde.');
         } else {
-            setError('Erro ao conectar. Tente novamente.');
+            setError('Erro ao conectar. Verifique sua internet.');
         }
     } finally {
         setLoading(false);
@@ -96,14 +96,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setLoading(true);
       try {
           await registerUser(regName, regEmail, regPassword);
-          onLogin(); // Auto login after register
+          onLogin(); 
       } catch (err: any) {
-          console.error(err);
-          if (err.code === 'auth/email-already-in-use') {
-              setError('Este email já está cadastrado.');
-          } else {
-              setError('Erro ao criar conta. Tente novamente.');
-          }
+          setError(err.message || 'Erro ao criar conta.');
       } finally {
           setLoading(false);
       }
@@ -115,7 +110,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       setRequestSent(true);
   };
 
-  // --- RENDER COMPANY SUCCESS ---
   if (mode === 'REGISTER_COMPANY' && requestSent) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
@@ -136,49 +130,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       );
   }
 
-  // --- RENDER COMPANY FORM ---
-  if (mode === 'REGISTER_COMPANY') {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 py-12">
-            <div className="w-full max-w-xl bg-white p-6 md:p-8 rounded-3xl shadow-xl">
-                <button onClick={() => setMode('LOGIN')} className="flex items-center text-slate-400 hover:text-ocean-600 mb-6">
-                    <ChevronLeft size={20} /> Voltar
-                </button>
-                <h2 className="text-2xl font-bold text-ocean-950 mb-1">Cadastrar Empresa</h2>
-                <p className="text-slate-500 text-sm mb-6">Solicite sua entrada no {config.appName} {config.appNameHighlight}.</p>
-                <form onSubmit={handleCompanyRegisterSubmit} className="space-y-4">
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                        <h3 className="text-xs font-bold text-ocean-900 uppercase mb-3">Dados Principais</h3>
-                        <div className="space-y-4">
-                            <div><label className="text-xs font-bold text-slate-500 uppercase">Nome da Empresa</label><input required className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 mt-1" value={regForm.companyName} onChange={e => setRegForm({...regForm, companyName: e.target.value})} /></div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div><label className="text-xs font-bold text-slate-500 uppercase">Responsável</label><input required className="w-full px-4 py-3 rounded-xl bg-white border mt-1" value={regForm.ownerName} onChange={e => setRegForm({...regForm, ownerName: e.target.value})} /></div>
-                                <div><label className="text-xs font-bold text-slate-500 uppercase">CNPJ/CPF</label><input required className="w-full px-4 py-3 rounded-xl bg-white border mt-1" value={regForm.document} onChange={e => setRegForm({...regForm, document: e.target.value})} /></div>
-                            </div>
-                            <div><label className="text-xs font-bold text-slate-500 uppercase">Email</label><input type="email" required className="w-full px-4 py-3 rounded-xl bg-white border mt-1" value={regForm.email} onChange={e => setRegForm({...regForm, email: e.target.value})} /></div>
-                             <div><label className="text-xs font-bold text-slate-500 uppercase">Telefone</label><input type="tel" required className="w-full px-4 py-3 rounded-xl bg-white border mt-1" value={regForm.phone} onChange={e => setRegForm({...regForm, phone: e.target.value})} /></div>
-                        </div>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                        <h3 className="text-xs font-bold text-ocean-900 uppercase mb-3">Detalhes</h3>
-                        <div className="space-y-4">
-                             <div>
-                                <label className="text-xs font-bold text-slate-500 uppercase">Categoria</label>
-                                <select className="w-full px-4 py-3 rounded-xl bg-white border mt-1" value={regForm.category} onChange={e => setRegForm({...regForm, category: e.target.value})}>
-                                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                                </select>
-                            </div>
-                            <div><label className="text-xs font-bold text-slate-500 uppercase">Descrição</label><textarea rows={3} className="w-full px-4 py-3 rounded-xl bg-white border mt-1" value={regForm.description} onChange={e => setRegForm({...regForm, description: e.target.value})} /></div>
-                        </div>
-                    </div>
-                    <button type="submit" className="w-full bg-gold-500 text-ocean-950 font-bold py-4 rounded-xl shadow-lg hover:bg-gold-400 mt-2">ENVIAR SOLICITAÇÃO</button>
-                </form>
-            </div>
-        </div>
-      );
-  }
-
-  // --- MAIN LOGIN / USER REGISTER SCREEN ---
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="w-full max-w-md bg-white p-8 rounded-3xl shadow-xl shadow-slate-200/50">
@@ -211,6 +162,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           </button>
         </div>
 
+        {error && (
+            <div className="bg-red-50 text-red-600 text-xs p-4 rounded-xl mb-6 flex items-start gap-3 border border-red-100 animate-in fade-in zoom-in-95">
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                <p className="font-medium leading-relaxed">{error}</p>
+            </div>
+        )}
+
         {/* --- LOGIN FORM --- */}
         {mode === 'LOGIN' && (
             <form onSubmit={handleLoginSubmit} className="space-y-4 animate-in fade-in slide-in-from-left-4">
@@ -222,7 +180,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                             type="email" 
                             required
                             placeholder="seu@email.com"
-                            className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500 outline-none transition-all"
+                            className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-ocean-500 outline-none transition-all"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                         />
@@ -246,21 +204,19 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     </div>
                 </div>
 
-                {error && <div className="bg-red-50 text-red-500 text-sm p-3 rounded-lg text-center font-medium border border-red-100">{error}</div>}
-                
                 <button 
                     type="submit" 
                     disabled={loading}
-                    className="w-full bg-ocean-600 hover:bg-ocean-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-ocean-600/20 transition-all active:scale-[0.98] mt-2 flex justify-center items-center gap-2"
+                    className="w-full bg-ocean-600 hover:bg-ocean-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-[0.98] mt-2 flex justify-center items-center gap-2"
                 >
                     {loading ? <Loader2 className="animate-spin" size={20} /> : "ENTRAR"}
                 </button>
 
-                <div className="pt-4 border-t border-slate-100 mt-4">
+                <div className="pt-4 border-t border-slate-100 mt-4 text-center">
                     <button 
                         type="button"
                         onClick={() => setMode('REGISTER_COMPANY')}
-                        className="w-full text-slate-500 text-xs font-medium hover:text-ocean-600 transition-colors flex items-center justify-center gap-1"
+                        className="text-slate-500 text-xs font-medium hover:text-ocean-600 transition-colors inline-flex items-center gap-1"
                     >
                         <Building2 size={14} /> Sou empresa e quero cadastrar meu negócio
                     </button>
@@ -328,16 +284,37 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     </div>
                 </div>
 
-                {error && <div className="bg-red-50 text-red-500 text-sm p-3 rounded-lg text-center font-medium border border-red-100">{error}</div>}
-
                 <button 
                     type="submit" 
                     disabled={loading}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-600/20 transition-all active:scale-[0.98] mt-2 flex justify-center items-center gap-2"
+                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-[0.98] mt-2 flex justify-center items-center gap-2"
                 >
                     {loading ? <Loader2 className="animate-spin" size={20} /> : "CRIAR CONTA GRÁTIS"}
                 </button>
             </form>
+        )}
+
+        {mode === 'REGISTER_COMPANY' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4">
+                <button onClick={() => setMode('LOGIN')} className="flex items-center text-slate-400 hover:text-ocean-600 mb-6 text-sm font-bold">
+                    <ChevronLeft size={20} /> Voltar para Login
+                </button>
+                <h2 className="text-2xl font-bold text-ocean-950 mb-1">Cadastrar Empresa</h2>
+                <p className="text-slate-500 text-xs mb-6 leading-relaxed">Solicite sua entrada. Nossa equipe analisará seus dados e retornará via WhatsApp ou E-mail.</p>
+                <form onSubmit={handleCompanyRegisterSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 gap-4">
+                        <input placeholder="Nome da Empresa" required className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200" value={regForm.companyName} onChange={e => setRegForm({...regForm, companyName: e.target.value})} />
+                        <input placeholder="Responsável" required className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200" value={regForm.ownerName} onChange={e => setRegForm({...regForm, ownerName: e.target.value})} />
+                        <input type="email" placeholder="Email Comercial" required className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200" value={regForm.email} onChange={e => setRegForm({...regForm, email: e.target.value})} />
+                        <input type="tel" placeholder="WhatsApp (DDD)" required className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200" value={regForm.phone} onChange={e => setRegForm({...regForm, phone: e.target.value})} />
+                        <select className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-slate-500" value={regForm.category} onChange={e => setRegForm({...regForm, category: e.target.value})}>
+                            {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                        </select>
+                        <textarea placeholder="Fale um pouco sobre seu negócio..." rows={3} className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200" value={regForm.description} onChange={e => setRegForm({...regForm, description: e.target.value})} />
+                    </div>
+                    <button type="submit" className="w-full bg-gold-500 text-ocean-950 font-bold py-4 rounded-xl shadow-lg hover:bg-gold-400 mt-2 transition-all">ENVIAR SOLICITAÇÃO</button>
+                </form>
+            </div>
         )}
 
       </div>

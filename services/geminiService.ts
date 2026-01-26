@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Coupon } from "../types";
 
@@ -24,8 +25,9 @@ export const generateCouponDescription = async (title: string, category: string,
       Use emojis relacionados a praia e verão. Foque na experiência do turista.
     `;
 
+    // Updated model to gemini-3-flash-preview as gemini-1.5/2.5-flash are prohibited or deprecated in specific versions
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
 
@@ -52,8 +54,9 @@ export const suggestCouponIdea = async (companyCategory: string): Promise<{ titl
       Não use markdown.
     `;
     
+    // Updated model to gemini-3-flash-preview
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
             responseMimeType: 'application/json'

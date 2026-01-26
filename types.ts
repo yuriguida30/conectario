@@ -8,8 +8,8 @@ export enum UserRole {
 
 export interface UserPermissions {
   canCreateCoupons: boolean;
-  canManageBusiness: boolean; // Guide profile
-  canManageBlog?: boolean; // Super admin mostly
+  canManageBusiness: boolean;
+  canManageBlog?: boolean;
 }
 
 export interface User {
@@ -24,19 +24,13 @@ export interface User {
   companyName?: string;
   category?: string;
   phone?: string;
-  
-  // New Control Fields
-  maxCoupons?: number; // Limit of active coupons
+  maxCoupons?: number;
   permissions?: UserPermissions;
-  isBlocked?: boolean; // Bloqueio de acesso
-  
-  // Content Creator Profile
+  isBlocked?: boolean;
   profession?: string;
   bio?: string;
   instagram?: string;
   website?: string;
-  
-  // Favorites
   favorites?: {
       coupons: string[];
       businesses: string[];
@@ -63,7 +57,7 @@ export interface SavingsRecord {
   date: string;
   amount: number;
   couponTitle: string;
-  couponId?: string; // Added for limit tracking
+  couponId?: string;
 }
 
 export interface Coupon {
@@ -87,32 +81,29 @@ export interface Coupon {
   active: boolean;
   rating?: number;
   reviews?: number;
-  
-  // --- SCARCITY LOGIC ---
-  maxRedemptions?: number; // Total supply (e.g., 100 coupons available)
-  currentRedemptions?: number; // How many claimed so far
-  limitPerUser?: number; // How many a single user can claim (e.g., 1 per person)
+  maxRedemptions?: number;
+  currentRedemptions?: number;
+  limitPerUser?: number;
 }
 
-// --- NEW CONFIGURATION TYPES ---
 export interface AppCategory {
   id: string;
   name: string;
-  subcategories?: string[]; // NOVO: Lista de subcategorias (tags)
+  subcategories?: string[];
 }
 
 export interface AppLocation {
   id: string;
   name: string;
   active: boolean;
-  lat?: number; // Center latitude of the neighborhood
-  lng?: number; // Center longitude of the neighborhood
+  lat?: number;
+  lng?: number;
 }
 
 export interface AppAmenity {
   id: string;
   label: string;
-  icon?: string; // string identifier for icon component
+  icon?: string;
 }
 
 export interface FeaturedConfig {
@@ -124,10 +115,10 @@ export interface FeaturedConfig {
 
 export interface AppConfig {
     appName: string;
-    appNameHighlight: string; // The part in Gold/Color
-    logoUrl?: string; // Navbar logo
-    loginLogoUrl?: string; // Large logo for login/subscribe
-    faviconUrl?: string; // Browser tab icon
+    appNameHighlight: string;
+    logoUrl?: string;
+    loginLogoUrl?: string;
+    faviconUrl?: string;
 }
 
 export interface SupportMessage {
@@ -140,9 +131,8 @@ export interface SupportMessage {
     status: 'OPEN' | 'RESOLVED';
 }
 
-// --- NEW TYPES FOR GUIDE & BLOG ---
-
 export interface MenuItem {
+  id: string;
   name: string;
   description?: string;
   price: number;
@@ -164,32 +154,50 @@ export interface Review {
   date: string;
 }
 
-export interface BusinessProfile {
-  id: string; // Should match User ID for simplicity in 1-to-1 relation
+// --- TABLE MANAGEMENT TYPES ---
+export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'BILLING';
+
+export interface TableItem {
+  id: string;
   name: string;
-  category: string; // Gastronomia, Hotel, etc.
-  subcategory?: string; // NOVO: Subcategoria específica
+  price: number;
+  quantity: number;
+  addedAt: string;
+}
+
+export interface Table {
+  id: string;
+  number: number;
+  status: TableStatus;
+  items: TableItem[];
+  total: number;
+  openedAt?: string;
+}
+
+export interface BusinessProfile {
+  id: string;
+  name: string;
+  category: string;
+  subcategory?: string;
   description: string;
   coverImage: string;
   gallery: string[];
   address: string;
-  locationId?: string; // Links to AppLocation
+  locationId?: string;
   phone: string;
   whatsapp?: string;
   instagram?: string;
   website?: string;
-  amenities: string[]; // array of AppAmenity IDs
-  openingHours: { [key: string]: string }; // e.g., "Seg-Sex": "09:00 - 18:00"
+  amenities: string[];
+  openingHours: { [key: string]: string };
   menu?: MenuSection[];
   reviews?: Review[];
   rating: number;
   reviewCount?: number;
-  isOpenNow?: boolean; // Mock helper
-  isFeatured?: boolean; // NOVO: Define se a empresa é destaque no ranking
-  lat?: number; // GPS Latitude
-  lng?: number; // GPS Longitude
-  
-  // Analytics
+  isOpenNow?: boolean;
+  isFeatured?: boolean;
+  lat?: number;
+  lng?: number;
   views?: number;
   socialClicks?: {
       whatsapp?: number;
@@ -205,7 +213,7 @@ export interface Collection {
   title: string;
   description: string;
   coverImage: string;
-  businessIds: string[]; // List of BusinessProfile IDs included in this collection
+  businessIds: string[];
   featured?: boolean;
 }
 
@@ -213,24 +221,16 @@ export interface BlogPost {
   id: string;
   title: string;
   excerpt: string;
-  content: string; // HTML or Markdown
+  content: string;
   imageUrl: string;
   category: 'Roteiro' | 'Dica' | 'Notícia' | 'Curiosidade';
   date: string;
   author: string;
-  authorId?: string; // Link to a User with CONTENT_CREATOR role
+  authorId?: string;
 }
 
-// DEFAULT FALLBACKS (Used if DB is empty)
-// Core categories that cannot be deleted
 export const PROTECTED_CATEGORIES = ['Gastronomia', 'Hospedagem', 'Comércio', 'Serviços'];
-
-export const DEFAULT_CATEGORIES = [
-    ...PROTECTED_CATEGORIES,
-    'Passeios', 
-    'Entretenimento'
-];
-
+export const DEFAULT_CATEGORIES = [...PROTECTED_CATEGORIES, 'Passeios', 'Entretenimento'];
 export const DEFAULT_AMENITIES: AppAmenity[] = [
     { id: 'wifi', label: 'Wi-Fi Grátis' },
     { id: 'ac', label: 'Ar Condicionado' },

@@ -4,29 +4,31 @@ import { BusinessProfile } from "../types";
 
 /**
  * AI Scraper Agent: Realiza buscas no Google Search para encontrar empresas reais.
- * Seguindo as diretrizes: Uso direto de process.env.API_KEY e instanciação por chamada.
  */
 export const discoverBusinessesFromAI = async (
   neighborhood: string, 
   category: string, 
   amount: number = 5
 ): Promise<{ businesses: Partial<BusinessProfile>[], sources: any[] }> => {
-  // Cria uma nova instância da SDK imediatamente antes da chamada para garantir o uso da chave mais recente
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  // O process.env.API_KEY será substituído pelo valor real pelo Vite (configurado no vite.config.ts)
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey) {
+    throw new Error("API_KEY não encontrada no ambiente. Verifique as configurações da Vercel.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
 
   try {
     const prompt = `
       Aja como um Agente de Inteligência de Mercado.
       Encontre exatamente ${amount} estabelecimentos REAIS e ATIVOS de "${category}" no bairro "${neighborhood}", Rio de Janeiro.
-      
-      Você DEVE usar a ferramenta googleSearch para validar a existência e reputação dos locais.
-      Extraia: Nome, Endereço, WhatsApp (formato 5521...), Nota e uma Descrição curta.
-
+      Use a ferramenta googleSearch para validar os dados.
       Retorne APENAS um array JSON:
       [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "..."}]
     `;
 
-    // Utiliza gemini-3-pro-image-preview conforme diretrizes para uso de googleSearch
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
       contents: prompt,
@@ -39,7 +41,6 @@ export const discoverBusinessesFromAI = async (
     const text = response.text || "";
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
-    // Extração robusta de JSON do corpo da resposta
     const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
     const jsonStr = jsonMatch ? jsonMatch[0] : "[]";
     
@@ -72,7 +73,10 @@ export const discoverBusinessesFromAI = async (
 };
 
 export const generateCouponDescription = async (businessName: string, category: string, discount: number): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) return "";
+  
+  const ai = new GoogleGenAI({ apiKey });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',

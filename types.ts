@@ -37,6 +37,56 @@ export interface User {
   };
 }
 
+export interface BusinessProfile {
+  id: string;
+  name: string;
+  category: string;
+  subcategory?: string;
+  description: string;
+  coverImage: string;
+  gallery: string[];
+  address: string;
+  locationId?: string;
+  phone: string;
+  whatsapp?: string;
+  instagram?: string;
+  website?: string;
+  amenities: string[];
+  openingHours: { [key: string]: string };
+  menu?: MenuSection[];
+  reviews?: Review[];
+  rating: number;
+  reviewCount?: number;
+  isOpenNow?: boolean;
+  isFeatured?: boolean;
+  lat?: number;
+  lng?: number;
+  views?: number;
+  // --- CAMPOS IA & REIVINDICAÇÃO ---
+  isClaimed: boolean;
+  isImported?: boolean;
+  claimedBy?: string; 
+  socialClicks?: {
+      whatsapp?: number;
+      instagram?: number;
+      website?: number;
+      phone?: number;
+      map?: number;
+  };
+}
+
+export interface BusinessClaimRequest {
+    id: string;
+    businessId: string;
+    businessName: string;
+    requesterName: string;
+    requesterEmail: string;
+    requesterPhone: string;
+    documentProofUrl?: string;
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    date: string;
+}
+
 export interface CompanyRequest {
   id: string;
   companyName: string;
@@ -154,7 +204,6 @@ export interface Review {
   date: string;
 }
 
-// --- TABLE MANAGEMENT TYPES ---
 export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'BILLING';
 
 export interface TableItem {
@@ -172,40 +221,6 @@ export interface Table {
   items: TableItem[];
   total: number;
   openedAt?: string;
-}
-
-export interface BusinessProfile {
-  id: string;
-  name: string;
-  category: string;
-  subcategory?: string;
-  description: string;
-  coverImage: string;
-  gallery: string[];
-  address: string;
-  locationId?: string;
-  phone: string;
-  whatsapp?: string;
-  instagram?: string;
-  website?: string;
-  amenities: string[];
-  openingHours: { [key: string]: string };
-  menu?: MenuSection[];
-  reviews?: Review[];
-  rating: number;
-  reviewCount?: number;
-  isOpenNow?: boolean;
-  isFeatured?: boolean;
-  lat?: number;
-  lng?: number;
-  views?: number;
-  socialClicks?: {
-      whatsapp?: number;
-      instagram?: number;
-      website?: number;
-      phone?: number;
-      map?: number;
-  };
 }
 
 export interface Collection {

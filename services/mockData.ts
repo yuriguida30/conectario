@@ -79,7 +79,9 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     ],
     isOpenNow: true,
     lat: -22.9691,
-    lng: -42.0232
+    lng: -42.0232,
+    // Fix: Missing isClaimed property
+    isClaimed: false
   },
   {
     id: 'b2',
@@ -105,7 +107,9 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     ],
     isOpenNow: true,
     lat: -22.9554,
-    lng: -42.0336
+    lng: -42.0336,
+    // Fix: Missing isClaimed property
+    isClaimed: false
   },
   {
     id: 'b3',
@@ -130,7 +134,9 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     ],
     isOpenNow: true,
     lat: -22.9700,
-    lng: -42.0220
+    lng: -42.0220,
+    // Fix: Missing isClaimed property
+    isClaimed: false
   },
   {
     id: 'b4',
@@ -150,7 +156,9 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     reviews: [],
     isOpenNow: true,
     lat: -22.9712,
-    lng: -42.0390
+    lng: -42.0390,
+    // Fix: Missing isClaimed property
+    isClaimed: false
   },
   {
     id: 'b5',
@@ -170,7 +178,9 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     reviews: [],
     isOpenNow: true,
     lat: -22.9680,
-    lng: -42.0240
+    lng: -42.0240,
+    // Fix: Missing isClaimed property
+    isClaimed: false
   },
   {
     id: 'b6',
@@ -190,7 +200,9 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     reviews: [],
     isOpenNow: true,
     lat: -22.9660,
-    lng: -42.0260
+    lng: -42.0260,
+    // Fix: Missing isClaimed property
+    isClaimed: false
   }
 ];
 

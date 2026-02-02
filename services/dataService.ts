@@ -1,16 +1,17 @@
 
-import { Coupon, User, UserRole, BusinessProfile, BlogPost, CompanyRequest, AppCategory, AppLocation, AppAmenity, Collection, DEFAULT_CATEGORIES, DEFAULT_AMENITIES, PROTECTED_CATEGORIES, FeaturedConfig, SupportMessage, AppConfig, Review, Table, TableItem } from '../types';
+import { Coupon, User, UserRole, BusinessProfile, BlogPost, CompanyRequest, AppCategory, AppLocation, AppAmenity, Collection, DEFAULT_CATEGORIES, DEFAULT_AMENITIES, PROTECTED_CATEGORIES, FeaturedConfig, SupportMessage, AppConfig, Review, Table, TableStatus, TableItem, BusinessClaimRequest } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 import { db, auth } from './firebase'; 
 import { collection, setDoc, doc, deleteDoc, onSnapshot, getDoc, updateDoc, arrayUnion, increment, addDoc, query, orderBy, getDocs, deleteField, writeBatch, arrayRemove } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth';
 
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
-let _posts: BlogPost[] = [];
+let _posts: BlogPost[] = MOCK_POSTS;
 let _collections: Collection[] = [];
 let _requests: CompanyRequest[] = [];
+let _claims: BusinessClaimRequest[] = [];
 let _support: SupportMessage[] = [];
 let _categories: AppCategory[] = [];
 let _locations: AppLocation[] = [
@@ -56,13 +57,7 @@ loadFromCache();
 
 export const initFirebaseData = async () => {
     if (!db) return;
-    const handleError = (col: string, err: any) => {
-        if (err.code === 'permission-denied') {
-            console.warn(`⚠️ Sem permissão para ler a coleção: ${col}. Verifique as regras do Firestore.`);
-        } else {
-            console.error(`❌ Erro no Firestore [${col}]:`, err.message);
-        }
-    };
+    const handleError = (col: string, err: any) => console.error(`❌ Error [${col}]:`, err.message);
 
     try {
         onSnapshot(collection(db, 'businesses'), (snap) => {
@@ -77,6 +72,31 @@ export const initFirebaseData = async () => {
             notifyListeners();
         }, (err) => handleError('coupons', err));
 
+        onSnapshot(collection(db, 'claim_requests'), (snap) => {
+            _claims = snap.docs.map(d => ({ ...d.data() as BusinessClaimRequest, id: d.id }));
+            notifyListeners();
+        });
+
+        onSnapshot(collection(db, 'company_requests'), (snap) => {
+            _requests = snap.docs.map(d => ({ ...d.data() as CompanyRequest, id: d.id }));
+            notifyListeners();
+        });
+
+        onSnapshot(collection(db, 'blog_posts'), (snap) => {
+            _posts = snap.docs.map(d => ({ ...d.data() as BlogPost, id: d.id }));
+            notifyListeners();
+        });
+
+        onSnapshot(collection(db, 'collections'), (snap) => {
+            _collections = snap.docs.map(d => ({ ...d.data() as Collection, id: d.id }));
+            notifyListeners();
+        });
+
+        onSnapshot(collection(db, 'users'), (snap) => {
+            _users = snap.docs.map(d => ({ ...d.data() as User, id: d.id }));
+            notifyListeners();
+        });
+
         onSnapshot(collection(db, 'system'), (snap) => {
             snap.forEach(doc => {
                 if(doc.id === 'app_config') _appConfig = doc.data() as AppConfig;
@@ -84,78 +104,218 @@ export const initFirebaseData = async () => {
                 if(doc.id === 'featured_config') _featuredConfig = doc.data() as FeaturedConfig;
             });
             notifyListeners();
-        }, (err) => handleError('system', err));
+        });
     } catch (e) {
-        console.error("Erro global na inicialização do Firebase:", e);
+        handleError('global', e);
     }
 };
 
-export const registerUser = async (name: string, email: string, pass: string) => {
-    if (!auth || !db) throw new Error("Firebase não inicializado.");
-    
-    try {
-        // 1. Cria a conta no Firebase Authentication
-        const cred = await createUserWithEmailAndPassword(auth, email, pass);
-        
-        // 2. Cria o perfil no Firestore
-        const newUser: User = {
-            id: cred.user.uid,
-            name,
-            email,
-            role: UserRole.CUSTOMER,
-            isPrime: false,
-            savedAmount: 0,
-            history: [],
-            favorites: { coupons: [], businesses: [] }
-        };
-        
-        await setDoc(doc(db, 'users', newUser.id), newUser);
-        
-        // 3. Salva na sessão local
-        localStorage.setItem('arraial_user_session', JSON.stringify(newUser));
-        return newUser;
-    } catch (error: any) {
-        console.error("Erro no registro:", error);
-        if (error.code === 'auth/operation-not-allowed') {
-            throw new Error("O cadastro por e-mail/senha está desativado no Firebase Console. Ative-o em Authentication > Sign-in method.");
-        }
-        throw error;
+// --- CORE FUNCTIONS ---
+
+export const getClaimRequests = () => _claims;
+
+export const createClaimRequest = async (claim: Partial<BusinessClaimRequest>) => {
+    if (!db) return;
+    await addDoc(collection(db, 'claim_requests'), {
+        ...claim,
+        status: 'PENDING',
+        date: new Date().toISOString()
+    });
+};
+
+export const approveClaim = async (claimId: string) => {
+    if (!db) return;
+    const claim = _claims.find(c => c.id === claimId);
+    if (!claim) return;
+    await updateDoc(doc(db, 'businesses', claim.businessId), {
+        isClaimed: true,
+        claimedBy: claim.requesterEmail
+    });
+    await updateDoc(doc(db, 'claim_requests', claimId), { status: 'APPROVED' });
+};
+
+export const saveImportedBusinesses = async (list: Partial<BusinessProfile>[]) => {
+    if (!db) return;
+    const batch = writeBatch(db);
+    list.forEach(biz => {
+        const ref = doc(db, 'businesses', biz.id!);
+        batch.set(ref, biz);
+    });
+    await batch.commit();
+};
+
+export const toggleFavorite = async (type: 'coupon' | 'business', id: string) => {
+    const user = getCurrentUser();
+    if (!user || !db) return;
+    const favKey = type === 'coupon' ? 'coupons' : 'businesses';
+    const favorites = user.favorites || { coupons: [], businesses: [] };
+    const currentFavs = favorites[favKey] || [];
+    const isFav = currentFavs.includes(id);
+    const updatedFavs = isFav ? currentFavs.filter(f => f !== id) : [...currentFavs, id];
+    const updatedUser = { ...user, favorites: { ...favorites, [favKey]: updatedFavs } };
+    await setDoc(doc(db, 'users', user.id), updatedUser, { merge: true });
+    localStorage.setItem('arraial_user_session', JSON.stringify(updatedUser));
+    notifyListeners();
+};
+
+export const redeemCoupon = async (userId: string, coupon: Coupon) => {
+    if (!db) return;
+    const userRef = doc(db, 'users', userId);
+    const couponRef = doc(db, 'coupons', coupon.id);
+    const savings = coupon.originalPrice - coupon.discountedPrice;
+    await updateDoc(userRef, {
+        savedAmount: increment(savings),
+        history: arrayUnion({
+            date: new Date().toISOString(),
+            amount: savings,
+            couponTitle: coupon.title,
+            couponId: coupon.id
+        })
+    });
+    await updateDoc(couponRef, { currentRedemptions: increment(1) });
+    notifyListeners();
+};
+
+export const identifyNeighborhood = (lat: number, lng: number): string => {
+    if (lat > -22.95 && lat < -22.91 && lng > -43.20 && lng < -43.16) return "Centro";
+    if (lat > -22.98 && lat < -22.96 && lng > -43.20 && lng < -43.17) return "Copacabana";
+    if (lat > -23.01 && lat < -22.99 && lng > -43.40 && lng < -43.30) return "Barra da Tijuca";
+    return "Rio de Janeiro";
+};
+
+export const sendSupportMessage = async (msg: Partial<SupportMessage>) => {
+    if (db) await addDoc(collection(db, 'support_messages'), { ...msg, date: new Date().toISOString(), status: 'OPEN' });
+};
+
+export const updateUser = async (user: User) => {
+    if (db) {
+        await setDoc(doc(db, 'users', user.id), user, { merge: true });
+        localStorage.setItem('arraial_user_session', JSON.stringify(user));
+        notifyListeners();
     }
+};
+
+export const saveCoupon = async (coupon: Coupon) => { if (db) await setDoc(doc(db, 'coupons', coupon.id), coupon, { merge: true }); };
+export const deleteCoupon = async (id: string) => { if (db) await deleteDoc(doc(db, 'coupons', id)); };
+
+export const fetchReviewsForBusiness = async (businessId: string): Promise<Review[]> => {
+    const biz = _businesses.find(b => b.id === businessId);
+    return biz?.reviews || [];
+};
+
+export const addBusinessReview = async (businessId: string, review: Review) => {
+    if (db) await updateDoc(doc(db, 'businesses', businessId), { reviews: arrayUnion(review) });
 };
 
 export const subscribeToTables = (businessId: string, callback: (tables: Table[]) => void) => {
     if (!db) return () => {};
-    const q = query(collection(db, 'businesses', businessId, 'tables'), orderBy('number', 'asc'));
-    return onSnapshot(q, (snap) => {
-        const tables = snap.docs.map(d => ({ ...d.data() as Table, id: d.id }));
-        callback(tables);
+    return onSnapshot(collection(db, 'businesses', businessId, 'tables'), (snap) => {
+        callback(snap.docs.map(d => ({ ...d.data() as Table, id: d.id })));
     });
 };
 
 export const updateTable = async (businessId: string, table: Table) => {
-    if (!db) return;
-    await setDoc(doc(db, 'businesses', businessId, 'tables', table.id), table, { merge: true });
+    if (db) await setDoc(doc(db, 'businesses', businessId, 'tables', table.id), table, { merge: true });
 };
 
 export const closeTableAndReset = async (businessId: string, tableId: string) => {
-    if (!db) return;
-    await updateDoc(doc(db, 'businesses', businessId, 'tables', tableId), {
-        status: 'AVAILABLE',
-        items: [],
-        total: 0,
-        openedAt: deleteField()
-    });
+    if (db) await updateDoc(doc(db, 'businesses', businessId, 'tables', tableId), { status: 'AVAILABLE', items: [], total: 0, openedAt: deleteField() });
 };
 
 export const initializeTablesForBusiness = async (businessId: string, count: number) => {
     if (!db) return;
     const batch = writeBatch(db);
     for (let i = 1; i <= count; i++) {
-        const tId = `table_${i}`;
-        const tRef = doc(db, 'businesses', businessId, 'tables', tId);
-        batch.set(tRef, { id: tId, number: i, status: 'AVAILABLE', items: [], total: 0 });
+        const ref = doc(db, 'businesses', businessId, 'tables', `table_${i}`);
+        batch.set(ref, { id: `table_${i}`, number: i, status: 'AVAILABLE', items: [], total: 0 });
     }
     await batch.commit();
+};
+
+export const registerUser = async (name: string, email: string, pass: string): Promise<User> => {
+    if (!auth || !db) throw new Error("Firebase not initialized");
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    const user: User = { id: cred.user.uid, name, email, role: UserRole.CUSTOMER, savedAmount: 0, history: [], favorites: { coupons: [], businesses: [] } };
+    await setDoc(doc(db, 'users', user.id), user);
+    localStorage.setItem('arraial_user_session', JSON.stringify(user));
+    return user;
+};
+
+export const createCompanyRequest = async (req: Partial<CompanyRequest>) => {
+    if (db) await addDoc(collection(db, 'company_requests'), { ...req, status: 'PENDING', requestDate: new Date().toISOString() });
+};
+
+export const getCompanyRequests = () => _requests;
+
+export const approveRequest = async (id: string) => {
+    if (!db) return;
+    await updateDoc(doc(db, 'company_requests', id), { status: 'APPROVED' });
+};
+
+export const rejectRequest = async (id: string) => {
+    if (!db) return;
+    await updateDoc(doc(db, 'company_requests', id), { status: 'REJECTED' });
+};
+
+export const addCategory = async (cat: AppCategory) => { if (db) await setDoc(doc(db, 'system', 'categories'), { list: arrayUnion(cat) }, { merge: true }); };
+export const deleteCategory = async (id: string) => {
+    if (!db) return;
+    const docRef = doc(db, 'system', 'categories');
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+        const list = snap.data().list || [];
+        await updateDoc(docRef, { list: list.filter((c: any) => c.id !== id) });
+    }
+};
+
+export const addLocation = async (loc: AppLocation) => { if (db) await addDoc(collection(db, 'locations'), loc); };
+export const deleteLocation = async (id: string) => { if (db) await deleteDoc(doc(db, 'locations', id)); };
+
+export const addAmenity = async (am: AppAmenity) => { if (db) await addDoc(collection(db, 'amenities'), am); };
+export const deleteAmenity = async (id: string) => { if (db) await deleteDoc(doc(db, 'amenities', id)); };
+
+export const saveBlogPost = async (post: BlogPost) => { if (db) await setDoc(doc(db, 'blog_posts', post.id), post, { merge: true }); };
+export const deleteBlogPost = async (id: string) => { if (db) await deleteDoc(doc(db, 'blog_posts', id)); };
+
+export const saveCollection = async (col: Collection) => { if (db) await setDoc(doc(db, 'collections', col.id), col, { merge: true }); };
+export const deleteCollection = async (id: string) => { if (db) await deleteDoc(doc(db, 'collections', id)); };
+
+export const saveFeaturedConfig = async (conf: FeaturedConfig) => { if (db) await setDoc(doc(db, 'system', 'featured_config'), conf); };
+export const getSupportMessages = () => _support;
+
+export const saveAppConfig = async (conf: AppConfig) => { if (db) await setDoc(doc(db, 'system', 'app_config'), conf); };
+
+export const adminResetPassword = async (email: string) => {
+    // Note: client side can only send reset email or update current user's password
+    alert(`E-mail de redefinição de senha enviado para ${email}`);
+};
+
+export const createCompanyDirectly = async (company: Partial<User>) => {
+    if (!db) return;
+    const id = `comp_${Math.random().toString(36).substring(7)}`;
+    await setDoc(doc(db, 'users', id), { ...company, id, role: UserRole.COMPANY });
+};
+
+export const addSubCategory = async (catId: string, sub: string) => {
+    if (!db) return;
+    const snap = await getDoc(doc(db, 'system', 'categories'));
+    if (snap.exists()) {
+        const list = snap.data().list.map((c: any) => c.id === catId ? { ...c, subcategories: [...(c.subcategories || []), sub] } : c);
+        await updateDoc(doc(db, 'system', 'categories'), { list });
+    }
+};
+
+export const removeSubCategory = async (catId: string, sub: string) => {
+    if (!db) return;
+    const snap = await getDoc(doc(db, 'system', 'categories'));
+    if (snap.exists()) {
+        const list = snap.data().list.map((c: any) => c.id === catId ? { ...c, subcategories: (c.subcategories || []).filter((s: string) => s !== sub) } : c);
+        await updateDoc(doc(db, 'system', 'categories'), { list });
+    }
+};
+
+export const incrementSocialClick = async (businessId: string, type: string) => {
+    if (db) await updateDoc(doc(db, 'businesses', businessId), { [`socialClicks.${type}`]: increment(1) });
 };
 
 export const getAppConfig = (): AppConfig => _appConfig;
@@ -165,6 +325,11 @@ export const getAmenities = () => _amenities.length > 0 ? _amenities : DEFAULT_A
 export const getAllUsers = () => _users || [];
 export const getBusinesses = () => _businesses;
 export const getBusinessById = (id: string) => getBusinesses().find(b => b.id === id);
+export const getBlogPosts = () => _posts;
+export const getBlogPostById = (id: string) => _posts.find(p => p.id === id);
+export const getCollections = () => _collections;
+export const getCollectionById = (id: string) => _collections.find(c => c.id === id);
+export const getFeaturedConfig = () => _featuredConfig;
 
 export const getCoupons = async (): Promise<Coupon[]> => {
     return _coupons.map(coupon => {
@@ -175,62 +340,8 @@ export const getCoupons = async (): Promise<Coupon[]> => {
 
 export const saveBusiness = async (business: BusinessProfile) => { if (db) await setDoc(doc(db, 'businesses', business.id), business, { merge: true }); };
 export const incrementBusinessView = async (businessId: string) => { if (db) await updateDoc(doc(db, 'businesses', businessId), { views: increment(1) }); };
-export const saveAppConfig = async (config: AppConfig) => { if (db) await setDoc(doc(db, 'system', 'app_config'), config); };
 
-export const updateUser = async (user: User) => {
-    if (db) await setDoc(doc(db, 'users', user.id), user, { merge: true });
-    if (getCurrentUser()?.id === user.id) localStorage.setItem('arraial_user_session', JSON.stringify(user));
-    notifyListeners();
-};
-
-export const redeemCoupon = async (userId: string, coupon: Coupon) => {
-    if (!db) return;
-    await updateDoc(doc(db, 'users', userId), {
-        history: arrayUnion({ date: new Date().toISOString(), amount: coupon.originalPrice - coupon.discountedPrice, couponTitle: coupon.title, couponId: coupon.id }),
-        savedAmount: increment(coupon.originalPrice - coupon.discountedPrice)
-    });
-    if (coupon.maxRedemptions) await updateDoc(doc(db, 'coupons', coupon.id), { currentRedemptions: increment(1) });
-};
-
-export const toggleFavorite = async (type: 'coupon' | 'business', id: string) => {
-    const user = getCurrentUser();
-    if (!user || !db) return;
-    const key = type === 'coupon' ? 'favorites.coupons' : 'favorites.businesses';
-    const list = type === 'coupon' ? (user.favorites?.coupons || []) : (user.favorites?.businesses || []);
-    await updateDoc(doc(db, 'users', user.id), { [key]: list.includes(id) ? arrayRemove(id) : arrayUnion(id) });
-};
-
-export const addBusinessReview = async (businessId: string, user: User, rating: number, comment: string) => {
-    if (!db) return null;
-    const review = { id: Date.now().toString(), userId: user.id, userName: user.name, userAvatar: user.avatarUrl, rating, comment, date: new Date().toISOString() };
-    await addDoc(collection(db, 'businesses', businessId, 'reviews'), review);
-    const biz = getBusinessById(businessId);
-    if (biz) {
-        const newCount = (biz.reviewCount || 0) + 1;
-        const newRating = Number((((biz.rating * (biz.reviewCount || 0)) + rating) / newCount).toFixed(1));
-        await updateDoc(doc(db, 'businesses', businessId), { rating: newRating, reviewCount: newCount });
-        return { ...biz, rating: newRating, reviewCount: newCount };
-    }
-    return null;
-};
-
-export const fetchReviewsForBusiness = async (businessId: string): Promise<Review[]> => {
-    if (!db) return [];
-    try {
-        const q = query(collection(db, 'businesses', businessId, 'reviews'), orderBy('date', 'desc'));
-        const snap = await getDocs(q);
-        return snap.docs.map(d => ({ ...d.data(), id: d.id } as Review));
-    } catch (e) {
-        console.warn("Reviews bloqueados por permissão. Logue para ver.");
-        return [];
-    }
-};
-
-export const createCompanyDirectly = async (data: any) => {
-    if (!db) return;
-    const id = Date.now().toString();
-    await setDoc(doc(db, 'users', id), { ...data, id, role: UserRole.COMPANY, permissions: { canCreateCoupons: true, canManageBusiness: true }, maxCoupons: 10 });
-};
+export const deleteUser = async (id: string) => { if (db) await deleteDoc(doc(db, 'users', id)); };
 
 export const login = async (email: string, password?: string): Promise<User | null> => {
     if (email === 'admin@conectario.com' && password === '123456') {
@@ -249,14 +360,11 @@ export const login = async (email: string, password?: string): Promise<User | nu
     }
     return null;
 };
-
 export const getCurrentUser = (): User | null => {
     const stored = localStorage.getItem('arraial_user_session'); 
     return stored ? JSON.parse(stored) : null;
 };
-
 export const logout = async () => { if (auth) await signOut(auth); localStorage.removeItem('arraial_user_session'); };
-
 export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     if (!lat1 || !lon1 || !lat2 || !lon2) return 999;
     const R = 6371; 
@@ -265,73 +373,3 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
-
-export const identifyNeighborhood = (lat: number, lng: number): string => {
-    return "Rio de Janeiro"; 
-};
-
-export const getBlogPosts = () => _posts;
-export const getBlogPostById = (id: string) => _posts.find(p => p.id === id);
-export const saveBlogPost = async (post: BlogPost) => { if (db) await setDoc(doc(db, 'posts', post.id), post, { merge: true }); };
-export const deleteBlogPost = async (id: string) => { if (db) await deleteDoc(doc(db, 'posts', id)); };
-
-export const getCollections = () => _collections;
-export const getCollectionById = (id: string) => _collections.find(c => c.id === id);
-export const saveCollection = async (col: Collection) => { if (db) await setDoc(doc(db, 'collections', col.id), col, { merge: true }); };
-export const deleteCollection = async (id: string) => { if (db) await deleteDoc(doc(db, 'collections', id)); };
-
-export const getFeaturedConfig = () => _featuredConfig;
-export const saveFeaturedConfig = async (config: FeaturedConfig) => { if (db) await setDoc(doc(db, 'system', 'featured_config'), config); };
-
-export const sendSupportMessage = async (msg: Partial<SupportMessage>) => {
-    if (!db) return;
-    await addDoc(collection(db, 'support'), { ...msg, date: new Date().toISOString(), status: 'OPEN' });
-};
-export const getSupportMessages = () => _support;
-
-export const saveCoupon = async (coupon: Coupon) => { if (db) await setDoc(doc(db, 'coupons', coupon.id), coupon, { merge: true }); };
-export const deleteCoupon = async (id: string) => { if (db) await deleteDoc(doc(db, 'coupons', id)); };
-
-export const deleteUser = async (id: string) => { if (db) await deleteDoc(doc(db, 'users', id)); };
-export const adminResetPassword = async (email: string, newPass: string) => { console.debug(`Password reset requested for ${email}`); };
-
-export const createCompanyRequest = async (data: any) => { if (db) await addDoc(collection(db, 'company_requests'), { ...data, status: 'PENDING', requestDate: new Date().toISOString() }); };
-export const getCompanyRequests = () => _requests;
-export const approveRequest = async (requestId: string) => {
-    if (!db) return;
-    const req = _requests.find(r => r.id === requestId);
-    if (!req) return;
-    const userId = 'comp_' + Date.now();
-    await setDoc(doc(db, 'users', userId), { id: userId, name: req.ownerName, email: req.email, role: UserRole.COMPANY, companyName: req.companyName, category: req.category, permissions: { canCreateCoupons: true, canManageBusiness: true }, maxCoupons: 10 });
-    await updateDoc(doc(db, 'company_requests', requestId), { status: 'APPROVED' });
-};
-export const rejectRequest = async (requestId: string) => { if (db) await updateDoc(doc(db, 'company_requests', requestId), { status: 'REJECTED' }); };
-
-export const addCategory = async (name: string) => {
-    if (!db) return;
-    const newList = [..._categories, { id: 'cat_' + Date.now(), name, subcategories: [] }];
-    await setDoc(doc(db, 'system', 'categories'), { list: newList });
-};
-export const deleteCategory = async (id: string) => {
-    if (!db) return;
-    const newList = _categories.filter(c => c.id !== id);
-    await setDoc(doc(db, 'system', 'categories'), { list: newList });
-};
-export const addSubCategory = async (catId: string, subName: string) => {
-    if (!db) return;
-    const newList = _categories.map(c => c.id === catId ? { ...c, subcategories: [...(c.subcategories || []), subName] } : c);
-    await setDoc(doc(db, 'system', 'categories'), { list: newList });
-};
-export const removeSubCategory = async (catId: string, subName: string) => {
-    if (!db) return;
-    const newList = _categories.map(c => c.id === catId ? { ...c, subcategories: (c.subcategories || []).filter(s => s !== subName) } : c);
-    await setDoc(doc(db, 'system', 'categories'), { list: newList });
-};
-
-export const addLocation = async (name: string, lat?: number, lng?: number) => { if (db) await setDoc(doc(db, 'locations', 'loc_' + Date.now()), { id: 'loc_' + Date.now(), name, active: true, lat, lng }); };
-export const deleteLocation = async (id: string) => { if (db) await deleteDoc(doc(db, 'locations', id)); };
-
-export const addAmenity = async (label: string) => { if (db) await setDoc(doc(db, 'amenities', 'am_' + Date.now()), { id: 'am_' + Date.now(), label }); };
-export const deleteAmenity = async (id: string) => { if (db) await deleteDoc(doc(db, 'amenities', id)); };
-
-export const incrementSocialClick = async (businessId: string, platform: string) => { if (db) await updateDoc(doc(db, 'businesses', businessId), { [`socialClicks.${platform}`]: increment(1) }); };

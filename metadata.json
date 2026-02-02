@@ -1,5 +1,5 @@
 {
-  "name": "Conecta Rio",
+  "name": "Conecta Rio 2",
   "description": "O aplicativo oficial de descontos e conexões do Rio. Economize em restaurantes, passeios e hospedagem.",
   "requestFramePermissions": [
     "geolocation"

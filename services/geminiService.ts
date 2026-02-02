@@ -4,73 +4,86 @@ import { BusinessProfile } from "../types";
 
 const getAIClient = () => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey) {
+    console.error("ERRO: API_KEY não encontrada no process.env");
+    return null;
+  }
   return new GoogleGenAI({ apiKey });
 };
 
 /**
  * AI Scraper Agent: Realiza buscas no Google Search para encontrar empresas reais.
- * Agora com suporte a quantidade dinâmica e foco em veracidade.
  */
-export const discoverBusinessesFromAI = async (neighborhood: string, category: string, amount: number = 5): Promise<Partial<BusinessProfile>[]> => {
+export const discoverBusinessesFromAI = async (
+  neighborhood: string, 
+  category: string, 
+  amount: number = 5
+): Promise<{ businesses: Partial<BusinessProfile>[], sources: any[] }> => {
   const ai = getAIClient();
-  if (!ai) return [];
+  if (!ai) throw new Error("API Key não configurada.");
 
   try {
     const prompt = `
-      Você é um Agente de Inteligência de Mercado sênior. 
-      Sua missão é encontrar os ${amount} estabelecimentos de MAIOR VERACIDADE e melhor reputação na categoria "${category}" no bairro "${neighborhood}", Rio de Janeiro.
+      Aja como um Agente Scraper de Dados Geográficos.
+      Encontre exatamente ${amount} estabelecimentos REAIS de "${category}" no bairro "${neighborhood}", Rio de Janeiro.
       
-      CRITÉRIOS DE SELEÇÃO:
-      1. Verifique se o local existe no Google Maps.
-      2. Priorize locais com mais de 50 avaliações e nota acima de 4.0.
-      3. Extraia dados oficiais (WhatsApp e Endereço).
-      4. Crie uma descrição estética e curta (até 150 caracteres) focada no diferencial real do lugar.
+      Você DEVE usar o Google Search para verificar a existência desses locais.
+      Priorize locais com boas avaliações e dados de contato claros.
 
-      RETORNE APENAS UM ARRAY JSON PURO, sem markdown, sem explicações:
-      [{
-        "name": "Nome Real",
-        "address": "Endereço Completo",
-        "lat": -22.xxxx,
-        "lng": -43.xxxx,
-        "phone": "WhatsApp com DDD",
-        "openingHours": {"Seg-Sex": "08h-18h"},
-        "description": "Texto atraente focado em qualidade",
-        "rating": 4.8,
-        "reviewCount": 150
-      }]
+      Para cada local, extraia:
+      - Nome
+      - Endereço completo
+      - WhatsApp (se disponível) ou Telefone
+      - Nota média (estrelas)
+      - Uma descrição estética e vendedora de até 120 caracteres.
+
+      Formate a resposta EXCLUSIVAMENTE como um bloco de código JSON contendo um array de objetos. 
+      Exemplo de formato esperado:
+      [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "..."}]
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        responseMimeType: 'application/json'
+        // Removido responseMimeType: 'application/json' pois conflita com as regras de grounding chunks
+        temperature: 0.2,
       },
     });
 
-    const text = response.text || '[]';
-    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    const data = JSON.parse(cleanJson);
+    const text = response.text || "";
+    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
-    return data.map((item: any) => ({
-      ...item,
-      id: `ai_${Math.random().toString(36).substring(2, 9)}`,
-      category: category,
-      locationId: neighborhood,
-      isClaimed: false,
-      isImported: true,
-      // Usamos uma lógica de busca de imagem mais inteligente baseada no nome e categoria
-      coverImage: `https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&q=80&w=800`, 
-      gallery: [],
-      amenities: [],
-      views: 0
-    }));
+    // Lógica para extrair o JSON mesmo que a IA adicione texto em volta
+    const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
+    const jsonStr = jsonMatch ? jsonMatch[0] : "[]";
+    
+    try {
+      const rawData = JSON.parse(jsonStr);
+      const businesses = rawData.map((item: any) => ({
+        ...item,
+        id: `ai_${Math.random().toString(36).substring(2, 9)}`,
+        category: category,
+        locationId: neighborhood,
+        isClaimed: false,
+        isImported: true,
+        coverImage: `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`, 
+        gallery: [],
+        amenities: [],
+        views: 0,
+        openingHours: { "Seg-Sex": item.openingHours || "09h - 18h" }
+      }));
+
+      return { businesses, sources };
+    } catch (parseError) {
+      console.error("Falha ao parsear JSON da IA:", text);
+      return { businesses: [], sources: [] };
+    }
 
   } catch (error) {
-    console.error("AI Discovery Agent Error:", error);
-    return [];
+    console.error("Erro no Agente de Descoberta:", error);
+    throw error;
   }
 };
 

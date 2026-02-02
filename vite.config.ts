@@ -1,9 +1,11 @@
+
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Carrega as variáveis de ambiente baseadas no modo (development/production)
+  // Carrega as variáveis de ambiente (Vite precisa disso para acessar variáveis sem prefixo VITE_ no build)
+  // Fix: use any cast to avoid type error on process.cwd() which is a valid Node.js method used by Vite
   const env = loadEnv(mode, (process as any).cwd(), '');
 
   return {
@@ -14,9 +16,8 @@ export default defineConfig(({ mode }) => {
       sourcemap: false
     },
     define: {
-      // Isso permite que o código use process.env.API_KEY no navegador
-      // Fallback para string vazia para evitar crash se a variável não existir
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || '')
+      // Mapeia process.env.API_KEY para que o código possa acessá-la diretamente
+      'process.env.API_KEY': JSON.stringify(env.API_KEY)
     }
   }
 })

@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { BusinessProfile } from "../types";
 
 /**
@@ -11,7 +11,7 @@ export const discoverBusinessesFromAI = async (
   category: string, 
   amount: number = 5
 ): Promise<{ businesses: Partial<BusinessProfile>[], sources: any[] }> => {
-  // Instanciação direta conforme diretrizes para garantir acesso ao process.env.API_KEY injetado
+  // Cria uma nova instância da SDK imediatamente antes da chamada para garantir o uso da chave mais recente
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
@@ -26,8 +26,9 @@ export const discoverBusinessesFromAI = async (
       [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "..."}]
     `;
 
+    // Utiliza gemini-3-pro-image-preview conforme diretrizes para uso de googleSearch
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-image-preview',
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
@@ -74,7 +75,7 @@ export const generateCouponDescription = async (businessName: string, category: 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-image-preview',
       contents: `Gere uma descrição atraente de até 100 caracteres para um cupom de ${discount}% de desconto no estabelecimento "${businessName}" da categoria "${category}".`,
     });
     return response.text || "";

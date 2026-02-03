@@ -6,7 +6,7 @@ import {
 } from '../services/dataService';
 import { discoverBusinessesFromAI } from '../services/geminiService';
 import { 
-    Clock, Shield, Users, Trash2, LogOut, Search, Star, Palette, Lock, Store, Sparkles, Loader2, Globe, CheckCircle2, MapPin, X, ExternalLink, Key, AlertCircle
+    Clock, Shield, Users, Trash2, LogOut, Search, Star, Palette, Lock, Store, Sparkles, Loader2, Globe, CheckCircle2, MapPin, X, ExternalLink, Key, AlertCircle, Info, Settings, RefreshCw
 } from 'lucide-react';
 
 interface SuperAdminDashboardProps {
@@ -42,17 +42,16 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   }, []);
 
   const checkApiKey = async () => {
-    // 1. Verifica se a chave foi injetada via Environment Variables (Vercel/Vite)
+    // Verifica se a chave foi injetada via Environment Variables
     const envKey = process.env.API_KEY;
-    if (envKey && envKey !== "" && envKey !== "undefined") {
+    if (envKey && envKey !== "" && envKey !== "undefined" && !envKey.includes("process.env")) {
       setHasKey(true);
-      return;
-    }
-
-    // 2. Fallback para o seletor do AI Studio (se disponível no ambiente)
-    if ((window as any).aistudio?.hasSelectedApiKey) {
-      const selected = await (window as any).aistudio.hasSelectedApiKey();
-      setHasKey(selected);
+    } else {
+      // Tenta o seletor automático se disponível
+      if ((window as any).aistudio?.hasSelectedApiKey) {
+        const selected = await (window as any).aistudio.hasSelectedApiKey();
+        setHasKey(selected);
+      }
     }
   };
 
@@ -61,7 +60,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       await (window as any).aistudio.openSelectKey();
       setHasKey(true); 
     } else {
-      alert("Atenção: O seletor de chave manual só funciona em ambiente de desenvolvimento. Para o site publicado, você deve configurar a variável 'API_KEY' no painel da Vercel.");
+      alert("Atenção: Para o site publicado na Vercel, a configuração deve ser feita no painel da Vercel (Settings > Environment Variables). Adicione a chave 'API_KEY'.");
     }
   };
 
@@ -74,11 +73,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   };
 
   const handleStartScan = async () => {
-      // Re-checa a chave antes de começar
-      const currentKey = process.env.API_KEY;
-      if (!hasKey && (!currentKey || currentKey === "")) {
-        return handleOpenKeySelector();
-      }
+      if (!hasKey) return;
 
       if(!scanNeighborhood || !scanCategory) return alert("Selecione o bairro e a categoria.");
       
@@ -89,22 +84,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       
       try {
           const result = await discoverBusinessesFromAI(scanNeighborhood, scanCategory, scanAmount);
-          
-          if (result.businesses.length === 0) {
-              alert("O Agente não encontrou empresas com alta veracidade nesta busca. Tente outro bairro.");
-          }
-          
           setDiscovered(result.businesses);
           setSources(result.sources);
           setStatusMsg("");
       } catch (e: any) {
           console.error("Erro handleStartScan:", e);
-          if (e.message?.includes("Requested entity was not found")) {
-            setHasKey(false);
-            alert("Erro na chave de API. Por favor, selecione-a novamente ou verifique as variáveis de ambiente.");
-          } else {
-            alert(`Erro na varredura: ${e.message || 'Erro desconhecido.'}`);
-          }
+          alert(`Erro: ${e.message || 'Erro de conexão com a IA.'}`);
       } finally {
           setScanning(false);
       }
@@ -181,16 +166,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                         <p className="text-sm text-slate-500 italic">"Povoando o seu guia com dados reais e verídicos via Google"</p>
                       </div>
 
-                      {!hasKey && (
-                        <button 
-                          onClick={handleOpenKeySelector}
-                          className="flex items-center gap-2 bg-yellow-100 text-yellow-800 px-6 py-3 rounded-xl font-bold text-sm border border-yellow-200 hover:bg-yellow-200 transition-colors"
-                        >
-                          <Key size={18} /> Selecionar Chave de API
-                        </button>
-                      )}
-                      
-                      {discovered.length > 0 && (
+                      {hasKey && discovered.length > 0 && (
                           <button 
                             onClick={handleImportDiscovery} 
                             className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl font-bold text-sm shadow-xl flex items-center gap-2 active:scale-95 transition-all"
@@ -202,52 +178,89 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
 
                   {/* Scraper Panel */}
                   <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 mb-8">
-                      {!hasKey && (
-                        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
-                            <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={18} />
-                            <div className="text-xs text-amber-800">
-                                <p className="font-bold mb-1">Chave de API não detectada</p>
-                                <p>Para usar a varredura inteligente, configure a variável <strong>API_KEY</strong> nas configurações do seu projeto na Vercel ou clique no botão acima se estiver em ambiente de teste.</p>
+                      {!hasKey ? (
+                        <div className="animate-in slide-in-from-top-4 duration-500">
+                            <div className="mb-8 p-6 bg-amber-50 border border-amber-200 rounded-3xl">
+                                <div className="flex items-start gap-4">
+                                    <div className="bg-amber-100 p-3 rounded-2xl text-amber-600 shrink-0">
+                                        <AlertCircle size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold text-amber-900 text-lg mb-2">Configuração Necessária</h3>
+                                        <p className="text-sm text-amber-800 leading-relaxed mb-6">
+                                            O Agente de IA precisa de uma chave para vasculhar o Google Search. Siga os passos abaixo na sua conta Vercel:
+                                        </p>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                            <div className="bg-white/50 p-4 rounded-2xl border border-amber-100">
+                                                <div className="w-8 h-8 bg-amber-200 rounded-full flex items-center justify-center text-xs font-black text-amber-700 mb-3">1</div>
+                                                <p className="text-xs font-bold text-amber-900 mb-1">Painel Vercel</p>
+                                                <p className="text-[10px] text-amber-700">Vá em Settings > Environment Variables.</p>
+                                            </div>
+                                            <div className="bg-white/50 p-4 rounded-2xl border border-amber-100">
+                                                <div className="w-8 h-8 bg-amber-200 rounded-full flex items-center justify-center text-xs font-black text-amber-700 mb-3">2</div>
+                                                <p className="text-xs font-bold text-amber-900 mb-1">Adicionar Key</p>
+                                                <p className="text-[10px] text-amber-700">Nome: <b>API_KEY</b> <br/>Valor: Sua chave Gemini.</p>
+                                            </div>
+                                            <div className="bg-white/50 p-4 rounded-2xl border border-amber-100">
+                                                <div className="w-8 h-8 bg-amber-200 rounded-full flex items-center justify-center text-xs font-black text-amber-700 mb-3">3</div>
+                                                <p className="text-xs font-bold text-amber-900 mb-1">Redeploy</p>
+                                                <p className="text-[10px] text-amber-700">Vá em Deployments e clique em Redeploy.</p>
+                                            </div>
+                                        </div>
+
+                                        <button 
+                                            onClick={() => window.location.reload()}
+                                            className="flex items-center gap-2 bg-amber-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-amber-700 transition-all shadow-lg shadow-amber-600/20"
+                                        >
+                                            <RefreshCw size={18} /> Já configurei, recarregar página
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Localidade (Bairro)</label>
+                                <select className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={scanNeighborhood} onChange={e => setScanNeighborhood(e.target.value)}>
+                                    <option value="">Selecione...</option>
+                                    {locations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Categoria</label>
+                                <select className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={scanCategory} onChange={e => setScanCategory(e.target.value)}>
+                                    <option value="">O que buscar?</option>
+                                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Volume de Busca</label>
+                                <select className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={scanAmount} onChange={e => setScanAmount(Number(e.target.value))}>
+                                    <option value={3}>3 Negócios</option>
+                                    <option value={5}>5 Negócios</option>
+                                    <option value={10}>10 Negócios</option>
+                                </select>
+                            </div>
+                            <button 
+                                onClick={handleStartScan} 
+                                disabled={scanning}
+                                className="bg-ocean-600 hover:bg-ocean-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 h-[48px] shadow-ocean-600/20"
+                            >
+                                {scanning ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
+                                {scanning ? 'Consultando Google Search...' : 'Iniciar Varredura IA'}
+                            </button>
+                        </div>
                       )}
-
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-                          <div className="space-y-2">
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Localidade (Bairro)</label>
-                              <select className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={scanNeighborhood} onChange={e => setScanNeighborhood(e.target.value)}>
-                                  <option value="">Selecione...</option>
-                                  {locations.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
-                              </select>
-                          </div>
-                          <div className="space-y-2">
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Categoria</label>
-                              <select className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={scanCategory} onChange={e => setScanCategory(e.target.value)}>
-                                  <option value="">O que buscar?</option>
-                                  {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                              </select>
-                          </div>
-                          <div className="space-y-2">
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Volume de Busca</label>
-                              <select className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={scanAmount} onChange={e => setScanAmount(Number(e.target.value))}>
-                                  <option value={3}>3 Negócios</option>
-                                  <option value={5}>5 Negócios (Recomendado)</option>
-                                  <option value={10}>10 Negócios</option>
-                              </select>
-                          </div>
-                          <button 
-                            onClick={handleStartScan} 
-                            disabled={scanning}
-                            className={`font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 h-[48px] ${hasKey ? 'bg-ocean-600 hover:bg-ocean-700 text-white shadow-ocean-600/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-                          >
-                              {scanning ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
-                              {scanning ? 'Vasculhando Web...' : hasKey ? 'Rodar Agente IA' : 'Configurar API Key'}
-                          </button>
-                      </div>
+                      
                       {scanning && (
-                          <div className="mt-6 flex flex-col items-center gap-3 py-6 bg-ocean-50 rounded-3xl animate-pulse border border-ocean-100">
-                              <Sparkles size={24} className="text-ocean-600"/>
-                              <p className="text-sm font-black text-ocean-700 uppercase tracking-widest">{statusMsg}</p>
+                          <div className="mt-6 flex flex-col items-center gap-3 py-10 bg-ocean-50 rounded-[2rem] animate-pulse border border-ocean-100">
+                              <Sparkles size={32} className="text-ocean-600"/>
+                              <div className="text-center">
+                                  <p className="text-lg font-bold text-ocean-900">{statusMsg}</p>
+                                  <p className="text-xs text-ocean-600 mt-1 uppercase font-black tracking-widest opacity-60">Isso pode levar alguns segundos</p>
+                              </div>
                           </div>
                       )}
                   </div>
@@ -255,9 +268,10 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                   {/* Resultados */}
                   {discovered.length > 0 && (
                       <div className="space-y-6 animate-in slide-in-from-bottom-8">
+                          <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest px-2">Negócios Encontrados e Validados</h3>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {discovered.map((biz, idx) => (
-                                  <div key={idx} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex gap-4 items-start relative group">
+                                  <div key={idx} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex gap-4 items-start relative group hover:border-ocean-300 transition-all">
                                       <div className="w-20 h-20 bg-slate-100 rounded-2xl overflow-hidden shrink-0 border border-slate-200 shadow-inner">
                                           <img src={biz.coverImage} className="w-full h-full object-cover"/>
                                       </div>
@@ -279,7 +293,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                               ))}
                           </div>
                           
-                          {/* Fontes (Grounding) */}
+                          {/* Fontes */}
                           {sources.length > 0 && (
                               <div className="bg-slate-100 p-6 rounded-3xl border border-slate-200">
                                   <h5 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -292,7 +306,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                                                 key={i} 
                                                 href={source.web.uri} 
                                                 target="_blank" 
-                                                className="bg-white px-3 py-1.5 rounded-full text-[10px] font-bold text-ocean-600 border border-slate-200 flex items-center gap-1 hover:border-ocean-300"
+                                                className="bg-white px-3 py-1.5 rounded-full text-[10px] font-bold text-ocean-600 border border-slate-200 flex items-center gap-1 hover:border-ocean-300 shadow-sm"
                                               >
                                                   {source.web.title || "Referência Google"} <ExternalLink size={10}/>
                                               </a>
@@ -305,7 +319,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                   )}
               </div>
           )}
-          {/* ... Rest of tabs remain unchanged ... */}
+          {/* ... Outras abas ... */}
       </div>
     </div>
   );

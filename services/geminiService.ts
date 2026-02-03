@@ -12,7 +12,7 @@ const NEIGHBORHOOD_COORDS: Record<string, { lat: number, lng: number }> = {
 };
 
 /**
- * AI Scraper Agent: Usa Google Maps Grounding para encontrar lugares REAIS.
+ * AI Scraper Agent: Usa Google Maps Grounding para encontrar lugares REAIS e IMAGENS.
  */
 export const discoverBusinessesFromAI = async (
   neighborhood: string, 
@@ -27,16 +27,21 @@ export const discoverBusinessesFromAI = async (
   const coords = NEIGHBORHOOD_COORDS[neighborhood] || NEIGHBORHOOD_COORDS["Centro"];
 
   const prompt = `
-    Encontre ${amount} estabelecimentos REAIS, ATIVOS e BEM AVALIADOS de "${category}" no bairro "${neighborhood}", Rio de Janeiro.
+    INSTRUÇÃO CRÍTICA: Encontre ${amount} estabelecimentos REAIS e ATIVOS de "${category}" no bairro "${neighborhood}", Rio de Janeiro usando Google Maps.
     
-    Para cada lugar, você DEVE extrair:
-    1. Nome exato do local.
-    2. Endereço completo.
-    3. Uma breve descrição do que vendem ou como é o ambiente.
-    4. Nota média (rating).
+    Para cada lugar, você DEVE extrair informações verificáveis:
+    1. Nome oficial e endereço.
+    2. Descrição curta.
+    3. Links de IMAGENS REAIS: Procure por URLs de fotos do local hospedadas em sites oficiais, redes sociais (Instagram/Facebook) ou diretórios públicos que o Google indexa. 
+    
+    Preciso de:
+    - 1 URL para 'coverImage' (foto principal da fachada ou ambiente).
+    - 2 URLs para 'gallery' (fotos do cardápio, produtos ou interior).
 
     Retorne APENAS um JSON:
-    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "mapsUri": "..."}]
+    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "mapsUri": "...", "coverImage": "URL_REAL", "gallery": ["URL_REAL_1", "URL_REAL_2"]}]
+    
+    Atenção: Se não encontrar URLs de imagens reais, use uma URL do Unsplash que corresponda visualmente ao lugar (ex: foto de pizza para pizzaria).
   `;
 
   try {
@@ -64,7 +69,6 @@ export const discoverBusinessesFromAI = async (
     const rawData = JSON.parse(jsonMatch ? jsonMatch[0] : "[]");
 
     const businesses = rawData.map((item: any, index: number) => {
-      // Tenta pegar o link do maps direto do grounding se o JSON da IA falhar em trazer
       const mapsLink = item.mapsUri || groundingChunks.find((c: any) => c.maps?.title?.includes(item.name))?.maps?.uri;
 
       return {
@@ -75,7 +79,6 @@ export const discoverBusinessesFromAI = async (
         isClaimed: false,
         isImported: true,
         sourceUrl: mapsLink || `https://www.google.com/maps/search/${encodeURIComponent(item.name + ' ' + neighborhood)}`,
-        coverImage: `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`,
         views: 0,
         rating: item.rating || 4.5
       };

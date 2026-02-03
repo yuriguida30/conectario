@@ -6,7 +6,7 @@ import {
 } from '../services/dataService';
 import { discoverBusinessesFromAI } from '../services/geminiService';
 import { 
-    Clock, Shield, Users, LogOut, Search, Star, Store, Sparkles, Loader2, Globe, CheckCircle2, MapPin, X, ExternalLink, AlertCircle, RefreshCw, Timer
+    Clock, Shield, Users, LogOut, Search, Star, Store, Sparkles, Loader2, Globe, CheckCircle2, MapPin, X, ExternalLink, AlertCircle, RefreshCw, Timer, Image as ImageIcon
 } from 'lucide-react';
 
 interface SuperAdminDashboardProps {
@@ -25,6 +25,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   const [locations, setLocations] = useState<AppLocation[]>([]);
   
   const [scanning, setScanning] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   const [discovered, setDiscovered] = useState<any[]>([]);
   const [scanNeighborhood, setScanNeighborhood] = useState('');
   const [scanCategory, setScanCategory] = useState('');
@@ -60,16 +61,13 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       
       try {
           const result = await discoverBusinessesFromAI(scanNeighborhood, scanCategory, scanAmount);
-          if (result.businesses.length === 0) {
-              alert("O Google Maps não retornou locais verificados para esta combinação. Tente outro bairro.");
-          }
           setDiscovered(result.businesses);
       } catch (e: any) {
           console.error(e);
           if (e.message?.includes("429") || e.status === 429) {
-              setCooldown(60); // Bloqueia por 60 segundos
+              setCooldown(60);
           } else {
-              alert("Erro de conexão com o Google Maps. Tente novamente em instantes.");
+              alert("Erro de conexão com o Google Maps.");
           }
       } finally {
           setScanning(false);
@@ -77,12 +75,21 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   };
 
   const handleImportDiscovery = async () => {
-      if(discovered.length === 0) return;
-      if(!confirm(`Deseja importar esses ${discovered.length} locais validados pelo Google Maps?`)) return;
-      await saveImportedBusinesses(discovered);
-      alert("Importação concluída!");
-      setDiscovered([]);
-      refreshAll();
+      if(discovered.length === 0 || isImporting) return;
+      if(!confirm(`Importar ${discovered.length} locais com fotos validadas?`)) return;
+      
+      setIsImporting(true);
+      try {
+          await saveImportedBusinesses(discovered);
+          setDiscovered([]);
+          refreshAll();
+          // Não usamos alert para não travar o loop de eventos
+          console.log("Importado com sucesso");
+      } catch (e) {
+          alert("Erro ao salvar no banco de dados.");
+      } finally {
+          setIsImporting(false);
+      }
   };
 
   return (
@@ -90,7 +97,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       <div className="w-full md:w-72 bg-white border-r border-slate-200 p-4 flex flex-col z-40">
          <nav className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible hide-scrollbar pb-2">
              <button onClick={() => setActiveTab('DISCOVERY')} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'DISCOVERY' ? 'bg-ocean-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
-                 <Sparkles size={18} /> AI Discovery (Maps)
+                 <Sparkles size={18} /> AI Discovery
              </button>
              <button onClick={() => setActiveTab('BUSINESSES')} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'BUSINESSES' ? 'bg-ocean-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
                  <Store size={18} /> Guia Oficial
@@ -103,12 +110,17 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
               <div className="max-w-5xl animate-in fade-in">
                   <div className="flex justify-between items-center mb-8">
                       <div>
-                        <h1 className="text-2xl font-bold text-ocean-950 flex items-center gap-2"><MapPin className="text-ocean-600"/> Explorador Google Maps</h1>
-                        <p className="text-sm text-slate-500">Extraindo dados reais da infraestrutura do Google.</p>
+                        <h1 className="text-2xl font-bold text-ocean-950 flex items-center gap-2"><MapPin className="text-ocean-600"/> Importador de Dados Vivos</h1>
+                        <p className="text-sm text-slate-500">Buscando empresas com fotos reais no Google Maps.</p>
                       </div>
                       {discovered.length > 0 && (
-                          <button onClick={handleImportDiscovery} className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-xl flex items-center gap-2">
-                            <CheckCircle2 size={18}/> IMPORTAR LOCAIS
+                          <button 
+                            onClick={handleImportDiscovery} 
+                            disabled={isImporting}
+                            className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-xl flex items-center gap-2 hover:bg-green-700 disabled:opacity-50"
+                          >
+                            {isImporting ? <Loader2 className="animate-spin" size={18}/> : <CheckCircle2 size={18}/>}
+                            {isImporting ? 'SALVANDO...' : 'IMPORTAR COM FOTOS'}
                           </button>
                       )}
                   </div>
@@ -117,8 +129,8 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                       <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl mb-6 flex items-center gap-4 text-amber-800 animate-in slide-in-from-top-4">
                           <Timer className="animate-pulse" />
                           <div className="flex-1">
-                              <p className="font-bold text-sm">Cota de Busca Exaurida</p>
-                              <p className="text-xs">Aguarde <strong>{cooldown}s</strong> para que o Google libere uma nova varredura gratuita.</p>
+                              <p className="font-bold text-sm">Aguardando cota do Google</p>
+                              <p className="text-xs">Espere <strong>{cooldown}s</strong> para a próxima busca gratuita.</p>
                           </div>
                       </div>
                   )}
@@ -139,40 +151,51 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                                 className={`col-span-2 font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${cooldown > 0 ? 'bg-slate-200 text-slate-400' : 'bg-ocean-600 text-white hover:bg-ocean-700'}`}
                             >
                                 {scanning ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
-                                {scanning ? 'Consultando Google Maps...' : cooldown > 0 ? `Aguarde ${cooldown}s` : 'Pesquisar Lugares Reais'}
+                                {scanning ? 'Vasculhando...' : cooldown > 0 ? `Aguarde ${cooldown}s` : 'Pesquisar Agora'}
                             </button>
                       </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {discovered.map((biz, idx) => (
-                          <div key={idx} className="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm flex gap-4 items-start relative group">
-                              <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                      <h4 className="font-bold text-ocean-950 truncate">{biz.name}</h4>
-                                      <div className="bg-green-50 text-green-700 text-[8px] font-black px-1.5 py-0.5 rounded border border-green-100 uppercase">MAPS OK</div>
+                          <div key={idx} className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden flex flex-col relative group">
+                              <div className="h-40 bg-slate-100 relative overflow-hidden">
+                                  <img src={biz.coverImage} className="w-full h-full object-cover" alt="cover" />
+                                  <div className="absolute top-2 left-2 flex gap-1">
+                                      {biz.gallery?.map((img: string, i: number) => (
+                                          <div key={i} className="w-10 h-10 rounded-lg border-2 border-white overflow-hidden shadow-md bg-slate-200">
+                                              <img src={img} className="w-full h-full object-cover" />
+                                          </div>
+                                      ))}
+                                  </div>
+                              </div>
+                              <div className="p-5 flex-1">
+                                  <div className="flex justify-between items-start mb-1">
+                                      <h4 className="font-bold text-ocean-950 truncate pr-4">{biz.name}</h4>
+                                      <div className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1">
+                                          <Star size={10} fill="currentColor"/> {biz.rating}
+                                      </div>
                                   </div>
                                   <p className="text-[11px] text-slate-400 mb-2 truncate"><MapPin size={10} className="inline mr-1"/> {biz.address}</p>
-                                  <p className="text-xs text-slate-600 mb-3 line-clamp-2">"{biz.description}"</p>
+                                  <p className="text-xs text-slate-600 mb-4 line-clamp-2">"{biz.description}"</p>
                                   
                                   <div className="flex gap-2">
                                       {biz.sourceUrl && (
-                                          <a href={biz.sourceUrl} target="_blank" className="bg-ocean-50 text-ocean-600 px-3 py-1.5 rounded-lg text-[10px] font-bold flex items-center gap-1 hover:bg-ocean-100">
+                                          <a href={biz.sourceUrl} target="_blank" className="flex-1 bg-ocean-50 text-ocean-600 py-2 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-ocean-100">
                                               <ExternalLink size={10}/> VER NO MAPA
                                           </a>
                                       )}
-                                      <div className="bg-yellow-50 text-yellow-700 px-3 py-1.5 rounded-lg text-[10px] font-bold">
-                                          <Star size={10} className="inline mr-1" fill="currentColor"/> {biz.rating}
-                                      </div>
+                                      <button onClick={() => setDiscovered(p => p.filter(x => x.id !== biz.id))} className="bg-slate-50 text-slate-400 px-3 py-2 rounded-xl hover:text-red-500">
+                                          <X size={14}/>
+                                      </button>
                                   </div>
                               </div>
-                              <button onClick={() => setDiscovered(p => p.filter(x => x.id !== biz.id))} className="text-slate-300 hover:text-red-500 p-1"><X size={18}/></button>
                           </div>
                       ))}
                       {discovered.length === 0 && !scanning && (
                           <div className="col-span-2 py-20 text-center text-slate-300 border-2 border-dashed border-slate-100 rounded-[2.5rem]">
-                              <Search size={40} className="mx-auto mb-4 opacity-20" />
-                              <p className="text-sm font-medium">Os resultados da varredura aparecerão aqui.</p>
+                              <ImageIcon size={40} className="mx-auto mb-4 opacity-20" />
+                              <p className="text-sm font-medium">Os locais encontrados aparecerão aqui.</p>
                           </div>
                       )}
                   </div>

@@ -6,7 +6,7 @@ import {
 } from '../services/dataService';
 import { discoverBusinessesFromAI } from '../services/geminiService';
 import { 
-    Clock, Shield, Users, Trash2, LogOut, Search, Star, Palette, Lock, Store, Sparkles, Loader2, Globe, CheckCircle2, MapPin, X, ExternalLink, Key
+    Clock, Shield, Users, Trash2, LogOut, Search, Star, Palette, Lock, Store, Sparkles, Loader2, Globe, CheckCircle2, MapPin, X, ExternalLink, Key, AlertCircle
 } from 'lucide-react';
 
 interface SuperAdminDashboardProps {
@@ -42,6 +42,14 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   }, []);
 
   const checkApiKey = async () => {
+    // 1. Verifica se a chave foi injetada via Environment Variables (Vercel/Vite)
+    const envKey = process.env.API_KEY;
+    if (envKey && envKey !== "" && envKey !== "undefined") {
+      setHasKey(true);
+      return;
+    }
+
+    // 2. Fallback para o seletor do AI Studio (se disponível no ambiente)
     if ((window as any).aistudio?.hasSelectedApiKey) {
       const selected = await (window as any).aistudio.hasSelectedApiKey();
       setHasKey(selected);
@@ -51,7 +59,9 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   const handleOpenKeySelector = async () => {
     if ((window as any).aistudio?.openSelectKey) {
       await (window as any).aistudio.openSelectKey();
-      setHasKey(true); // Assume success per race condition guidelines
+      setHasKey(true); 
+    } else {
+      alert("Atenção: O seletor de chave manual só funciona em ambiente de desenvolvimento. Para o site publicado, você deve configurar a variável 'API_KEY' no painel da Vercel.");
     }
   };
 
@@ -64,7 +74,9 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   };
 
   const handleStartScan = async () => {
-      if (!hasKey) {
+      // Re-checa a chave antes de começar
+      const currentKey = process.env.API_KEY;
+      if (!hasKey && (!currentKey || currentKey === "")) {
         return handleOpenKeySelector();
       }
 
@@ -89,7 +101,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
           console.error("Erro handleStartScan:", e);
           if (e.message?.includes("Requested entity was not found")) {
             setHasKey(false);
-            alert("Erro na chave de API. Por favor, selecione-a novamente.");
+            alert("Erro na chave de API. Por favor, selecione-a novamente ou verifique as variáveis de ambiente.");
           } else {
             alert(`Erro na varredura: ${e.message || 'Erro desconhecido.'}`);
           }
@@ -190,6 +202,16 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
 
                   {/* Scraper Panel */}
                   <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 mb-8">
+                      {!hasKey && (
+                        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
+                            <AlertCircle className="text-amber-600 shrink-0 mt-0.5" size={18} />
+                            <div className="text-xs text-amber-800">
+                                <p className="font-bold mb-1">Chave de API não detectada</p>
+                                <p>Para usar a varredura inteligente, configure a variável <strong>API_KEY</strong> nas configurações do seu projeto na Vercel ou clique no botão acima se estiver em ambiente de teste.</p>
+                            </div>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
                           <div className="space-y-2">
                               <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Localidade (Bairro)</label>
@@ -216,7 +238,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                           <button 
                             onClick={handleStartScan} 
                             disabled={scanning}
-                            className="bg-ocean-600 hover:bg-ocean-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 h-[48px] shadow-ocean-600/20"
+                            className={`font-bold py-3.5 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 h-[48px] ${hasKey ? 'bg-ocean-600 hover:bg-ocean-700 text-white shadow-ocean-600/20' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
                           >
                               {scanning ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
                               {scanning ? 'Vasculhando Web...' : hasKey ? 'Rodar Agente IA' : 'Configurar API Key'}
@@ -283,7 +305,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                   )}
               </div>
           )}
-          {/* ... Other Tabs remain same ... */}
+          {/* ... Rest of tabs remain unchanged ... */}
       </div>
     </div>
   );

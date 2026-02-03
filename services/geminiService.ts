@@ -2,7 +2,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { setAIsessionCache, getAIsessionCache } from "./dataService";
 
-// Coordenadas aproximadas dos bairros para busca no OpenStreetMap
 const NEIGHBORHOOD_COORDS: Record<string, string> = {
   "Centro": "-22.915,-43.200,-22.890,-43.170",
   "Copacabana": "-22.985,-43.200,-22.960,-43.180",
@@ -20,20 +19,25 @@ export const discoverBusinessesFromAI = async (
   const cached = getAIsessionCache(neighborhood, category);
   if (cached) return { ...cached, isFallback: false };
 
-  console.log(`🔍 Consultando BANCO DE DADOS DE MAPAS para ${category} em ${neighborhood}...`);
-
-  // 1. BUSCAR DADOS REAIS NO OPENSTREETMAP (OVERPASS API) - GRATUITO E 100% REAL
+  // 1. CONSULTA AVANÇADA AO MAPA (BUSCANDO IDENTIDADE DO LOCAL)
   const bbox = NEIGHBORHOOD_COORDS[neighborhood] || "-23.000,-43.700,-22.800,-43.100";
-  const osmCategory = category.toLowerCase().includes('gastro') ? 'restaurant' : 
-                     category.toLowerCase().includes('hosp') ? 'hotel' : 'shop';
   
-  const osmQuery = `[out:json][timeout:25];
+  // Mapeamento de categorias do app para tags do OpenStreetMap
+  const categoryMap: Record<string, string> = {
+    'Gastronomia': 'node["amenity"~"restaurant|cafe|fast_food|pizzeria|ice_cream"]',
+    'Hospedagem': 'node["tourism"~"hotel|guest_house|hostel"]',
+    'Passeios': 'node["tourism"~"attraction|viewpoint|museum"]',
+    'Comércio': 'node["shop"]',
+    'Serviços': 'node["amenity"~"bank|pharmacy|hospital"]'
+  };
+
+  const tagQuery = categoryMap[category] || 'node["amenity"]';
+  
+  const osmQuery = `[out:json][timeout:30];
     (
-      node["amenity"="${osmCategory}"](${bbox});
-      way["amenity"="${osmCategory}"](${bbox});
-      node["shop"](${bbox});
+      ${tagQuery}(${bbox});
     );
-    out body ${amount};`;
+    out body ${amount * 2};`;
 
   let realData: any[] = [];
   try {
@@ -41,56 +45,63 @@ export const discoverBusinessesFromAI = async (
     const osmJson = await osmResponse.json();
     realData = osmJson.elements.map((el: any) => ({
       name: el.tags.name || "",
-      address: el.tags["addr:street"] ? `${el.tags["addr:street"]}, ${el.tags["addr:housenumber"] || 'S/N'}` : "Endereço verificado via Mapa",
-      phone: el.tags.phone || el.tags["contact:phone"] || "",
-      lat: el.lat || el.center?.lat,
-      lng: el.lon || el.center?.lon
-    })).filter((e: any) => e.name !== "");
+      address: el.tags["addr:street"] ? `${el.tags["addr:street"]}, ${el.tags["addr:housenumber"] || 'S/N'}` : "Rio de Janeiro, RJ",
+      phone: el.tags.phone || el.tags["contact:phone"] || el.tags["contact:whatsapp"] || "",
+      website: el.tags.website || el.tags["contact:website"] || "",
+      instagram: el.tags["contact:instagram"] || el.tags["instagram"] || "",
+      cuisine: el.tags.cuisine || "",
+      stars: el.tags.stars || ""
+    })).filter((e: any) => e.name !== "").slice(0, amount);
   } catch (e) {
-    console.error("Erro ao acessar OpenStreetMap.");
+    console.error("Erro no OpenStreetMap");
   }
 
-  // Se não houver dados reais no mapa para esse bairro, não deixamos a IA inventar
-  if (realData.length === 0) {
-      return { businesses: [], sources: [], isFallback: false };
-  }
+  if (realData.length === 0) return { businesses: [], sources: [], isFallback: false };
 
-  // 2. USAR GEMINI APENAS PARA FORMATAR E CRIAR DESCRIÇÕES (SEM RISCO DE ALUCINAÇÃO)
+  // 2. IA COMO "CURADOR CARIOCA" - FOCO EM ASSERTIVIDADE
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `
-    VOCÊ É UM ASSISTENTE DE FORMATAÇÃO DE DADOS TURÍSTICOS.
-    RECEBI ESTES DADOS REAIS E VERIFICADOS DO MAPA DE RIO DE JANEIRO: ${JSON.stringify(realData.slice(0, amount))}
-    
-    TAREFA: 
-    1. Mantenha os nomes e endereços EXATAMENTE como fornecidos.
-    2. Crie uma descrição curta (máximo 15 words) para cada um.
-    3. Retorne APENAS um JSON puro no formato:
-    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "coverImage": "URL_IMAGEM_RELEVANTE"}]
+    VOCÊ É UM CURADOR GASTRONÔMICO E TURÍSTICO DO RIO DE JANEIRO.
+    DADOS REAIS RECEBIDOS DO MAPA: ${JSON.stringify(realData)}
 
-    ATENÇÃO: NÃO INVENTE LUGARES QUE NÃO ESTÃO NA LISTA ACIMA.
+    SUA MISSÃO:
+    Para cada local, crie uma descrição "vendedora" baseada EXATAMENTE no nome e no tipo de culinária/serviço.
+    Exemplo: Se o nome for "Sorveteria", fale de gelatos. Se for "Pizzaria", fale de massas.
+    
+    FORMATAÇÃO DE IMAGEM:
+    Para o campo "coverImage", use este padrão: https://images.unsplash.com/photo-[ID]?auto=format&fit=crop&q=80&w=800
+    Escolha fotos que REALMENTE pareçam com o lugar (Ex: Restaurante chique vs Quiosque de praia).
+
+    RETORNE APENAS JSON:
+    [{
+      "name": "Nome Real do Mapa",
+      "address": "Endereço Real",
+      "phone": "Telefone Real",
+      "category": "${category}",
+      "description": "Descrição Assertiva e Localizada",
+      "coverImage": "URL_UNSPLASH_RELEVANTE_AO_TEMA",
+      "instagram": "Link se houver"
+    }]
   `;
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
-      config: { temperature: 0.1 } // Baixa temperatura = menos criatividade, mais precisão
+      config: { temperature: 0.2 } 
     });
 
-    const text = response.text || "[]"; // Correção do erro de TS (undefined)
+    const text = response.text || "[]";
     const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
     const formattedData = JSON.parse(jsonMatch ? jsonMatch[0] : "[]");
 
     const businesses = formattedData.map((item: any) => ({
       ...item,
       id: `ai_${Math.random().toString(36).substring(2, 9)}`,
-      category,
-      locationId: neighborhood,
       isClaimed: false,
       isImported: true,
       whatsapp: item.phone?.replace(/\D/g, ''),
-      sourceUrl: `https://www.google.com/search?q=${encodeURIComponent(item.name + ' ' + neighborhood)}`,
-      coverImage: item.coverImage || `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`,
+      sourceUrl: item.instagram ? `https://instagram.com/${item.instagram.replace('@','')}` : `https://www.google.com/search?q=${encodeURIComponent(item.name + ' ' + neighborhood)}`,
       gallery: []
     }));
 
@@ -99,13 +110,8 @@ export const discoverBusinessesFromAI = async (
     return result;
 
   } catch (error) {
-    console.error("Erro na IA ao formatar dados:", error);
-    // Fallback seguro: retorna os dados brutos do mapa sem descrição da IA
-    return { 
-        businesses: realData.map(d => ({ ...d, description: "Local verificado em " + neighborhood, id: Math.random().toString() })), 
-        sources: [], 
-        isFallback: false 
-    };
+    console.error("Erro na IA");
+    return { businesses: [], sources: [], isFallback: false };
   }
 };
 
@@ -114,7 +120,7 @@ export const generateCouponDescription = async (businessName: string, category: 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere uma frase curta para um cupom de ${discount}% em ${businessName}.`,
+      contents: `Gere uma chamada de venda curta para um cupom de ${discount}% na ${businessName}. Seja assertivo sobre o que o lugar oferece.`,
     });
     return response.text || `Desconto de ${discount}% na ${businessName}!`;
   } catch {

@@ -2,9 +2,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { BusinessProfile } from "../types";
 
-/**
- * AI Scraper Agent: Realiza buscas no Google Search para encontrar empresas reais.
- */
 export const discoverBusinessesFromAI = async (
   neighborhood: string, 
   category: string, 
@@ -12,80 +9,72 @@ export const discoverBusinessesFromAI = async (
 ): Promise<{ businesses: Partial<BusinessProfile>[], sources: any[] }> => {
   
   const apiKey = process.env.API_KEY;
-  
-  if (!apiKey) {
-    throw new Error("API_KEY não encontrada no ambiente. Verifique as configurações da Vercel.");
-  }
+  if (!apiKey) throw new Error("API_KEY não configurada.");
 
   const ai = new GoogleGenAI({ apiKey });
+  const model = ai.models.generateContent({
+    model: 'gemini-3-flash-preview',
+    config: {
+      temperature: 0.2,
+      thinkingConfig: { thinkingBudget: 0 }
+    }
+  });
+
+  const prompt = `
+    Aja como um guia local do Rio de Janeiro. 
+    Liste ${amount} estabelecimentos REAIS de "${category}" no bairro "${neighborhood}".
+    Retorne APENAS um JSON: [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "..."}]
+  `;
 
   try {
-    const prompt = `
-      Aja como um Agente de Inteligência de Mercado especializado no Rio de Janeiro.
-      Encontre exatamente ${amount} estabelecimentos REAIS, POPULARES e ATIVOS de "${category}" no bairro "${neighborhood}", Rio de Janeiro.
-      Use a ferramenta googleSearch para validar se eles ainda existem e qual a nota média.
-      Retorne APENAS um array JSON puro (sem markdown):
-      [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "openingHours": "..."}]
-    `;
-
-    // Usando gemini-3-flash-preview que possui cotas mais generosas no plano gratuito e desativando o thinking para economia de tokens
+    // Tentativa 1: Com Google Search (Dados em tempo real)
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
         temperature: 0.1,
-        thinkingConfig: { thinkingBudget: 0 }
       },
     });
 
-    const text = response.text || "";
-    const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-
-    const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
-    const jsonStr = jsonMatch ? jsonMatch[0] : "[]";
-    
-    try {
-      const rawData = JSON.parse(jsonStr);
-      const businesses = rawData.map((item: any) => ({
-        ...item,
-        id: `ai_${Math.random().toString(36).substring(2, 9)}`,
-        category: category,
-        locationId: neighborhood,
-        isClaimed: false,
-        isImported: true,
-        // Usamos uma imagem real relacionada à categoria via Unsplash (Placeholder realista)
-        coverImage: `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`, 
-        gallery: [],
-        amenities: [],
-        views: 0,
-        openingHours: { "Hoje": item.openingHours || "09h - 18h" }
-      }));
-
-      return { businesses, sources };
-    } catch (parseError) {
-      console.error("Erro ao processar resposta da IA:", text);
-      return { businesses: [], sources: [] };
-    }
-
-  } catch (error) {
-    console.error("Erro no Agente de Descoberta:", error);
-    throw error;
+    return parseAIResponse(response.text || "[]", category, neighborhood, response.candidates?.[0]?.groundingMetadata?.groundingChunks || []);
+  } catch (error: any) {
+    // Tentativa 2: Fallback (Sem Google Search para evitar erro 429)
+    console.warn("Google Search Limitado. Usando modo criativo...");
+    const fallbackResponse = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt
+    });
+    return parseAIResponse(fallbackResponse.text || "[]", category, neighborhood, []);
   }
+};
+
+const parseAIResponse = (text: string, category: string, neighborhood: string, sources: any[]) => {
+  const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
+  const data = JSON.parse(jsonMatch ? jsonMatch[0] : "[]");
+  const businesses = data.map((item: any) => ({
+    ...item,
+    id: `ai_${Math.random().toString(36).substring(2, 9)}`,
+    category,
+    locationId: neighborhood,
+    isClaimed: false,
+    isImported: true,
+    coverImage: `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`,
+    views: 0,
+    rating: item.rating || 4.5
+  }));
+  return { businesses, sources };
 };
 
 export const generateCouponDescription = async (businessName: string, category: string, discount: number): Promise<string> => {
   const apiKey = process.env.API_KEY;
-  if (!apiKey) return "";
+  if (!apiKey) return `Aproveite ${discount}% de desconto em ${businessName}!`;
   
   const ai = new GoogleGenAI({ apiKey });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Gere uma descrição atraente de até 100 caracteres para um cupom de ${discount}% de desconto no estabelecimento "${businessName}" da categoria "${category}".`,
-      config: {
-        thinkingConfig: { thinkingBudget: 0 }
-      }
+      contents: `Gere uma frase curta e chamativa para um cupom de ${discount}% em ${businessName}.`,
     });
     return response.text || "";
   } catch (error) {

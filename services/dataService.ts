@@ -8,8 +8,8 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, up
 const INITIAL_CATEGORIES: AppCategory[] = DEFAULT_CATEGORIES.map(name => ({ id: name.toLowerCase(), name }));
 
 let _categories: AppCategory[] = [...INITIAL_CATEGORIES];
-let _businesses: BusinessProfile[] = [...MOCK_BUSINESSES]; // Garantindo que as empresas mockadas apareçam
-let _coupons: Coupon[] = [...MOCK_COUPONS]; // FIX: Restaurado para carregar os cupons iniciais
+let _businesses: BusinessProfile[] = [...MOCK_BUSINESSES];
+let _coupons: Coupon[] = [...MOCK_COUPONS]; // RESTAURADO: Agora os cupons aparecem de novo
 let _users: User[] = [...MOCK_USERS];
 let _posts: BlogPost[] = [...MOCK_POSTS];
 let _collections: Collection[] = [];
@@ -103,82 +103,30 @@ export const identifyNeighborhood = (lat: number, lng: number) => "Rio de Janeir
 export const calculateDistance = (la1: number, lo1: number, la2: number, lo2: number) => 0;
 export const updateUser = async (u: User) => {
     localStorage.setItem(SESSION_KEY, JSON.stringify(u));
-    // Update local mock array too
     const idx = _users.findIndex(user => user.id === u.id);
     if (idx !== -1) _users[idx] = u;
     notifyListeners();
 };
+
+export const redeemCoupon = async (userId: string, coupon: Coupon) => {
+    const user = getCurrentUser();
+    if (!user || user.id !== userId) return;
+    const amount = coupon.originalPrice - coupon.discountedPrice;
+    const updatedUser: User = {
+        ...user,
+        savedAmount: (user.savedAmount || 0) + amount,
+        history: [...(user.history || []), { date: new Date().toISOString(), amount, couponTitle: coupon.title, couponId: coupon.id }]
+    };
+    await updateUser(updatedUser);
+    notifyListeners();
+};
+
+export const createCompanyRequest = async (req: any) => { if (db) await addDoc(collection(db, 'companyRequests'), { ...req, status: 'PENDING', requestDate: new Date().toISOString() }); };
+export const createClaimRequest = async (c: any) => { if (db) await addDoc(collection(db, 'claimRequests'), { ...c, status: 'PENDING', date: new Date().toISOString() }); };
 export const sendSupportMessage = async (m: any) => {};
 export const fetchReviewsForBusiness = async (id: string) => [];
 export const toggleFavorite = async (type: string, id: string) => {};
 export const addBusinessReview = async (bid: string, r: any) => {};
 export const incrementBusinessView = async (id: string) => {};
 export const incrementSocialClick = async (bid: string, t: string) => {};
-
-// FIX: Added missing redeemCoupon export and implementation
-export const redeemCoupon = async (userId: string, coupon: Coupon) => {
-    const user = getCurrentUser();
-    if (!user || user.id !== userId) return;
-
-    const amount = coupon.originalPrice - coupon.discountedPrice;
-    const record: SavingsRecord = {
-        date: new Date().toISOString(),
-        amount: amount,
-        couponTitle: coupon.title,
-        couponId: coupon.id
-    };
-
-    const updatedUser: User = {
-        ...user,
-        savedAmount: (user.savedAmount || 0) + amount,
-        history: [...(user.history || []), record]
-    };
-
-    await updateUser(updatedUser);
-
-    if (db) {
-        try {
-            const couponRef = doc(db, 'coupons', coupon.id);
-            await updateDoc(couponRef, {
-                currentRedemptions: increment(1)
-            });
-        } catch (e) {
-            console.error("Firebase update failed", e);
-        }
-    }
-    
-    // Update local cached coupons
-    const cIdx = _coupons.findIndex(c => c.id === coupon.id);
-    if (cIdx > -1) {
-        _coupons[cIdx] = { 
-            ..._coupons[cIdx], 
-            currentRedemptions: (_coupons[cIdx].currentRedemptions || 0) + 1 
-        };
-    }
-    
-    notifyListeners();
-};
-
-// FIX: Added missing createCompanyRequest export
-export const createCompanyRequest = async (req: any) => {
-    if (db) {
-        await addDoc(collection(db, 'companyRequests'), {
-            ...req,
-            status: 'PENDING',
-            requestDate: new Date().toISOString()
-        });
-    }
-};
-
-// FIX: Implemented createClaimRequest which was empty
-export const createClaimRequest = async (c: any) => {
-    if (db) {
-        await addDoc(collection(db, 'claimRequests'), {
-            ...c,
-            status: 'PENDING',
-            date: new Date().toISOString()
-        });
-    }
-};
-
 export const getFeaturedConfig = () => null;

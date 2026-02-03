@@ -6,10 +6,10 @@ export const discoverBusinessesFromAI = async (
   neighborhood: string, 
   category: string, 
   amount: number = 5
-): Promise<{ businesses: any[], sources: any[] }> => {
+): Promise<{ businesses: any[], sources: any[], isFallback: boolean }> => {
   
   const cached = getAIsessionCache(neighborhood, category);
-  if (cached) return cached;
+  if (cached) return { ...cached, isFallback: false };
 
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -22,8 +22,7 @@ export const discoverBusinessesFromAI = async (
     [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "instagram": "...", "coverImage": "URL_FOTO_REAL"}]
   `;
 
-  // Função interna para processar o texto e extrair JSON
-  const processAIResponse = (text: string, category: string, neighborhood: string, groundingChunks: any[] = []) => {
+  const processResponse = (text: string, groundingChunks: any[] = []) => {
     const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
     const rawData = JSON.parse(jsonMatch ? jsonMatch[0] : "[]");
 
@@ -44,42 +43,36 @@ export const discoverBusinessesFromAI = async (
   };
 
   try {
-    // PRIMEIRA TENTATIVA: Com Google Search (Dados em tempo real)
+    // TENTATIVA 1: COM GOOGLE SEARCH
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
         temperature: 0.1,
-        thinkingConfig: { thinkingBudget: 0 }
       },
     });
 
-    const result = processAIResponse(
-        response.text || "[]", 
-        category, 
-        neighborhood, 
-        response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
-    );
+    const result = processResponse(response.text || "[]", response.candidates?.[0]?.groundingMetadata?.groundingChunks || []);
     setAIsessionCache(neighborhood, category, result);
-    return result;
+    return { ...result, isFallback: false };
 
   } catch (error: any) {
-    // SE DER ERRO DE LIMITE (429), TENTA SEGUNDA VEZ SEM GOOGLE SEARCH (USANDO MEMÓRIA DA IA)
-    if (error.message?.includes("429")) {
-        console.warn("Limite do Google Search atingido. Ativando modo IA offline...");
-        try {
-            const fallbackResponse = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
-                contents: prompt + " (USE APENAS SEU CONHECIMENTO INTERNO, NÃO USE FERRAMENTAS DE BUSCA)",
-                config: { temperature: 0.2 },
-            });
-            const result = processAIResponse(fallbackResponse.text || "[]", category, neighborhood);
-            setAIsessionCache(neighborhood, category, result);
-            return result;
-        } catch (innerError) {
-            throw innerError;
-        }
+    // TENTATIVA 2: SE O GOOGLE DER ERRO 429, USA A MEMÓRIA DA IA (ILIMITADA)
+    if (error.message?.includes("429") || error.message?.includes("quota")) {
+      console.warn("Limite de busca excedido. Ativando IA de Memória Interna...");
+      try {
+        const fallbackResponse = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: prompt + " (USE SEU CONHECIMENTO INTERNO, NÃO USE BUSCA GOOGLE)",
+          config: { temperature: 0.2 },
+        });
+        const result = processResponse(fallbackResponse.text || "[]");
+        setAIsessionCache(neighborhood, category, result);
+        return { ...result, isFallback: true };
+      } catch (innerError) {
+        throw innerError;
+      }
     }
     throw error;
   }

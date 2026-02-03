@@ -21,7 +21,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   const [sources, setSources] = useState<any[]>([]);
   const [scanNeighborhood, setScanNeighborhood] = useState('');
   const [scanCategory, setScanCategory] = useState('');
-  const [isFallbackMode, setIsFallbackMode] = useState(false);
+  const [isFallback, setIsFallback] = useState(false);
 
   useEffect(() => {
     const refresh = () => {
@@ -40,24 +40,23 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       const cached = getAIsessionCache(scanNeighborhood, scanCategory);
       if (cached) {
           setDiscovered(cached.businesses);
-          setSources(cached.sources);
-          setIsFallbackMode(false);
+          setSources(cached.sources || []);
+          setIsFallback(false);
           return;
       }
 
       setScanning(true);
       setDiscovered([]);
       setSources([]);
-      setIsFallbackMode(false);
+      setIsFallback(false);
       
       try {
           const result = await discoverBusinessesFromAI(scanNeighborhood, scanCategory, 5);
           setDiscovered(result.businesses);
           setSources(result.sources || []);
-          // Se não houver fontes, significa que usamos o modo fallback de memória
-          if (result.sources.length === 0) setIsFallbackMode(true);
+          setIsFallback(result.isFallback);
       } catch (e: any) {
-          alert("O Google está congestionado. Tente novamente em alguns segundos.");
+          alert("O servidor da IA está muito ocupado agora. Tente novamente em 5 segundos.");
       } finally {
           setScanning(false);
       }
@@ -103,22 +102,22 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
               <div className="flex justify-between items-center mb-8">
                   <div>
                     <h1 className="text-2xl font-bold text-ocean-950 flex items-center gap-2"><Globe className="text-ocean-600"/> Importador Inteligente</h1>
-                    <p className="text-sm text-slate-500">Encontre comércios reais em qualquer bairro.</p>
+                    <p className="text-sm text-slate-500">Encontre comércios reais usando inteligência artificial.</p>
                   </div>
                   {discovered.length > 0 && (
                       <button onClick={handleImportDiscovery} disabled={isImporting} className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-xl flex items-center gap-2 hover:bg-green-700 disabled:opacity-50">
                         {isImporting ? <Loader2 className="animate-spin" size={18}/> : <CheckCircle2 size={18}/>}
-                        IMPORTAR AGORA
+                        IMPORTAR PARA O SITE
                       </button>
                   )}
               </div>
 
-              {isFallbackMode && (
+              {isFallback && (
                   <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl mb-6 flex items-center gap-4 text-blue-800 animate-in slide-in-from-top-4">
-                      <Zap className="text-blue-600" />
+                      <Zap className="text-blue-600 animate-pulse" />
                       <div className="flex-1">
-                          <p className="font-bold text-sm">MODO IA INTELIGENTE ATIVO</p>
-                          <p className="text-xs">O limite de busca em tempo real foi atingido. Usamos a memória da IA para encontrar esses locais para você!</p>
+                          <p className="font-bold text-sm">MODO INTELIGENTE ATIVO</p>
+                          <p className="text-xs">O limite de busca do Google foi atingido. Estamos usando a memória avançada da IA para localizar os comércios de {scanNeighborhood} para você.</p>
                       </div>
                   </div>
               )}
@@ -145,7 +144,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                             className={`col-span-2 font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 bg-ocean-600 text-white hover:bg-ocean-700 active:scale-95 disabled:opacity-50`}
                         >
                             {scanning ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
-                            {scanning ? 'Buscando Empresas...' : 'Pesquisar Agora'}
+                            {scanning ? 'Sincronizando...' : 'Pesquisar Agora'}
                         </button>
                   </div>
               </div>

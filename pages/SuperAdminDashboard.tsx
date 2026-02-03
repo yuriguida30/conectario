@@ -28,11 +28,18 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   const [scanNeighborhood, setScanNeighborhood] = useState('');
   const [scanCategory, setScanCategory] = useState('');
   
-  // Cooldown Logic
   const [cooldown, setCooldown] = useState(0);
+
+  const refreshAll = () => {
+    setCategories(getCategories() || []);
+    setLocations(getLocations() || []);
+  };
 
   useEffect(() => {
     refreshAll();
+    // Listener para carregar categorias assim que o Firebase retornar
+    window.addEventListener('dataUpdated', refreshAll);
+    return () => window.removeEventListener('dataUpdated', refreshAll);
   }, []);
 
   useEffect(() => {
@@ -41,11 +48,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       return () => clearTimeout(timer);
     }
   }, [cooldown]);
-
-  const refreshAll = () => {
-    setCategories(getCategories() || []);
-    setLocations(getLocations() || []);
-  };
 
   const handleStartScan = async () => {
       if (scanning || cooldown > 0) return;
@@ -63,7 +65,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       } catch (e: any) {
           console.error(e);
           if (e.message?.includes("429") || e.status === 429) {
-              setCooldown(120); // Bloqueia por 2 minutos
+              setCooldown(120); 
           } else {
               alert("Houve um problema na busca. Aguarde um instante e tente novamente.");
           }

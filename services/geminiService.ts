@@ -17,27 +17,27 @@ export const discoverBusinessesFromAI = async (
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `
-    AJA COMO UM PESQUISADOR LOCAL PROFISSIONAL.
-    Encontre ${amount} estabelecimentos REAIS, ATIVOS e POPULARES de "${category}" no bairro "${neighborhood}", Rio de Janeiro.
+    AJA COMO UM INVESTIGADOR LOCAL PROFISSIONAL NO RIO DE JANEIRO.
+    Sua missão é encontrar ${amount} estabelecimentos REAIS e ATIVOS de "${category}" no bairro "${neighborhood}".
     
-    CRITÉRIOS OBRIGATÓRIOS:
-    1. Você deve encontrar o INSTAGRAM ou SITE oficial para extrair URLs de imagens reais.
-    2. 'coverImage' deve ser a foto principal/fachada.
-    3. 'gallery' deve conter 2 fotos (ambiente, pratos ou serviços).
-    4. Se não encontrar uma URL de imagem direta que funcione, descreva o lugar com precisão.
+    INSTRUÇÕES CRÍTICAS PARA IMAGENS REAIS:
+    1. Você DEVE encontrar o perfil oficial do Instagram, Facebook ou Site oficial de cada lugar.
+    2. A 'coverImage' deve ser a URL de uma foto REAL da fachada ou prato principal do lugar. NÃO USE PLACEHOLDERS.
+    3. 'gallery' deve ter 2 URLs de fotos REAIS do ambiente interno ou produtos.
+    4. Priorize links de imagens que terminem em .jpg ou .png vindos de servidores confiáveis (ex: scontent.cdninstagram.com, static.wixstatic.com, etc).
 
-    DADOS NECESSÁRIOS PARA CADA LUGAR:
-    - Nome exato.
-    - Endereço real com ponto de referência.
+    DADOS NECESSÁRIOS:
+    - Nome oficial.
+    - Endereço completo.
     - WhatsApp ou Telefone.
-    - Rating real (ex: 4.8).
-    - Descrição curta e atrativa.
-    - Link do Instagram ou Site oficial.
+    - Rating (ex: 4.7).
+    - Link do Instagram.
+    - Uma descrição curta e comercial de 2 frases.
 
     RETORNE APENAS UM JSON VÁLIDO:
-    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "instagram": "...", "coverImage": "URL_IMAGEM_REAL", "gallery": ["URL_1", "URL_2"]}]
+    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "instagram": "...", "coverImage": "URL_IMAGEM_REAL", "gallery": ["URL_REAL_1", "URL_REAL_2"]}]
     
-    Importante: Procure por imagens reais no Google Search para garantir que não são placeholders genéricos.
+    Se não encontrar uma foto real de jeito nenhum, descreva o lugar detalhadamente no campo descrição.
   `;
 
   try {
@@ -45,15 +45,14 @@ export const discoverBusinessesFromAI = async (
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
-        tools: [{ googleSearch: {} }], // Usa busca web real para veracidade total
-        temperature: 0.2
+        tools: [{ googleSearch: {} }],
+        temperature: 0.1 // Mais determinístico para garantir JSON correto
       },
     });
 
     const text = response.text || "[]";
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     
-    // Limpeza de Markdown se necessário
     const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
     const rawData = JSON.parse(jsonMatch ? jsonMatch[0] : "[]");
 
@@ -66,7 +65,6 @@ export const discoverBusinessesFromAI = async (
       isImported: true,
       whatsapp: item.phone?.replace(/\D/g, ''),
       sourceUrl: item.instagram || item.website || `https://www.google.com/search?q=${encodeURIComponent(item.name + ' ' + neighborhood)}`,
-      // Fallback inteligente se a imagem for inválida
       coverImage: item.coverImage?.startsWith('http') ? item.coverImage : `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`,
       gallery: Array.isArray(item.gallery) ? item.gallery : []
     }));

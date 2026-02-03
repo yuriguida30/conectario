@@ -42,25 +42,14 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   }, []);
 
   const checkApiKey = async () => {
-    // Verifica se a chave foi injetada via Environment Variables
     const envKey = process.env.API_KEY;
     if (envKey && envKey !== "" && envKey !== "undefined" && !envKey.includes("process.env")) {
       setHasKey(true);
     } else {
-      // Tenta o seletor automático se disponível
       if ((window as any).aistudio?.hasSelectedApiKey) {
         const selected = await (window as any).aistudio.hasSelectedApiKey();
         setHasKey(selected);
       }
-    }
-  };
-
-  const handleOpenKeySelector = async () => {
-    if ((window as any).aistudio?.openSelectKey) {
-      await (window as any).aistudio.openSelectKey();
-      setHasKey(true); 
-    } else {
-      alert("Atenção: Para o site publicado na Vercel, a configuração deve ser feita no painel da Vercel (Settings > Environment Variables). Adicione a chave 'API_KEY'.");
     }
   };
 
@@ -74,7 +63,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
 
   const handleStartScan = async () => {
       if (!hasKey) return;
-
       if(!scanNeighborhood || !scanCategory) return alert("Selecione o bairro e a categoria.");
       
       setScanning(true);
@@ -122,7 +110,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-slate-50 pt-16">
       
-      {/* Sidebar Navigation */}
       <div className="w-full md:w-72 bg-white border-r border-slate-200 p-4 flex flex-col z-40">
          <div className="hidden md:block mb-8 px-2">
              <h2 className="text-xl font-bold text-ocean-950 flex items-center gap-2"><Shield className="text-gold-500" /> Admin</h2>
@@ -152,7 +139,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
          </button>
       </div>
 
-      {/* Main Content */}
       <div className="flex-1 p-4 md:p-10 overflow-y-auto">
           
           {activeTab === 'DISCOVERY' && (
@@ -176,7 +162,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                       )}
                   </div>
 
-                  {/* Scraper Panel */}
                   <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 mb-8">
                       {!hasKey ? (
                         <div className="animate-in slide-in-from-top-4 duration-500">
@@ -265,7 +250,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                       )}
                   </div>
 
-                  {/* Resultados */}
                   {discovered.length > 0 && (
                       <div className="space-y-6 animate-in slide-in-from-bottom-8">
                           <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest px-2">Negócios Encontrados e Validados</h3>
@@ -293,7 +277,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                               ))}
                           </div>
                           
-                          {/* Fontes */}
                           {sources.length > 0 && (
                               <div className="bg-slate-100 p-6 rounded-3xl border border-slate-200">
                                   <h5 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -319,7 +302,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                   )}
               </div>
           )}
-          {/* ... Outras abas ... */}
       </div>
     </div>
   );

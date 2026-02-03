@@ -25,10 +25,9 @@ export const discoverBusinessesFromAI = async (
       Encontre exatamente ${amount} estabelecimentos REAIS, POPULARES e ATIVOS de "${category}" no bairro "${neighborhood}", Rio de Janeiro.
       Use a ferramenta googleSearch para validar se eles ainda existem e qual a nota média.
       Retorne APENAS um array JSON puro (sem markdown):
-      [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "..."}]
+      [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "openingHours": "..."}]
     `;
 
-    // Alterado para gemini-3-flash-preview para evitar erros de cota (429) em contas gratuitas
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
@@ -41,7 +40,6 @@ export const discoverBusinessesFromAI = async (
     const text = response.text || "";
     const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
-    // Tenta extrair o JSON da resposta
     const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
     const jsonStr = jsonMatch ? jsonMatch[0] : "[]";
     

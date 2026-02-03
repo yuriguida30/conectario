@@ -5,7 +5,7 @@ import { db, auth } from './firebase';
 import { collection, setDoc, doc, deleteDoc, onSnapshot, getDoc, updateDoc, arrayUnion, increment, addDoc, query, orderBy, getDocs, deleteField, writeBatch, arrayRemove } from 'firebase/firestore';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth';
 
-// CATEGORIAS PADRÃO SEMPRE DISPONÍVEIS
+// CATEGORIAS PADRÃO PARA CARREGAMENTO INSTANTÂNEO
 const INITIAL_CATEGORIES: AppCategory[] = DEFAULT_CATEGORIES.map(name => ({ id: name.toLowerCase(), name }));
 
 let _categories: AppCategory[] = [...INITIAL_CATEGORIES];
@@ -13,10 +13,8 @@ let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
 let _posts: BlogPost[] = MOCK_POSTS;
+// Fix: Added missing _collections variable to store application collection data
 let _collections: Collection[] = [];
-let _requests: CompanyRequest[] = [];
-let _claims: BusinessClaimRequest[] = [];
-let _support: SupportMessage[] = [];
 let _locations: AppLocation[] = [
     { id: 'centro', name: 'Centro', active: true, lat: -22.9068, lng: -43.1729 },
     { id: 'copacabana', name: 'Copacabana', active: true, lat: -22.9694, lng: -43.1868 },
@@ -33,29 +31,27 @@ const notifyListeners = () => {
 
 const SESSION_KEY = 'arraial_user_session';
 
-const saveToCache = (key: string, data: any) => {
+// Sistema de Cache para evitar 429 do Google
+export const getAIsessionCache = (neighborhood: string, category: string) => {
     try {
-        localStorage.setItem(`cr_cache_${key}`, JSON.stringify(data));
-    } catch (e: any) {
-        if (e.name === 'QuotaExceededError') {
-            Object.keys(localStorage).forEach(k => {
-                if (k.startsWith('cr_cache_')) localStorage.removeItem(k);
-            });
-        }
-    }
-}
+        const cacheKey = `cr_discovery_${neighborhood}_${category}`.toLowerCase().replace(/\s/g, '_');
+        const cached = localStorage.getItem(cacheKey);
+        return cached ? JSON.parse(cached) : null;
+    } catch (e) { return null; }
+};
+
+export const setAIsessionCache = (neighborhood: string, category: string, data: any) => {
+    try {
+        const cacheKey = `cr_discovery_${neighborhood}_${category}`.toLowerCase().replace(/\s/g, '_');
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+    } catch (e) {}
+};
 
 export const initFirebaseData = async () => {
     if (!db) return;
     try {
         onSnapshot(collection(db, 'businesses'), (snap) => {
             _businesses = snap.docs.map(d => ({ ...d.data() as BusinessProfile, id: d.id }));
-            saveToCache('businesses', _businesses);
-            notifyListeners();
-        });
-        onSnapshot(collection(db, 'coupons'), (snap) => {
-            _coupons = snap.docs.map(d => ({ ...(d.data() as Coupon), id: d.id }));
-            saveToCache('coupons', _coupons);
             notifyListeners();
         });
         onSnapshot(collection(db, 'system'), (snap) => {
@@ -68,7 +64,7 @@ export const initFirebaseData = async () => {
             });
             notifyListeners();
         });
-    } catch (e) { console.error("Firebase error", e); }
+    } catch (e) { console.error("Firebase fail", e); }
 };
 
 export const getCategories = () => _categories.length > 0 ? _categories : INITIAL_CATEGORIES;

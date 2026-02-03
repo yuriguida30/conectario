@@ -1,33 +1,26 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { BusinessProfile } from "../types";
+import { setAIsessionCache, getAIsessionCache } from "./dataService";
 
-/**
- * AI Discovery Agent: Usa o Gemini 3 Flash (Mais rápido e limites maiores no Free Tier).
- */
 export const discoverBusinessesFromAI = async (
   neighborhood: string, 
   category: string, 
   amount: number = 5
 ): Promise<{ businesses: any[], sources: any[] }> => {
   
-  // Direct initialization with process.env.API_KEY as per guidelines
+  // Tenta buscar do cache local primeiro para economizar cota (Gratuito)
+  const cached = getAIsessionCache(neighborhood, category);
+  if (cached) return cached;
+
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const prompt = `
-    VOCÊ É UM AGENTE DE TURISMO NO RIO DE JANEIRO.
-    Encontre ${amount} estabelecimentos REAIS de "${category}" no bairro "${neighborhood}".
+    AJA COMO UM GUIA TURÍSTICO DO RIO DE JANEIRO.
+    Localize ${amount} estabelecimentos REAIS e ATIVOS de "${category}" no bairro "${neighborhood}".
     
-    REQUISITOS DE IMAGEM:
-    1. Busque links de fotos REAIS do local (Fachada ou Ambiente).
-    2. Priorize links do Instagram (ex: scontent.cdninstagram.com) ou de sites oficiais (.com.br).
-    3. NÃO USE links quebrados ou genéricos.
-
-    DADOS:
-    - Nome, Endereço, WhatsApp, Rating, Instagram e uma Descrição curta.
-
+    IMAGENS: Encontre links reais de fotos no Instagram ou Sites Oficiais.
     RETORNE APENAS JSON:
-    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "instagram": "...", "coverImage": "URL_REAL", "gallery": ["URL_1", "URL_2"]}]
+    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "instagram": "...", "coverImage": "URL_FOTO_REAL", "gallery": ["URL_1", "URL_2"]}]
   `;
 
   try {
@@ -36,11 +29,11 @@ export const discoverBusinessesFromAI = async (
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        temperature: 0.2
+        temperature: 0.1,
+        thinkingConfig: { thinkingBudget: 0 } // Economiza tokens e tempo
       },
     });
 
-    // Access .text property directly
     const text = response.text || "[]";
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     
@@ -56,11 +49,16 @@ export const discoverBusinessesFromAI = async (
       isImported: true,
       whatsapp: item.phone?.replace(/\D/g, ''),
       sourceUrl: item.instagram || `https://www.google.com/search?q=${encodeURIComponent(item.name + ' ' + neighborhood)}`,
-      coverImage: item.coverImage?.startsWith('http') ? item.coverImage : `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`,
+      coverImage: item.coverImage || `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`,
       gallery: Array.isArray(item.gallery) ? item.gallery : []
     }));
 
-    return { businesses, sources: groundingChunks };
+    const result = { businesses, sources: groundingChunks };
+    
+    // Salva no cache para não precisar pedir ao Google de novo
+    setAIsessionCache(neighborhood, category, result);
+    
+    return result;
   } catch (error: any) {
     console.error("Discovery Error:", error);
     throw error;
@@ -68,14 +66,12 @@ export const discoverBusinessesFromAI = async (
 };
 
 export const generateCouponDescription = async (businessName: string, category: string, discount: number): Promise<string> => {
-  // Direct initialization with process.env.API_KEY as per guidelines
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Gere uma frase curta para um cupom de ${discount}% em ${businessName}.`,
     });
-    // Access .text property directly
     return response.text || "";
   } catch {
     return `Desconto de ${discount}% na ${businessName}!`;

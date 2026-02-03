@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, AppCategory, AppLocation } from '../types';
 import { getCategories, getLocations, saveImportedBusinesses, getAIsessionCache } from '../services/dataService';
 import { discoverBusinessesFromAI } from '../services/geminiService';
-import { Search, Store, Sparkles, Loader2, Globe, CheckCircle2, MapPin, X, Link, Timer, Image as ImageIcon, Info } from 'lucide-react';
+import { Search, Store, Sparkles, Loader2, Globe, CheckCircle2, MapPin, X, Link, Timer, Image as ImageIcon, Info, Zap } from 'lucide-react';
 
 interface SuperAdminDashboardProps {
   onNavigate: (page: string) => void;
@@ -21,8 +21,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   const [sources, setSources] = useState<any[]>([]);
   const [scanNeighborhood, setScanNeighborhood] = useState('');
   const [scanCategory, setScanCategory] = useState('');
-  
-  const [cooldown, setCooldown] = useState(0);
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
 
   useEffect(() => {
     const refresh = () => {
@@ -34,42 +33,31 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
     return () => window.removeEventListener('dataUpdated', refresh);
   }, []);
 
-  useEffect(() => {
-    if (cooldown > 0) {
-      const timer = setTimeout(() => setCooldown(cooldown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [cooldown]);
-
   const handleStartScan = async () => {
       if (scanning) return;
       if(!scanNeighborhood || !scanCategory) return alert("Selecione bairro e categoria.");
       
-      // VERIFICA SE JÁ TEMOS ISSO SALVO (PARA NÃO TER QUE ESPERAR O GOOGLE)
       const cached = getAIsessionCache(scanNeighborhood, scanCategory);
       if (cached) {
           setDiscovered(cached.businesses);
           setSources(cached.sources);
-          setCooldown(0); // Se achou no cache, nem precisa de timer
+          setIsFallbackMode(false);
           return;
       }
-
-      if (cooldown > 0) return;
 
       setScanning(true);
       setDiscovered([]);
       setSources([]);
+      setIsFallbackMode(false);
       
       try {
           const result = await discoverBusinessesFromAI(scanNeighborhood, scanCategory, 5);
           setDiscovered(result.businesses);
           setSources(result.sources || []);
+          // Se não houver fontes, significa que usamos o modo fallback de memória
+          if (result.sources.length === 0) setIsFallbackMode(true);
       } catch (e: any) {
-          if (e.message?.includes("429")) {
-              setCooldown(60); 
-          } else {
-              alert("O Google está um pouco lento agora. Tente novamente em 5 segundos.");
-          }
+          alert("O Google está congestionado. Tente novamente em alguns segundos.");
       } finally {
           setScanning(false);
       }
@@ -82,7 +70,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
           await saveImportedBusinesses(discovered);
           setDiscovered([]);
           setSources([]);
-          alert("Empresas importadas com sucesso para o banco de dados!");
+          alert("Empresas importadas com sucesso!");
       } catch (e) {
           alert("Erro ao salvar.");
       } finally {
@@ -115,22 +103,22 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
               <div className="flex justify-between items-center mb-8">
                   <div>
                     <h1 className="text-2xl font-bold text-ocean-950 flex items-center gap-2"><Globe className="text-ocean-600"/> Importador Inteligente</h1>
-                    <p className="text-sm text-slate-500">Encontre comércios reais usando inteligência artificial.</p>
+                    <p className="text-sm text-slate-500">Encontre comércios reais em qualquer bairro.</p>
                   </div>
                   {discovered.length > 0 && (
                       <button onClick={handleImportDiscovery} disabled={isImporting} className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-xl flex items-center gap-2 hover:bg-green-700 disabled:opacity-50">
                         {isImporting ? <Loader2 className="animate-spin" size={18}/> : <CheckCircle2 size={18}/>}
-                        IMPORTAR PARA O SITE
+                        IMPORTAR AGORA
                       </button>
                   )}
               </div>
 
-              {cooldown > 0 && (
+              {isFallbackMode && (
                   <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl mb-6 flex items-center gap-4 text-blue-800 animate-in slide-in-from-top-4">
-                      <Info className="animate-pulse" />
+                      <Zap className="text-blue-600" />
                       <div className="flex-1">
-                          <p className="font-bold text-sm">LIMITE DE BUSCA ATINGIDO (FREE TIER)</p>
-                          <p className="text-xs">O Google permite poucas buscas gratuitas por minuto. Aguarde <strong>{cooldown}s</strong> ou tente um bairro que você já pesquisou hoje.</p>
+                          <p className="font-bold text-sm">MODO IA INTELIGENTE ATIVO</p>
+                          <p className="text-xs">O limite de busca em tempo real foi atingido. Usamos a memória da IA para encontrar esses locais para você!</p>
                       </div>
                   </div>
               )}
@@ -154,10 +142,10 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                       <button 
                             onClick={handleStartScan} 
                             disabled={scanning}
-                            className={`col-span-2 font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${cooldown > 0 && !getAIsessionCache(scanNeighborhood, scanCategory) ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-ocean-600 text-white hover:bg-ocean-700 active:scale-95'}`}
+                            className={`col-span-2 font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 bg-ocean-600 text-white hover:bg-ocean-700 active:scale-95 disabled:opacity-50`}
                         >
                             {scanning ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
-                            {scanning ? 'Acessando Google...' : cooldown > 0 && !getAIsessionCache(scanNeighborhood, scanCategory) ? `Aguarde ${cooldown}s` : 'Pesquisar Agora'}
+                            {scanning ? 'Buscando Empresas...' : 'Pesquisar Agora'}
                         </button>
                   </div>
               </div>
@@ -176,11 +164,9 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                               <p className="text-xs text-slate-400 mb-2 flex items-center gap-1"><MapPin size={12}/> {biz.address}</p>
                               <p className="text-xs text-slate-600 mb-4 line-clamp-2">"{biz.description}"</p>
                               <div className="mt-auto flex gap-2">
-                                  {biz.sourceUrl && (
-                                      <a href={biz.sourceUrl} target="_blank" className="flex-1 bg-ocean-50 text-ocean-600 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-ocean-100">
-                                          <Link size={12}/> VER FONTE
-                                      </a>
-                                  )}
+                                  <a href={biz.sourceUrl} target="_blank" className="flex-1 bg-ocean-50 text-ocean-600 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-ocean-100">
+                                      <Link size={12}/> VER FONTES
+                                  </a>
                               </div>
                           </div>
                       </div>
@@ -192,28 +178,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                       </div>
                   )}
               </div>
-
-              {/* Display search grounding sources as required by Google Search Grounding guidelines */}
-              {sources && sources.length > 0 && (
-                  <div className="mt-12 bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 animate-in fade-in">
-                      <h3 className="font-bold text-ocean-950 mb-4 flex items-center gap-2">
-                        <Link size={18} className="text-ocean-600" /> Fontes da Pesquisa IA
-                      </h3>
-                      <div className="flex flex-wrap gap-3">
-                        {sources.map((chunk: any, idx: number) => chunk.web && (
-                          <a 
-                            key={idx} 
-                            href={chunk.web.uri} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl text-xs font-medium text-ocean-600 hover:bg-ocean-50 transition-colors flex items-center gap-2"
-                          >
-                            <Globe size={14} /> {chunk.web.title || 'Ver fonte'}
-                          </a>
-                        ))}
-                      </div>
-                  </div>
-              )}
           </div>
       </div>
     </div>

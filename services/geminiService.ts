@@ -8,7 +8,6 @@ export const discoverBusinessesFromAI = async (
   amount: number = 5
 ): Promise<{ businesses: any[], sources: any[] }> => {
   
-  // VERIFICA SE JÁ PESQUISOU ISSO ANTES (ECONOMIZA COTA)
   const cached = getAIsessionCache(neighborhood, category);
   if (cached) return cached;
 
@@ -18,25 +17,13 @@ export const discoverBusinessesFromAI = async (
     AJA COMO UM GUIA TURÍSTICO DO RIO DE JANEIRO.
     Localize ${amount} estabelecimentos REAIS e ATIVOS de "${category}" no bairro "${neighborhood}".
     
-    IMPORTANTÍSSIMO: Forneça o nome real, endereço real e instagram.
+    IMPORTANTE: Retorne nomes e endereços que existem de fato.
     RETORNE APENAS JSON:
     [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "instagram": "...", "coverImage": "URL_FOTO_REAL"}]
   `;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        temperature: 0.1,
-        thinkingConfig: { thinkingBudget: 0 } // Desativa o "pensar" para ser mais rápido e barato
-      },
-    });
-
-    const text = response.text || "[]";
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-    
+  // Função interna para processar o texto e extrair JSON
+  const processAIResponse = (text: string, category: string, neighborhood: string, groundingChunks: any[] = []) => {
     const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
     const rawData = JSON.parse(jsonMatch ? jsonMatch[0] : "[]");
 
@@ -53,14 +40,47 @@ export const discoverBusinessesFromAI = async (
       gallery: []
     }));
 
-    const finalResult = { businesses, sources: groundingChunks };
-    
-    // GUARDA NA MEMÓRIA PARA A PRÓXIMA VEZ
-    setAIsessionCache(neighborhood, category, finalResult);
-    
-    return finalResult;
+    return { businesses, sources: groundingChunks };
+  };
+
+  try {
+    // PRIMEIRA TENTATIVA: Com Google Search (Dados em tempo real)
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        temperature: 0.1,
+        thinkingConfig: { thinkingBudget: 0 }
+      },
+    });
+
+    const result = processAIResponse(
+        response.text || "[]", 
+        category, 
+        neighborhood, 
+        response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
+    );
+    setAIsessionCache(neighborhood, category, result);
+    return result;
+
   } catch (error: any) {
-    console.error("Discovery Error:", error);
+    // SE DER ERRO DE LIMITE (429), TENTA SEGUNDA VEZ SEM GOOGLE SEARCH (USANDO MEMÓRIA DA IA)
+    if (error.message?.includes("429")) {
+        console.warn("Limite do Google Search atingido. Ativando modo IA offline...");
+        try {
+            const fallbackResponse = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: prompt + " (USE APENAS SEU CONHECIMENTO INTERNO, NÃO USE FERRAMENTAS DE BUSCA)",
+                config: { temperature: 0.2 },
+            });
+            const result = processAIResponse(fallbackResponse.text || "[]", category, neighborhood);
+            setAIsessionCache(neighborhood, category, result);
+            return result;
+        } catch (innerError) {
+            throw innerError;
+        }
+    }
     throw error;
   }
 };

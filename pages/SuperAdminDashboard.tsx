@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, AppCategory, AppLocation } from '../types';
 import { getCategories, getLocations, saveImportedBusinesses, getAIsessionCache } from '../services/dataService';
 import { discoverBusinessesFromAI } from '../services/geminiService';
-import { Search, Store, Sparkles, Loader2, Globe, CheckCircle2, MapPin, X, Link, Timer, Image as ImageIcon, Info, Zap } from 'lucide-react';
+import { Search, Store, Sparkles, Loader2, Globe, CheckCircle2, MapPin, X, Link, Timer, Image as ImageIcon, Info, Zap, Map as MapIcon } from 'lucide-react';
 
 interface SuperAdminDashboardProps {
   onNavigate: (page: string) => void;
@@ -18,7 +18,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
   const [scanning, setScanning] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [discovered, setDiscovered] = useState<any[]>([]);
-  const [sources, setSources] = useState<any[]>([]);
   const [scanNeighborhood, setScanNeighborhood] = useState('');
   const [scanCategory, setScanCategory] = useState('');
   const [isFallback, setIsFallback] = useState(false);
@@ -40,23 +39,20 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       const cached = getAIsessionCache(scanNeighborhood, scanCategory);
       if (cached) {
           setDiscovered(cached.businesses);
-          setSources(cached.sources || []);
           setIsFallback(false);
           return;
       }
 
       setScanning(true);
       setDiscovered([]);
-      setSources([]);
       setIsFallback(false);
       
       try {
           const result = await discoverBusinessesFromAI(scanNeighborhood, scanCategory, 5);
           setDiscovered(result.businesses);
-          setSources(result.sources || []);
           setIsFallback(result.isFallback);
       } catch (e: any) {
-          alert("O servidor da IA está muito ocupado agora. Tente novamente em 5 segundos.");
+          alert("O sistema de busca está temporariamente instável. Tente novamente em 5 segundos.");
       } finally {
           setScanning(false);
       }
@@ -68,7 +64,6 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
       try {
           await saveImportedBusinesses(discovered);
           setDiscovered([]);
-          setSources([]);
           alert("Empresas importadas com sucesso!");
       } catch (e) {
           alert("Erro ao salvar.");
@@ -101,8 +96,8 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
           <div className="max-w-5xl">
               <div className="flex justify-between items-center mb-8">
                   <div>
-                    <h1 className="text-2xl font-bold text-ocean-950 flex items-center gap-2"><Globe className="text-ocean-600"/> Importador Inteligente</h1>
-                    <p className="text-sm text-slate-500">Encontre comércios reais usando inteligência artificial.</p>
+                    <h1 className="text-2xl font-bold text-ocean-950 flex items-center gap-2"><Globe className="text-ocean-600"/> Importador de Dados REAIS</h1>
+                    <p className="text-sm text-slate-500">Buscando locais verificados no mapa do Rio.</p>
                   </div>
                   {discovered.length > 0 && (
                       <button onClick={handleImportDiscovery} disabled={isImporting} className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold text-sm shadow-xl flex items-center gap-2 hover:bg-green-700 disabled:opacity-50">
@@ -112,12 +107,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                   )}
               </div>
 
-              {isFallback && (
+              {!isFallback && discovered.length > 0 && (
                   <div className="bg-blue-50 border border-blue-200 p-4 rounded-2xl mb-6 flex items-center gap-4 text-blue-800 animate-in slide-in-from-top-4">
-                      <Zap className="text-blue-600 animate-pulse" />
+                      <MapIcon className="text-blue-600" />
                       <div className="flex-1">
-                          <p className="font-bold text-sm">MODO INTELIGENTE ATIVO</p>
-                          <p className="text-xs">O limite de busca do Google foi atingido. Estamos usando a memória avançada da IA para localizar os comércios de {scanNeighborhood} para você.</p>
+                          <p className="font-bold text-sm">DADOS REAIS DO MAPA ATIVOS</p>
+                          <p className="text-xs">Estes lugares foram encontrados no OpenStreetMap de {scanNeighborhood}. A IA apenas criou as descrições.</p>
                       </div>
                   </div>
               )}
@@ -144,7 +139,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                             className={`col-span-2 font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 bg-ocean-600 text-white hover:bg-ocean-700 active:scale-95 disabled:opacity-50`}
                         >
                             {scanning ? <Loader2 className="animate-spin" size={20}/> : <Search size={20}/>}
-                            {scanning ? 'Sincronizando...' : 'Pesquisar Agora'}
+                            {scanning ? 'Consultando Mapa...' : 'Pesquisar Agora'}
                         </button>
                   </div>
               </div>
@@ -164,7 +159,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                               <p className="text-xs text-slate-600 mb-4 line-clamp-2">"{biz.description}"</p>
                               <div className="mt-auto flex gap-2">
                                   <a href={biz.sourceUrl} target="_blank" className="flex-1 bg-ocean-50 text-ocean-600 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-ocean-100">
-                                      <Link size={12}/> VER FONTES
+                                      <Link size={12}/> VER NO GOOGLE
                                   </a>
                               </div>
                           </div>

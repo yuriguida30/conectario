@@ -9,7 +9,7 @@ const INITIAL_CATEGORIES: AppCategory[] = DEFAULT_CATEGORIES.map(name => ({ id: 
 
 let _categories: AppCategory[] = [...INITIAL_CATEGORIES];
 let _businesses: BusinessProfile[] = [...MOCK_BUSINESSES];
-let _coupons: Coupon[] = [...MOCK_COUPONS]; // RESTAURADO: Agora os cupons aparecem de novo
+let _coupons: Coupon[] = [...MOCK_COUPONS];
 let _users: User[] = [...MOCK_USERS];
 let _posts: BlogPost[] = [...MOCK_POSTS];
 let _collections: Collection[] = [];
@@ -49,12 +49,12 @@ export const initFirebaseData = async () => {
     try {
         onSnapshot(collection(db, 'businesses'), (snap) => {
             const fbBiz = snap.docs.map(d => ({ ...d.data() as BusinessProfile, id: d.id }));
-            if (fbBiz.length > 0) _businesses = fbBiz;
+            if (fbBiz.length > 0) _businesses = [...MOCK_BUSINESSES, ...fbBiz];
             notifyListeners();
         });
         onSnapshot(collection(db, 'coupons'), (snap) => {
             const fbCoupons = snap.docs.map(d => ({ ...d.data() as Coupon, id: d.id }));
-            if (fbCoupons.length > 0) _coupons = fbCoupons;
+            if (fbCoupons.length > 0) _coupons = [...MOCK_COUPONS, ...fbCoupons];
             notifyListeners();
         });
     } catch (e) { console.error("Firebase fail", e); }

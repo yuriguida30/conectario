@@ -2,17 +2,8 @@
 import { GoogleGenAI } from "@google/genai";
 import { BusinessProfile } from "../types";
 
-// Coordenadas aproximadas para ajudar o Maps Grounding
-const NEIGHBORHOOD_COORDS: Record<string, { lat: number, lng: number }> = {
-  "Centro": { lat: -22.9068, lng: -43.1729 },
-  "Copacabana": { lat: -22.9694, lng: -43.1868 },
-  "Barra da Tijuca": { lat: -23.0003, lng: -43.3659 },
-  "Campo Grande": { lat: -22.9035, lng: -43.5591 },
-  "Sepetiba": { lat: -22.9739, lng: -43.6997 }
-};
-
 /**
- * AI Scraper Agent: Usa Google Maps Grounding para encontrar lugares REAIS e IMAGENS.
+ * AI Discovery Agent: Usa o poder de busca do Gemini 3 Pro para encontrar dados VIVOS.
  */
 export const discoverBusinessesFromAI = async (
   neighborhood: string, 
@@ -24,69 +15,65 @@ export const discoverBusinessesFromAI = async (
   if (!apiKey) throw new Error("API_KEY não configurada.");
 
   const ai = new GoogleGenAI({ apiKey });
-  const coords = NEIGHBORHOOD_COORDS[neighborhood] || NEIGHBORHOOD_COORDS["Centro"];
 
   const prompt = `
-    INSTRUÇÃO CRÍTICA: Encontre ${amount} estabelecimentos REAIS e ATIVOS de "${category}" no bairro "${neighborhood}", Rio de Janeiro usando Google Maps.
+    AJA COMO UM PESQUISADOR LOCAL PROFISSIONAL.
+    Encontre ${amount} estabelecimentos REAIS, ATIVOS e POPULARES de "${category}" no bairro "${neighborhood}", Rio de Janeiro.
     
-    Para cada lugar, você DEVE extrair informações verificáveis:
-    1. Nome oficial e endereço.
-    2. Descrição curta.
-    3. Links de IMAGENS REAIS: Procure por URLs de fotos do local hospedadas em sites oficiais, redes sociais (Instagram/Facebook) ou diretórios públicos que o Google indexa. 
-    
-    Preciso de:
-    - 1 URL para 'coverImage' (foto principal da fachada ou ambiente).
-    - 2 URLs para 'gallery' (fotos do cardápio, produtos ou interior).
+    CRITÉRIOS OBRIGATÓRIOS:
+    1. Você deve encontrar o INSTAGRAM ou SITE oficial para extrair URLs de imagens reais.
+    2. 'coverImage' deve ser a foto principal/fachada.
+    3. 'gallery' deve conter 2 fotos (ambiente, pratos ou serviços).
+    4. Se não encontrar uma URL de imagem direta que funcione, descreva o lugar com precisão.
 
-    Retorne APENAS um JSON:
-    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "mapsUri": "...", "coverImage": "URL_REAL", "gallery": ["URL_REAL_1", "URL_REAL_2"]}]
+    DADOS NECESSÁRIOS PARA CADA LUGAR:
+    - Nome exato.
+    - Endereço real com ponto de referência.
+    - WhatsApp ou Telefone.
+    - Rating real (ex: 4.8).
+    - Descrição curta e atrativa.
+    - Link do Instagram ou Site oficial.
+
+    RETORNE APENAS UM JSON VÁLIDO:
+    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "instagram": "...", "coverImage": "URL_IMAGEM_REAL", "gallery": ["URL_1", "URL_2"]}]
     
-    Atenção: Se não encontrar URLs de imagens reais, use uma URL do Unsplash que corresponda visualmente ao lugar (ex: foto de pizza para pizzaria).
+    Importante: Procure por imagens reais no Google Search para garantir que não são placeholders genéricos.
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
-        tools: [{ googleMaps: {} }],
-        toolConfig: {
-          retrievalConfig: {
-            latLng: {
-              latitude: coords.lat,
-              longitude: coords.lng
-            }
-          }
-        },
-        temperature: 0.0
+        tools: [{ googleSearch: {} }], // Usa busca web real para veracidade total
+        temperature: 0.2
       },
     });
 
     const text = response.text || "[]";
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
     
+    // Limpeza de Markdown se necessário
     const jsonMatch = text.match(/\[\s*\{.*\}\s*\]/s);
     const rawData = JSON.parse(jsonMatch ? jsonMatch[0] : "[]");
 
-    const businesses = rawData.map((item: any, index: number) => {
-      const mapsLink = item.mapsUri || groundingChunks.find((c: any) => c.maps?.title?.includes(item.name))?.maps?.uri;
-
-      return {
-        ...item,
-        id: `map_${Math.random().toString(36).substring(2, 9)}`,
-        category,
-        locationId: neighborhood,
-        isClaimed: false,
-        isImported: true,
-        sourceUrl: mapsLink || `https://www.google.com/maps/search/${encodeURIComponent(item.name + ' ' + neighborhood)}`,
-        views: 0,
-        rating: item.rating || 4.5
-      };
-    });
+    const businesses = rawData.map((item: any) => ({
+      ...item,
+      id: `ai_${Math.random().toString(36).substring(2, 9)}`,
+      category,
+      locationId: neighborhood,
+      isClaimed: false,
+      isImported: true,
+      whatsapp: item.phone?.replace(/\D/g, ''),
+      sourceUrl: item.instagram || item.website || `https://www.google.com/search?q=${encodeURIComponent(item.name + ' ' + neighborhood)}`,
+      // Fallback inteligente se a imagem for inválida
+      coverImage: item.coverImage?.startsWith('http') ? item.coverImage : `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`,
+      gallery: Array.isArray(item.gallery) ? item.gallery : []
+    }));
 
     return { businesses, sources: groundingChunks };
   } catch (error: any) {
-    console.error("Erro no Agente Maps:", error);
+    console.error("AI Discovery Error:", error);
     throw error;
   }
 };

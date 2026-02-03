@@ -63,6 +63,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
 
   const handleStartScan = async () => {
       if (!hasKey) return;
+      if (scanning) return;
       if(!scanNeighborhood || !scanCategory) return alert("Selecione o bairro e a categoria.");
       
       setScanning(true);
@@ -77,7 +78,12 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
           setStatusMsg("");
       } catch (e: any) {
           console.error("Erro handleStartScan:", e);
-          alert(`Erro: ${e.message || 'Erro de conexão com a IA.'}`);
+          const msg = e.message || "";
+          if (msg.includes("429")) {
+              alert("Erro de Cota (429): O Google limitou as requisições gratuitas por agora. Tente novamente em 1 minuto.");
+          } else {
+              alert(`Erro: ${e.message || 'Erro de conexão com a IA.'}`);
+          }
       } finally {
           setScanning(false);
       }

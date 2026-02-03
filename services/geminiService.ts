@@ -28,13 +28,14 @@ export const discoverBusinessesFromAI = async (
       [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "openingHours": "..."}]
     `;
 
-    // Usando gemini-3-flash-preview que possui cotas mais generosas no plano gratuito
+    // Usando gemini-3-flash-preview que possui cotas mais generosas no plano gratuito e desativando o thinking para economia de tokens
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
         temperature: 0.1,
+        thinkingConfig: { thinkingBudget: 0 }
       },
     });
 
@@ -53,7 +54,7 @@ export const discoverBusinessesFromAI = async (
         locationId: neighborhood,
         isClaimed: false,
         isImported: true,
-        // Usamos uma imagem real relacionada à categoria via Unsplash
+        // Usamos uma imagem real relacionada à categoria via Unsplash (Placeholder realista)
         coverImage: `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`, 
         gallery: [],
         amenities: [],
@@ -82,6 +83,9 @@ export const generateCouponDescription = async (businessName: string, category: 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Gere uma descrição atraente de até 100 caracteres para um cupom de ${discount}% de desconto no estabelecimento "${businessName}" da categoria "${category}".`,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 }
+      }
     });
     return response.text || "";
   } catch (error) {

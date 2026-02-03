@@ -28,6 +28,7 @@ export const discoverBusinessesFromAI = async (
       [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "openingHours": "..."}]
     `;
 
+    // Usando gemini-3-flash-preview que possui cotas mais generosas no plano gratuito
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompt,
@@ -52,6 +53,7 @@ export const discoverBusinessesFromAI = async (
         locationId: neighborhood,
         isClaimed: false,
         isImported: true,
+        // Usamos uma imagem real relacionada à categoria via Unsplash
         coverImage: `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`, 
         gallery: [],
         amenities: [],

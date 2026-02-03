@@ -2,6 +2,10 @@
 import { GoogleGenAI } from "@google/genai";
 import { BusinessProfile } from "../types";
 
+/**
+ * AI Scraper Agent: Realiza buscas no Google Search para encontrar empresas reais.
+ * Implementa fallback para evitar erro 429.
+ */
 export const discoverBusinessesFromAI = async (
   neighborhood: string, 
   category: string, 
@@ -12,40 +16,47 @@ export const discoverBusinessesFromAI = async (
   if (!apiKey) throw new Error("API_KEY não configurada.");
 
   const ai = new GoogleGenAI({ apiKey });
-  const model = ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
-    config: {
-      temperature: 0.2,
-      thinkingConfig: { thinkingBudget: 0 }
-    }
-  });
 
   const prompt = `
-    Aja como um guia local do Rio de Janeiro. 
-    Liste ${amount} estabelecimentos REAIS de "${category}" no bairro "${neighborhood}".
-    Retorne APENAS um JSON: [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "..."}]
+    Aja como um guia local experiente do Rio de Janeiro. 
+    Encontre ${amount} estabelecimentos reais e populares de "${category}" no bairro "${neighborhood}".
+    Retorne APENAS um array JSON puro:
+    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "..."}]
   `;
 
   try {
-    // Tentativa 1: Com Google Search (Dados em tempo real)
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        temperature: 0.1,
-      },
-    });
+    // TENTATIVA 1: Busca em tempo real (Pode falhar por cota 429)
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }],
+          temperature: 0.1,
+          thinkingConfig: { thinkingBudget: 0 }
+        },
+      });
 
-    return parseAIResponse(response.text || "[]", category, neighborhood, response.candidates?.[0]?.groundingMetadata?.groundingChunks || []);
+      return parseAIResponse(response.text || "[]", category, neighborhood, response.candidates?.[0]?.groundingMetadata?.groundingChunks || []);
+    } catch (searchError: any) {
+      // Se for erro de cota (429), tenta sem a ferramenta de busca
+      if (searchError.message?.includes("429") || searchError.status === 429) {
+        console.warn("Cota de busca exaurida. Usando modo offline...");
+        const fallbackResponse = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: prompt + " (Use seu conhecimento interno, pois a busca web está limitada agora)",
+          config: {
+            temperature: 0.3,
+            thinkingConfig: { thinkingBudget: 0 }
+          }
+        });
+        return parseAIResponse(fallbackResponse.text || "[]", category, neighborhood, []);
+      }
+      throw searchError;
+    }
   } catch (error: any) {
-    // Tentativa 2: Fallback (Sem Google Search para evitar erro 429)
-    console.warn("Google Search Limitado. Usando modo criativo...");
-    const fallbackResponse = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt
-    });
-    return parseAIResponse(fallbackResponse.text || "[]", category, neighborhood, []);
+    console.error("Erro fatal no Agente de Descoberta:", error);
+    throw error;
   }
 };
 
@@ -75,9 +86,12 @@ export const generateCouponDescription = async (businessName: string, category: 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Gere uma frase curta e chamativa para um cupom de ${discount}% em ${businessName}.`,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 }
+      }
     });
     return response.text || "";
   } catch (error) {
-    return "";
+    return `Desconto imperdível de ${discount}% na ${businessName}!`;
   }
 };

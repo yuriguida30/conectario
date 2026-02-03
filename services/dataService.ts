@@ -12,8 +12,8 @@ let _categories: AppCategory[] = [...INITIAL_CATEGORIES];
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
+// Fix: Use BlogPost[] type instead of using the variable name as type
 let _posts: BlogPost[] = MOCK_POSTS;
-// Fix: Added missing _collections variable to store application collection data
 let _collections: Collection[] = [];
 let _locations: AppLocation[] = [
     { id: 'centro', name: 'Centro', active: true, lat: -22.9068, lng: -43.1729 },
@@ -31,12 +31,16 @@ const notifyListeners = () => {
 
 const SESSION_KEY = 'arraial_user_session';
 
-// Sistema de Cache para evitar 429 do Google
+// CACHE DE BUSCA IA: Evita erro 429 salvando resultados localmente
 export const getAIsessionCache = (neighborhood: string, category: string) => {
     try {
         const cacheKey = `cr_discovery_${neighborhood}_${category}`.toLowerCase().replace(/\s/g, '_');
         const cached = localStorage.getItem(cacheKey);
-        return cached ? JSON.parse(cached) : null;
+        if (cached) {
+            console.log("🚀 Usando resultados do cache local...");
+            return JSON.parse(cached);
+        }
+        return null;
     } catch (e) { return null; }
 };
 

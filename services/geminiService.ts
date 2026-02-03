@@ -8,7 +8,7 @@ export const discoverBusinessesFromAI = async (
   amount: number = 5
 ): Promise<{ businesses: any[], sources: any[] }> => {
   
-  // Tenta buscar do cache local primeiro para economizar cota (Gratuito)
+  // VERIFICA SE JÁ PESQUISOU ISSO ANTES (ECONOMIZA COTA)
   const cached = getAIsessionCache(neighborhood, category);
   if (cached) return cached;
 
@@ -18,9 +18,9 @@ export const discoverBusinessesFromAI = async (
     AJA COMO UM GUIA TURÍSTICO DO RIO DE JANEIRO.
     Localize ${amount} estabelecimentos REAIS e ATIVOS de "${category}" no bairro "${neighborhood}".
     
-    IMAGENS: Encontre links reais de fotos no Instagram ou Sites Oficiais.
+    IMPORTANTÍSSIMO: Forneça o nome real, endereço real e instagram.
     RETORNE APENAS JSON:
-    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "instagram": "...", "coverImage": "URL_FOTO_REAL", "gallery": ["URL_1", "URL_2"]}]
+    [{"name": "...", "address": "...", "phone": "...", "rating": 4.5, "description": "...", "instagram": "...", "coverImage": "URL_FOTO_REAL"}]
   `;
 
   try {
@@ -30,7 +30,7 @@ export const discoverBusinessesFromAI = async (
       config: {
         tools: [{ googleSearch: {} }],
         temperature: 0.1,
-        thinkingConfig: { thinkingBudget: 0 } // Economiza tokens e tempo
+        thinkingConfig: { thinkingBudget: 0 } // Desativa o "pensar" para ser mais rápido e barato
       },
     });
 
@@ -50,15 +50,15 @@ export const discoverBusinessesFromAI = async (
       whatsapp: item.phone?.replace(/\D/g, ''),
       sourceUrl: item.instagram || `https://www.google.com/search?q=${encodeURIComponent(item.name + ' ' + neighborhood)}`,
       coverImage: item.coverImage || `https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800`,
-      gallery: Array.isArray(item.gallery) ? item.gallery : []
+      gallery: []
     }));
 
-    const result = { businesses, sources: groundingChunks };
+    const finalResult = { businesses, sources: groundingChunks };
     
-    // Salva no cache para não precisar pedir ao Google de novo
-    setAIsessionCache(neighborhood, category, result);
+    // GUARDA NA MEMÓRIA PARA A PRÓXIMA VEZ
+    setAIsessionCache(neighborhood, category, finalResult);
     
-    return result;
+    return finalResult;
   } catch (error: any) {
     console.error("Discovery Error:", error);
     throw error;

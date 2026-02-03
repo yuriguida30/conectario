@@ -195,7 +195,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ onNavi
                                             <div className="bg-white/50 p-4 rounded-2xl border border-amber-100">
                                                 <div className="w-8 h-8 bg-amber-200 rounded-full flex items-center justify-center text-xs font-black text-amber-700 mb-3">1</div>
                                                 <p className="text-xs font-bold text-amber-900 mb-1">Painel Vercel</p>
-                                                <p className="text-[10px] text-amber-700">Vá em Settings > Environment Variables.</p>
+                                                <p className="text-[10px] text-amber-700">Vá em Settings &gt; Environment Variables.</p>
                                             </div>
                                             <div className="bg-white/50 p-4 rounded-2xl border border-amber-100">
                                                 <div className="w-8 h-8 bg-amber-200 rounded-full flex items-center justify-center text-xs font-black text-amber-700 mb-3">2</div>

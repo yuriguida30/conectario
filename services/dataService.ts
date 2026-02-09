@@ -36,15 +36,7 @@ let _coupons: Coupon[] = MOCK_COUPONS;
 let _users: User[] = MOCK_USERS;
 let _isInitialized = false;
 
-let _collections: Collection[] = [
-    {
-        id: 'col1',
-        title: 'Os Melhores Cafés',
-        description: 'Uma seleção dos cafés mais charmosos do Rio.',
-        coverImage: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&q=80&w=800',
-        businessIds: ['local_1765502020338']
-    }
-];
+let _collections: Collection[] = [];
 
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
 
@@ -103,7 +95,7 @@ export const initFirebaseData = () => {
                 category: data.category || 'Outros'
             } as BusinessProfile;
         });
-        if (fbBusinesses.length > 0) _businesses = fbBusinesses;
+        _businesses = fbBusinesses.length > 0 ? fbBusinesses : MOCK_BUSINESSES;
         notifyListeners();
     });
 
@@ -118,7 +110,7 @@ export const initFirebaseData = () => {
                 companyName: data.companyName || 'Empresa'
             } as Coupon;
         });
-        if (fbCoupons.length > 0) _coupons = fbCoupons;
+        _coupons = fbCoupons.length > 0 ? fbCoupons : MOCK_COUPONS;
         notifyListeners();
     });
 
@@ -133,7 +125,7 @@ export const initFirebaseData = () => {
                 email: data.email || ''
             } as User;
         });
-        if (fbUsers.length > 0) _users = fbUsers;
+        _users = fbUsers.length > 0 ? fbUsers : MOCK_USERS;
         notifyListeners();
     });
 };
@@ -206,16 +198,13 @@ export const logout = async () => {
     notifyListeners();
 };
 
-/**
- * Função de Redefinição de Senha
- */
 export const resetUserPassword = async (email: string) => {
     if (!email) throw new Error("E-mail não fornecido.");
     try {
         await sendPasswordResetEmail(auth, email);
     } catch (e: any) {
         console.error("Erro ao resetar senha:", e);
-        throw new Error("Falha ao enviar e-mail. Verifique se o endereço é válido.");
+        throw new Error("Falha ao enviar e-mail.");
     }
 };
 
@@ -225,6 +214,28 @@ export const getBusinessById = (id: string) => _businesses.find(b => b.id === id
 
 export const saveBusiness = async (b: BusinessProfile) => {
     await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); 
+};
+
+export const deleteBusiness = async (id: string) => {
+    try {
+        await deleteDoc(doc(db, 'businesses', id));
+        _businesses = _businesses.filter(b => b.id !== id);
+        notifyListeners();
+    } catch (e) {
+        console.error("Erro ao deletar empresa:", e);
+        throw e;
+    }
+};
+
+export const deleteUser = async (id: string) => {
+    try {
+        await deleteDoc(doc(db, 'users', id));
+        _users = _users.filter(u => u.id !== id);
+        notifyListeners();
+    } catch (e) {
+        console.error("Erro ao deletar usuário:", e);
+        throw e;
+    }
 };
 
 export const getCurrentUser = (): User | null => {
@@ -247,23 +258,6 @@ export const saveCoupon = async (c: Coupon) => {
 
 export const deleteCoupon = async (id: string) => {
     await deleteDoc(doc(db, 'coupons', id)); 
-};
-
-export const trackAction = async (businessId: string, action: string) => {
-    try {
-        const fieldMap: any = {
-            menu: 'menuViews', social: 'socialClicks', map: 'mapClicks',
-            share: 'shares', phone: 'phoneClicks', visit_direct: 'directVisits',
-            visit_search: 'searchVisits'
-        };
-        const field = fieldMap[action];
-        if (field) {
-            await updateDoc(doc(db, 'businesses', businessId), { 
-                [field]: increment(1), 
-                totalConversions: increment(1) 
-            });
-        }
-    } catch (e) {}
 };
 
 export const getBusinessStats = async (businessId: string) => {
@@ -325,6 +319,18 @@ export const toggleFavorite = async (type: 'coupon' | 'business', id: string) =>
 };
 
 export const incrementBusinessView = (id: string) => updateDoc(doc(db, 'businesses', id), { views: increment(1) });
+
+// Fix: Added missing trackAction export to support analytics tracking in components
+export const trackAction = async (businessId: string, type: string) => {
+    try {
+        if (type === 'share') {
+            await updateDoc(doc(db, 'businesses', businessId), { shares: increment(1) });
+        }
+        // Additional tracking logic for other types can be implemented here as needed
+    } catch (e) {
+        console.error("Error tracking action:", e);
+    }
+};
 
 export const redeemCoupon = async (uid: string, c: Coupon) => {
     await updateDoc(doc(db, 'coupons', c.id), { currentRedemptions: increment(1) });

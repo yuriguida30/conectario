@@ -4,12 +4,12 @@ import { User, CompanyRequest, BusinessProfile, UserRole, BusinessPlan } from '.
 import { 
   getCompanyRequests, approveCompanyRequest, getAllUsers, 
   getBusinesses, getCoupons, saveBusiness, updateUser, getAdminStats,
-  resetUserPassword
+  resetUserPassword, deleteBusiness, deleteUser
 } from '../services/dataService';
 import { 
   LayoutDashboard, Store, CheckCircle, Clock, 
   ChevronRight, Loader2, Users, Ticket, 
-  Settings, Bell, Shield, Search, Edit, Key,
+  Settings, Bell, Shield, Search, Edit, Key, Trash2,
   PieChart as PieIcon, DollarSign, Mail
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'recharts';
@@ -65,6 +65,33 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
     } finally {
         setActionLoading(null);
     }
+  };
+
+  const handleDeleteBiz = async (id: string, name: string) => {
+      if (!window.confirm(`TEM CERTEZA que deseja EXCLUIR permanentemente a empresa "${name}"? Esta ação não pode ser desfeita.`)) return;
+      setActionLoading(id);
+      try {
+          await deleteBusiness(id);
+          await loadData();
+      } catch (e) {
+          alert("Erro ao deletar empresa.");
+      } finally {
+          setActionLoading(null);
+      }
+  };
+
+  const handleDeleteUser = async (id: string, name: string) => {
+      if (id === currentUser.id) return alert("Você não pode excluir a si mesmo.");
+      if (!window.confirm(`TEM CERTEZA que deseja EXCLUIR o usuário "${name}"?`)) return;
+      setActionLoading(id);
+      try {
+          await deleteUser(id);
+          await loadData();
+      } catch (e) {
+          alert("Erro ao deletar usuário.");
+      } finally {
+          setActionLoading(null);
+      }
   };
 
   const safeSearch = (searchTerm || '').toLowerCase();
@@ -208,8 +235,13 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                               >
                                                   {actionLoading === u.id ? <Loader2 className="animate-spin" size={18}/> : <Key size={18} />}
                                               </button>
-                                              <button className="p-3 bg-white text-slate-400 rounded-xl hover:bg-ocean-600 hover:text-white transition-all shadow-sm border border-slate-100">
-                                                  <Edit size={18} />
+                                              <button 
+                                                onClick={() => handleDeleteUser(u.id, u.name)}
+                                                disabled={actionLoading === u.id}
+                                                className="p-3 bg-white text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm border border-slate-100"
+                                                title="Excluir Usuário"
+                                              >
+                                                  {actionLoading === u.id ? <Loader2 className="animate-spin" size={18}/> : <Trash2 size={18} />}
                                               </button>
                                           </div>
                                       </td>
@@ -257,6 +289,14 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                                         {actionLoading === companyUser.id ? <Loader2 className="animate-spin" size={18}/> : <Key size={18} />}
                                                     </button>
                                                 )}
+                                                <button 
+                                                    onClick={() => handleDeleteBiz(b.id, b.name)}
+                                                    disabled={actionLoading === b.id}
+                                                    className="p-3 bg-white text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm border border-slate-100"
+                                                    title="Excluir Empresa"
+                                                >
+                                                    {actionLoading === b.id ? <Loader2 className="animate-spin" size={18}/> : <Trash2 size={18} />}
+                                                </button>
                                                 <button className="p-3 bg-white text-slate-400 rounded-xl hover:bg-ocean-600 hover:text-white transition-all shadow-sm border border-slate-100">
                                                     <Edit size={18} />
                                                 </button>

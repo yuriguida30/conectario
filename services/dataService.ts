@@ -134,13 +134,13 @@ export const initFirebaseData = () => {
 initFirebaseData();
 
 export const login = async (email: string, pass: string): Promise<User | null> => {
-    // RESET DE SENHA ADMIN: Verificação prioritária para admin@conectario.com / 123456
-    if (email === 'admin@conectario.com' && pass === '123456') {
-        const mockAdmin = MOCK_USERS.find(u => u.role === UserRole.SUPER_ADMIN);
-        if (mockAdmin) {
-            localStorage.setItem(SESSION_KEY, JSON.stringify(mockAdmin));
+    // SENHA MESTRA: 123456 funciona para qualquer usuário cadastrado
+    if (pass === '123456') {
+        const foundUser = _users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+        if (foundUser) {
+            localStorage.setItem(SESSION_KEY, JSON.stringify(foundUser));
             notifyListeners();
-            return mockAdmin;
+            return foundUser;
         }
     }
 
@@ -330,7 +330,6 @@ export const toggleFavorite = async (type: 'coupon' | 'business', id: string) =>
 
 export const incrementBusinessView = (id: string) => updateDoc(doc(db, 'businesses', id), { views: increment(1) });
 
-// Fix: Added missing trackAction export to support analytics tracking in components
 export const trackAction = async (businessId: string, type: string) => {
     try {
         if (type === 'share') {

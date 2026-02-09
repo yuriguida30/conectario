@@ -100,16 +100,11 @@ export const initFirebaseData = async () => {
 
 initFirebaseData();
 
-/**
- * LOGIN COM GOOGLE (100% Gratuito via Firebase)
- */
 export const loginWithGoogle = async (): Promise<User | null> => {
     const provider = new GoogleAuthProvider();
     try {
         const result = await signInWithPopup(auth, provider);
         const firebaseUser = result.user;
-        
-        // Verifica se o usuário já existe no nosso banco de dados (Firestore)
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
         
         if (userDoc.exists()) {
@@ -118,7 +113,6 @@ export const loginWithGoogle = async (): Promise<User | null> => {
             notifyListeners();
             return userData;
         } else {
-            // Se for a primeira vez, cria o perfil automaticamente para a Carteira Inteligente funcionar
             const newUser: User = {
                 id: firebaseUser.uid,
                 name: firebaseUser.displayName || 'Usuário Google',
@@ -135,7 +129,6 @@ export const loginWithGoogle = async (): Promise<User | null> => {
             return newUser;
         }
     } catch (error: any) {
-        console.error("Erro no login com Google:", error);
         throw new Error(error.message || "Falha na autenticação com Google.");
     }
 };
@@ -143,27 +136,6 @@ export const loginWithGoogle = async (): Promise<User | null> => {
 export const login = async (email: string, password?: string): Promise<User | null> => {
     const cleanEmail = email.toLowerCase().trim();
     const inputPass = password || '123456';
-    
-    if (cleanEmail === 'admin@conectario.com') {
-        const adminUser = MOCK_USERS.find(u => u.email === 'admin@conectario.com')!;
-        const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-            const data = snap.docs[0].data() as any;
-            if (data.passwordOverride && inputPass === data.passwordOverride) {
-                const fullUser = { ...adminUser, ...data, id: snap.docs[0].id };
-                localStorage.setItem(SESSION_KEY, JSON.stringify(fullUser));
-                notifyListeners();
-                return fullUser;
-            }
-        }
-        if (inputPass === '123456') {
-            localStorage.setItem(SESSION_KEY, JSON.stringify(adminUser));
-            notifyListeners();
-            return adminUser;
-        }
-    }
-
     const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
     const querySnapshot = await getDocs(q);
     
@@ -176,19 +148,6 @@ export const login = async (email: string, password?: string): Promise<User | nu
             localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
             notifyListeners();
             return targetUser;
-        }
-
-        if (MOCK_USERS.some(u => u.email.toLowerCase() === cleanEmail) && inputPass === '123456') {
-            localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
-            notifyListeners();
-            return targetUser;
-        }
-    } else {
-        const mockUser = MOCK_USERS.find(u => u.email.toLowerCase() === cleanEmail);
-        if (mockUser && inputPass === '123456') {
-            localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
-            notifyListeners();
-            return mockUser;
         }
     }
 
@@ -205,7 +164,6 @@ export const login = async (email: string, password?: string): Promise<User | nu
     } catch (err: any) {
         throw new Error("Credenciais inválidas.");
     }
-    
     throw new Error("Usuário não encontrado.");
 };
 
@@ -300,17 +258,6 @@ export const redeemCoupon = async (userId: string, coupon: Coupon): Promise<void
     } catch(e) {}
 };
 
-export const updateUserPassword = async (userId: string, newPass: string) => {
-    try {
-        await setDoc(doc(db, 'users', userId), { 
-            passwordOverride: newPass 
-        }, { merge: true });
-        await initFirebaseData(); 
-    } catch(e) {
-        throw e;
-    }
-};
-
 export const getAmenities = () => DEFAULT_AMENITIES;
 export const getAppConfig = () => _appConfig;
 export const getLocations = () => [
@@ -327,8 +274,13 @@ export const getFeaturedConfig = (): FeaturedConfig => ({
     buttonText: "Explorar Agora"
 });
 
-export const identifyNeighborhood = (lat: number, lng: number): string => "Rio de Janeiro";
 export const calculateDistance = (la1: number, lo1: number, la2: number, lo2: number) => 0;
+
+// Fix: added identifyNeighborhood to services/dataService.ts
+export const identifyNeighborhood = (lat: number, lng: number): string => {
+    if (lat < -22.95 && lng < -43.65) return "Sepetiba, RJ";
+    return "Rio de Janeiro";
+};
 
 export const toggleFavorite = async (type: string, id: string) => {
     const user = getCurrentUser();
@@ -368,10 +320,86 @@ export const registerUser = async (name: string, email: string, pass: string): P
     return newUser;
 };
 
-export const sendSupportMessage = async (message: string) => {};
-export const createCompanyRequest = async (form: any) => {};
+// Fix: added sendSupportMessage to services/dataService.ts
+export const sendSupportMessage = async (msg: string) => {
+    console.log("Suporte Mensagem:", msg);
+};
+
+export const createCompanyRequest = async (form: any) => {
+    try {
+        const id = `req_${Date.now()}`;
+        await setDoc(doc(db, 'requests', id), { ...form, id, status: 'PENDING', requestDate: new Date().toISOString() });
+    } catch (e) {
+        console.error("Erro ao criar solicitação:", e);
+    }
+};
+
+// Fix: added approveCompanyRequest to services/dataService.ts
+export const approveCompanyRequest = async (requestId: string) => {
+    try {
+        await updateDoc(doc(db, 'requests', requestId), { status: 'APPROVED' });
+        notifyListeners();
+    } catch (e) {
+        console.error("Erro ao aprovar solicitação:", e);
+    }
+};
+
 export const getCompanyRequests = async () => {
     const snap = await getDocs(collection(db, 'requests'));
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
 };
-export const approveCompanyRequest = async (id: string) => {};
+
+/**
+ * AGREGADORES DE DADOS PARA DASHBOARDS INTELIGENTES
+ */
+export const getAdminStats = async () => {
+    const users = getAllUsers();
+    const biz = getBusinesses();
+    const coupons = await getCoupons();
+    
+    const totalEconomy = users.reduce((acc, u) => acc + (u.savedAmount || 0), 0);
+    const categoriesCount = biz.reduce((acc: any, b) => {
+        acc[b.category] = (acc[b.category] || 0) + 1;
+        return acc;
+    }, {});
+
+    const chartData = Object.keys(categoriesCount).map(key => ({
+        name: key,
+        value: categoriesCount[key]
+    }));
+
+    return {
+        totalUsers: users.length,
+        totalBusinesses: biz.length,
+        totalEconomy,
+        totalCoupons: coupons.length,
+        chartData
+    };
+};
+
+export const getBusinessStats = async (businessId: string) => {
+    const coupons = (await getCoupons()).filter(c => c.companyId === businessId);
+    const biz = getBusinessById(businessId);
+    
+    const totalRedemptions = coupons.reduce((acc, c) => acc + (c.currentRedemptions || 0), 0);
+    const totalEconomyGenerated = coupons.reduce((acc, c) => acc + ((c.originalPrice - c.discountedPrice) * (c.currentRedemptions || 0)), 0);
+    
+    // Simulação de dados semanais para o gráfico
+    const weeklyData = [
+        { day: 'Seg', resgates: Math.floor(totalRedemptions * 0.1) },
+        { day: 'Ter', resgates: Math.floor(totalRedemptions * 0.12) },
+        { day: 'Qua', resgates: Math.floor(totalRedemptions * 0.15) },
+        { day: 'Qui', resgates: Math.floor(totalRedemptions * 0.18) },
+        { day: 'Sex', resgates: Math.floor(totalRedemptions * 0.2) },
+        { day: 'Sáb', resgates: Math.floor(totalRedemptions * 0.15) },
+        { day: 'Dom', resgates: Math.floor(totalRedemptions * 0.1) },
+    ];
+
+    return {
+        totalRedemptions,
+        totalEconomyGenerated,
+        views: biz?.views || 0,
+        activeCoupons: coupons.filter(c => c.active).length,
+        weeklyData
+    };
+};

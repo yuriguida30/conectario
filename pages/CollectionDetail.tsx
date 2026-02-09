@@ -20,7 +20,8 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
     const col = getCollectionById(collectionId);
     if (col) {
         setCollection(col);
-        const loadedBusinesses = (col.businessIds || [])
+        const ids = col.businessIds || [];
+        const loadedBusinesses = ids
             .map((id: string) => getBusinessById(id))
             .filter((b: BusinessProfile | undefined): b is BusinessProfile => b !== undefined);
         setBusinesses(loadedBusinesses);
@@ -99,14 +100,20 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
                             <div className="p-4 flex flex-col justify-between flex-1">
                                 <div>
                                     <div className="flex justify-between items-start">
-                                        <h3 className="text-lg font-bold text-ocean-900 line-clamp-1">{biz.name}</h3>
+                                        <h3 className="text-lg font-bold text-ocean-900 line-clamp-1">
+                                            {typeof biz.name === 'string' ? biz.name : 'Nome indisponível'}
+                                        </h3>
                                         <div className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded">
                                             <Star size={12} className="text-gold-500 fill-gold-500" />
                                             <span className="text-xs font-bold text-slate-700">{biz.rating}</span>
                                         </div>
                                     </div>
-                                    <p className="text-slate-500 text-xs mb-2">{biz.category}</p>
-                                    <p className="text-slate-600 text-sm line-clamp-2 min-h-[2.5rem]">{biz.description}</p>
+                                    <p className="text-slate-500 text-xs mb-2">
+                                        {typeof biz.category === 'string' ? biz.category : ''}
+                                    </p>
+                                    <p className="text-slate-600 text-sm line-clamp-2 min-h-[2.5rem]">
+                                        {typeof biz.description === 'string' ? biz.description : ''}
+                                    </p>
                                 </div>
                             </div>
                         </div>

@@ -32,6 +32,7 @@ const SESSION_KEY = 'cr_session_v4';
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
+// Explicitly type collections to avoid 'never' inference
 let _collections: Collection[] = [
     {
         id: 'col1',
@@ -199,9 +200,6 @@ export const deleteCoupon = async (id: string) => {
     }
 };
 
-/**
- * SISTEMA DE RASTREAMENTO DE AÇÕES (CONVERSÕES)
- */
 export const trackAction = async (businessId: string, action: 'menu' | 'social' | 'map' | 'share' | 'phone' | 'visit_direct' | 'visit_search') => {
     try {
         const fieldMap: any = {
@@ -251,7 +249,7 @@ export const getBusinessStats = async (businessId: string) => {
     ];
 
     const trafficSource = [
-        { name: 'Direto/Tuga', value: data.directVisits || 10 },
+        { name: 'Direto/Guia', value: data.directVisits || 10 },
         { name: 'Pesquisas', value: data.searchVisits || 5 },
     ];
 

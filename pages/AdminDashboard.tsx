@@ -49,6 +49,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
   if (loading && !stats) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-ocean-600" size={48} /></div>;
 
+  const renderName = () => {
+      const name = myBusiness?.name || currentUser.companyName || currentUser.name;
+      return typeof name === 'string' ? name : 'Empresa';
+  };
+
   return (
     <div className="pb-32 pt-10 px-4 max-w-7xl mx-auto space-y-8 animate-in fade-in">
       
@@ -59,7 +64,9 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   {myBusiness?.coverImage && <img src={myBusiness.coverImage} className="w-full h-full object-cover" />}
               </div>
               <div>
-                  <h1 className="text-3xl font-black text-ocean-950 tracking-tight">{myBusiness?.name || currentUser.companyName}</h1>
+                  <h1 className="text-3xl font-black text-ocean-950 tracking-tight">
+                      {renderName()}
+                  </h1>
                   <p className="text-[10px] text-ocean-600 font-black uppercase tracking-widest mt-1">Inteligência de Vendas Ativa</p>
               </div>
           </div>
@@ -81,7 +88,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                           <MousePointer2 className="absolute -right-4 -bottom-4 w-24 h-24 text-white/5 group-hover:scale-110 transition-transform" />
                           <p className="text-[10px] font-black text-ocean-400 uppercase tracking-widest mb-2">Total de Conversões</p>
                           <h3 className="text-4xl font-black">{stats.totalConversions}</h3>
-                          <p className="text-ocean-200 text-[10px] font-bold mt-2">Leads Gerados pelo Tuga</p>
+                          <p className="text-ocean-200 text-[10px] font-bold mt-2">Leads Gerados pelo Guia</p>
                       </div>
                       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
                           <div className="flex justify-between items-start mb-2">

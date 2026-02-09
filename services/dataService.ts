@@ -25,7 +25,7 @@ import {
 } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
-const SESSION_KEY = 'cr_session_v3';
+const SESSION_KEY = 'cr_session_v4';
 
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
@@ -51,11 +51,15 @@ const notifyListeners = () => {
 
 onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-            const userData = { id: userDoc.id, ...userDoc.data() } as User;
-            localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
-            notifyListeners();
+        try {
+            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+            if (userDoc.exists()) {
+                const userData = { id: userDoc.id, ...userDoc.data() } as User;
+                localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+                notifyListeners();
+            }
+        } catch (e) {
+            console.error("Erro ao sincronizar sessão Auth:", e);
         }
     }
 });
@@ -70,60 +74,61 @@ const cleanObject = (obj: any) => {
     return newObj;
 };
 
+/**
+ * INICIALIZAÇÃO ROBUSTA
+ * Prioriza Firestore e só usa Mocks se o banco estiver vazio ou inacessível.
+ */
 export const initFirebaseData = async () => {
     try {
+        console.log("Iniciando sincronização com Firestore...");
+        
+        // 1. Carrega Empresas
         const bizSnap = await getDocs(collection(db, 'businesses'));
         const fbBusinesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
         
+        // 2. Carrega Cupons
         const coupSnap = await getDocs(collection(db, 'coupons'));
         const fbCoupons = coupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
         
+        // 3. Carrega Usuários
         const userSnap = await getDocs(collection(db, 'users'));
         _users = userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
 
-        _businesses = [...fbBusinesses];
-        MOCK_BUSINESSES.forEach(mock => {
-            if (!_businesses.find(b => b.id === mock.id)) _businesses.push(mock);
-        });
+        // SOBERANIA DOS DADOS: Se houver dados no banco, eles são a única verdade.
+        // Só injetamos Mocks se o banco estiver zerado (primeiro acesso).
+        _businesses = fbBusinesses.length > 0 ? fbBusinesses : MOCK_BUSINESSES;
+        _coupons = fbCoupons.length > 0 ? fbCoupons : MOCK_COUPONS;
 
-        _coupons = [...fbCoupons];
-        MOCK_COUPONS.forEach(mock => {
-            if (!_coupons.find(c => c.id === mock.id)) _coupons.push(mock);
-        });
-
+        console.log(`Sincronização concluída: ${_businesses.length} empresas e ${_coupons.length} cupons.`);
         notifyListeners();
     } catch (error) {
+        console.warn("Falha na sincronização em tempo real, usando dados locais de segurança.");
         _businesses = MOCK_BUSINESSES;
         _coupons = MOCK_COUPONS;
         notifyListeners();
     }
 };
 
+// Executa a carga inicial
 initFirebaseData();
 
-/**
- * LOGIN HÍBRIDO DEFINITIVO V3
- * Prioriza bypass via Firestore para permitir controle total do Admin.
- */
 export const login = async (email: string, password?: string): Promise<User | null> => {
     const cleanEmail = email.toLowerCase().trim();
     const inputPass = password || '123456';
     
-    // 1. CHECAGEM DE MASTER ADMIN (Segurança de Acesso)
     if (cleanEmail === 'admin@conectario.com') {
         const adminUser = MOCK_USERS.find(u => u.email === 'admin@conectario.com')!;
-        // Busca se o admin mudou sua própria senha no banco
         const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
         const snap = await getDocs(q);
         if (!snap.empty) {
             const data = snap.docs[0].data() as any;
             if (data.passwordOverride && inputPass === data.passwordOverride) {
-                localStorage.setItem(SESSION_KEY, JSON.stringify({ ...adminUser, ...data, id: snap.docs[0].id }));
+                const fullUser = { ...adminUser, ...data, id: snap.docs[0].id };
+                localStorage.setItem(SESSION_KEY, JSON.stringify(fullUser));
                 notifyListeners();
-                return adminUser;
+                return fullUser;
             }
         }
-        // Senha padrão se não houver override
         if (inputPass === '123456') {
             localStorage.setItem(SESSION_KEY, JSON.stringify(adminUser));
             notifyListeners();
@@ -131,7 +136,6 @@ export const login = async (email: string, password?: string): Promise<User | nu
         }
     }
 
-    // 2. BUSCA GERAL NO FIRESTORE (Empresas e Clientes)
     const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
     const querySnapshot = await getDocs(q);
     
@@ -140,21 +144,18 @@ export const login = async (email: string, password?: string): Promise<User | nu
         const userData = userDoc.data() as any;
         const targetUser = { id: userDoc.id, ...userData } as User;
         
-        // Verifica se o Admin definiu uma senha manual para este usuário
         if (userData.passwordOverride && inputPass === userData.passwordOverride) {
             localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
             notifyListeners();
             return targetUser;
         }
 
-        // Se for um usuário Mock que já foi salvo no Firestore, aceita a senha padrão 123456
         if (MOCK_USERS.some(u => u.email.toLowerCase() === cleanEmail) && inputPass === '123456') {
             localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
             notifyListeners();
             return targetUser;
         }
     } else {
-        // 3. FALLBACK PARA MOCK USERS AINDA NÃO SALVOS (André, etc)
         const mockUser = MOCK_USERS.find(u => u.email.toLowerCase() === cleanEmail);
         if (mockUser && inputPass === '123456') {
             localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
@@ -163,7 +164,6 @@ export const login = async (email: string, password?: string): Promise<User | nu
         }
     }
 
-    // 4. TENTA FIREBASE AUTH (Para usuários que se cadastraram sozinhos)
     try {
         const userCred = await signInWithEmailAndPassword(auth, cleanEmail, inputPass);
         const firebaseUser = userCred.user;
@@ -175,11 +175,10 @@ export const login = async (email: string, password?: string): Promise<User | nu
             return userData;
         }
     } catch (err: any) {
-        // Se falhou tudo, as credenciais estão erradas
-        throw new Error("Credenciais inválidas. Verifique seu email e senha.");
+        throw new Error("Credenciais inválidas.");
     }
     
-    throw new Error("Credenciais inválidas.");
+    throw new Error("Usuário não encontrado.");
 };
 
 export const logout = async () => {
@@ -193,11 +192,15 @@ export const getCoupons = async () => _coupons;
 export const getBusinessById = (id: string) => _businesses.find(b => b.id === id);
 
 export const saveBusiness = async (b: BusinessProfile) => {
-    try { await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); } catch (e) {}
-    const idx = _businesses.findIndex(biz => biz.id === b.id);
-    if (idx !== -1) _businesses[idx] = b;
-    else _businesses.push(b);
-    notifyListeners();
+    try { 
+        await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); 
+        const idx = _businesses.findIndex(biz => biz.id === b.id);
+        if (idx !== -1) _businesses[idx] = b;
+        else _businesses.push(b);
+        notifyListeners();
+    } catch (e) {
+        console.error("Erro ao salvar empresa no Firestore:", e);
+    }
 };
 
 export const getCurrentUser = (): User | null => {
@@ -211,29 +214,38 @@ export const getBlogPosts = () => _posts;
 export const getBlogPostById = (id: string) => _posts.find(p => p.id === id);
 
 export const saveCoupon = async (c: Coupon) => {
-    try { await setDoc(doc(db, 'coupons', c.id), cleanObject(c)); } catch(e){}
-    const idx = _coupons.findIndex(cp => cp.id === c.id);
-    if (idx !== -1) _coupons[idx] = c;
-    else _coupons.push(c);
-    notifyListeners();
+    try { 
+        await setDoc(doc(db, 'coupons', c.id), cleanObject(c)); 
+        const idx = _coupons.findIndex(cp => cp.id === c.id);
+        if (idx !== -1) _coupons[idx] = c;
+        else _coupons.push(c);
+        notifyListeners();
+    } catch(e) {
+        console.error("Erro ao salvar cupom no Firestore:", e);
+    }
 };
 
 /**
- * EXCLUSÃO DEFINITIVA DE CUPOM
- * Remove o documento fisicamente do Firestore.
+ * EXCLUSÃO DEFINITIVA E SEGURA
  */
 export const deleteCoupon = async (id: string) => {
     try { 
-        // Remove do Banco de Dados (Firestore) permanentemente
+        // 1. Remove do banco de dados primeiro
         await deleteDoc(doc(db, 'coupons', id)); 
-        console.log(`Cupom ${id} excluído permanentemente do banco.`);
+        
+        // 2. Remove da memória local imediatamente
+        _coupons = _coupons.filter(c => c.id !== id);
+        
+        // 3. Notifica a interface para sumir com o card
+        notifyListeners();
+        
+        console.log(`Cupom ${id} removido com sucesso.`);
     } catch(e) {
-        console.error("Erro ao deletar cupom no Firestore:", e);
+        console.error("Erro ao deletar cupom:", e);
+        // Fallback: remove localmente mesmo se o banco falhar para não travar a UI
+        _coupons = _coupons.filter(c => c.id !== id);
+        notifyListeners();
     }
-    
-    // Remove da lista local para atualização instantânea da tela
-    _coupons = _coupons.filter(c => c.id !== id);
-    notifyListeners();
 };
 
 export const updateUser = async (u: User) => {
@@ -241,17 +253,11 @@ export const updateUser = async (u: User) => {
     notifyListeners();
 };
 
-/**
- * ATUALIZAÇÃO DE SENHA PELO ADMIN (SALVA NO BANCO)
- * Essa função garante que qualquer alteração seja soberana sobre o Auth.
- */
 export const updateUserPassword = async (userId: string, newPass: string) => {
     try {
         await setDoc(doc(db, 'users', userId), { 
             passwordOverride: newPass 
         }, { merge: true });
-        
-        console.log(`Senha de override gravada com sucesso no Firestore para ${userId}`);
         await initFirebaseData(); 
     } catch(e) {
         console.error("Erro ao gravar override de senha:", e);

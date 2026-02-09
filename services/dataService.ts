@@ -25,7 +25,7 @@ import {
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
 const SESSION_KEY = 'cr_session_v3';
-const PASSWORDS_KEY = 'cr_custom_passwords'; // Novo "cofre" de senhas resetadas
+const PASSWORDS_KEY = 'cr_custom_passwords'; 
 
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
@@ -111,11 +111,39 @@ initFirebaseData();
 
 export const login = async (email: string, password?: string): Promise<User | null> => {
     const cleanEmail = email.toLowerCase().trim();
-    const pass = password || '123456';
+    const inputPass = password || '123456';
     
+    // Busca o usuário em todas as fontes disponíveis (Mocks e Firestore carregado)
+    const allAvailableUsers = [...MOCK_USERS, ..._users];
+    const targetUser = allAvailableUsers.find(u => u.email.toLowerCase() === cleanEmail);
+
+    if (targetUser) {
+        // VERIFICAÇÃO DE SENHA ALTERADA PELO ADMIN (OVERRIDE)
+        const customPasses = JSON.parse(localStorage.getItem(PASSWORDS_KEY) || '{}');
+        const adminDefinedPass = customPasses[targetUser.id];
+
+        // Se o admin definiu uma senha, ELA É A ÚNICA QUE VALE
+        if (adminDefinedPass) {
+            if (inputPass === adminDefinedPass) {
+                localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
+                notifyListeners();
+                return targetUser;
+            } else {
+                throw new Error("Senha incorreta conforme definido pelo Administrador.");
+            }
+        }
+
+        // Se for um MockUser sem senha alterada, aceita 123456
+        if (MOCK_USERS.some(u => u.id === targetUser.id) && inputPass === '123456') {
+            localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
+            notifyListeners();
+            return targetUser;
+        }
+    }
+
+    // Se não houver override de admin, tenta o Firebase Auth tradicional
     try {
-        // 1. Tenta Firebase Real primeiro
-        const userCred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+        const userCred = await signInWithEmailAndPassword(auth, cleanEmail, inputPass);
         const firebaseUser = userCred.user;
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
         if (userDoc.exists()) {
@@ -125,22 +153,10 @@ export const login = async (email: string, password?: string): Promise<User | nu
             return userData;
         }
     } catch (err: any) {
-        // 2. Fallback para Mock (André, Admin, etc)
-        const mockUser = MOCK_USERS.find(u => u.email === cleanEmail);
-        if (mockUser) {
-            // Verifica se existe uma senha customizada definida pelo Admin
-            const customPasses = JSON.parse(localStorage.getItem(PASSWORDS_KEY) || '{}');
-            const savedPass = customPasses[mockUser.id] || '123456';
-            
-            if (pass === savedPass) {
-                localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
-                notifyListeners();
-                return mockUser;
-            }
-        }
         throw new Error("Credenciais inválidas.");
     }
-    return null;
+    
+    throw new Error("Usuário não encontrado.");
 };
 
 export const logout = async () => {
@@ -191,15 +207,17 @@ export const updateUser = async (u: User) => {
     notifyListeners();
 };
 
-// Função para o Admin trocar a senha de qualquer usuário
 export const updateUserPassword = async (userId: string, newPass: string) => {
-    // Para persistir em ambiente de teste, salvamos no localStorage
     const customPasses = JSON.parse(localStorage.getItem(PASSWORDS_KEY) || '{}');
     customPasses[userId] = newPass;
     localStorage.setItem(PASSWORDS_KEY, JSON.stringify(customPasses));
     
-    // Se fosse Firebase Real com Cloud Functions, chamaríamos a API aqui.
-    console.log(`Senha do usuário ${userId} atualizada para ${newPass}`);
+    // Atualizamos o Firestore também para registro, embora o login local use o localStorage como override imediato
+    try {
+        await updateDoc(doc(db, 'users', userId), { lastPasswordReset: new Date().toISOString() });
+    } catch(e) {}
+    
+    console.log(`Senha do usuário ${userId} atualizada localmente para ${newPass}`);
 };
 
 export const getAmenities = () => DEFAULT_AMENITIES;
@@ -273,5 +291,8 @@ export const sendSupportMessage = async (message: string) => {
 };
 
 export const createCompanyRequest = async (form: any) => {};
-export const getCompanyRequests = async () => [];
+export const getCompanyRequests = async () => {
+    const snap = await getDocs(collection(db, 'requests'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
+};
 export const approveCompanyRequest = async (id: string) => {};

@@ -10,7 +10,7 @@ import {
   LayoutDashboard, Store, CheckCircle, Clock, 
   ChevronRight, Loader2, Users, Ticket, 
   Settings, Bell, Shield, Search, Edit, Key, Trash2,
-  PieChart as PieIcon, DollarSign, Mail
+  PieChart as PieIcon, DollarSign, Mail, X, Save
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'recharts';
 
@@ -25,6 +25,10 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
   const [loadingData, setLoadingData] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  
+  // Modal de Edição de Usuário
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editFormData, setEditFormData] = useState({ name: '', email: '' });
 
   const loadData = async () => {
     setLoadingData(true);
@@ -49,6 +53,26 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
     return () => window.removeEventListener('dataUpdated', handleUpdate);
   }, []);
 
+  const handleOpenEdit = (user: User) => {
+      setEditingUser(user);
+      setEditFormData({ name: user.name, email: user.email });
+  };
+
+  const handleSaveUserEdit = async () => {
+      if (!editingUser) return;
+      setActionLoading('saving_user');
+      try {
+          const updated = { ...editingUser, name: editFormData.name, email: editFormData.email };
+          await updateUser(updated);
+          await loadData();
+          setEditingUser(null);
+      } catch (e) {
+          alert("Erro ao atualizar dados do usuário.");
+      } finally {
+          setActionLoading(null);
+      }
+  };
+
   const handleResetPassword = async (user: User) => {
     if (!user?.email) {
         alert("Este usuário não possui um e-mail cadastrado.");
@@ -61,7 +85,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
         await resetUserPassword(user.email);
         alert(`E-mail de redefinição enviado com sucesso para ${user.email}`);
     } catch (e: any) {
-        alert(e.message || "Erro ao solicitar redefinição de senha.");
+        alert(e.message || "Erro ao solicitar redefinição de senha. Verifique se o e-mail existe no Firebase Auth.");
     } finally {
         setActionLoading(null);
     }
@@ -228,6 +252,13 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                       <td className="px-6 py-5">
                                           <div className="flex justify-center items-center gap-2">
                                               <button 
+                                                onClick={() => handleOpenEdit(u)}
+                                                className="p-3 bg-white text-slate-400 rounded-xl hover:bg-ocean-600 hover:text-white transition-all shadow-sm border border-slate-100"
+                                                title="Editar Informações"
+                                              >
+                                                  <Edit size={18} />
+                                              </button>
+                                              <button 
                                                 onClick={() => handleResetPassword(u)}
                                                 disabled={actionLoading === u.id}
                                                 className="p-3 bg-white text-orange-500 rounded-xl hover:bg-orange-500 hover:text-white transition-all shadow-sm border border-orange-100 active:scale-95"
@@ -280,14 +311,23 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                         <td className="px-6 py-5">
                                             <div className="flex justify-center items-center gap-2">
                                                 {companyUser && (
-                                                    <button 
-                                                        onClick={() => handleResetPassword(companyUser)}
-                                                        disabled={actionLoading === companyUser.id}
-                                                        className="p-3 bg-white text-orange-500 rounded-xl hover:bg-orange-500 hover:text-white transition-all shadow-sm border border-orange-100 active:scale-95"
-                                                        title="Redefinir Senha do Responsável"
-                                                    >
-                                                        {actionLoading === companyUser.id ? <Loader2 className="animate-spin" size={18}/> : <Key size={18} />}
-                                                    </button>
+                                                    <>
+                                                        <button 
+                                                            onClick={() => handleOpenEdit(companyUser)}
+                                                            className="p-3 bg-white text-slate-400 rounded-xl hover:bg-ocean-600 hover:text-white transition-all shadow-sm border border-slate-100"
+                                                            title="Editar Informações do Responsável"
+                                                        >
+                                                            <Edit size={18} />
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleResetPassword(companyUser)}
+                                                            disabled={actionLoading === companyUser.id}
+                                                            className="p-3 bg-white text-orange-500 rounded-xl hover:bg-orange-500 hover:text-white transition-all shadow-sm border border-orange-100 active:scale-95"
+                                                            title="Redefinir Senha do Responsável"
+                                                        >
+                                                            {actionLoading === companyUser.id ? <Loader2 className="animate-spin" size={18}/> : <Key size={18} />}
+                                                        </button>
+                                                    </>
                                                 )}
                                                 <button 
                                                     onClick={() => handleDeleteBiz(b.id, b.name)}
@@ -296,9 +336,6 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                                     title="Excluir Empresa"
                                                 >
                                                     {actionLoading === b.id ? <Loader2 className="animate-spin" size={18}/> : <Trash2 size={18} />}
-                                                </button>
-                                                <button className="p-3 bg-white text-slate-400 rounded-xl hover:bg-ocean-600 hover:text-white transition-all shadow-sm border border-slate-100">
-                                                    <Edit size={18} />
                                                 </button>
                                             </div>
                                         </td>
@@ -340,6 +377,62 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
               )}
           </div>
       </div>
+
+      {/* MODAL DE EDIÇÃO DE USUÁRIO */}
+      {editingUser && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95">
+                  <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                      <div>
+                        <h3 className="text-xl font-black text-ocean-950">Editar Usuário</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">ID: {editingUser.id}</p>
+                      </div>
+                      <button onClick={() => setEditingUser(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors">
+                          <X size={24} className="text-slate-400" />
+                      </button>
+                  </div>
+                  
+                  <div className="p-8 space-y-6">
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Nome Completo</label>
+                          <input 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-bold text-sm focus:ring-4 focus:ring-ocean-500/10 outline-none transition-all"
+                            value={editFormData.name}
+                            onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Endereço de E-mail</label>
+                          <input 
+                            type="email"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-bold text-sm focus:ring-4 focus:ring-ocean-500/10 outline-none transition-all"
+                            value={editFormData.email}
+                            onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                          />
+                          <p className="text-[10px] text-orange-500 font-bold mt-2 ml-1">
+                              * Atenção: Alterar o e-mail aqui apenas atualiza o banco de dados. Para enviar o link de reset, este e-mail deve ser válido.
+                          </p>
+                      </div>
+                  </div>
+
+                  <div className="p-8 bg-slate-50 flex gap-3">
+                      <button 
+                        onClick={() => setEditingUser(null)}
+                        className="flex-1 px-6 py-4 bg-white border border-slate-200 text-slate-500 font-black rounded-2xl text-xs hover:bg-slate-100 transition-all"
+                      >
+                          CANCELAR
+                      </button>
+                      <button 
+                        onClick={handleSaveUserEdit}
+                        disabled={actionLoading === 'saving_user'}
+                        className="flex-1 px-6 py-4 bg-ocean-600 text-white font-black rounded-2xl text-xs shadow-lg shadow-ocean-600/20 flex items-center justify-center gap-2 hover:bg-ocean-700 transition-all"
+                      >
+                          {actionLoading === 'saving_user' ? <Loader2 className="animate-spin" size={16}/> : <Save size={16} />} SALVAR
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };

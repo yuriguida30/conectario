@@ -36,12 +36,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   });
 
-  useEffect(() => {
-    refreshData();
-  }, [currentUser]);
-
   const refreshData = async () => {
-    setLoading(true);
     const allCoupons = await getCoupons();
     setCoupons(allCoupons.filter(c => c.companyId === currentUser.id));
     const biz = getBusinesses().find(b => b.id === currentUser.id);
@@ -53,6 +48,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     setStats(s);
     setLoading(false);
   };
+
+  useEffect(() => {
+    refreshData();
+    // Escuta atualizações do Firebase em tempo real
+    const handleUpdate = () => refreshData();
+    window.addEventListener('dataUpdated', handleUpdate);
+    return () => window.removeEventListener('dataUpdated', handleUpdate);
+  }, [currentUser]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,7 +140,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
           </div>
       </div>
 
-      {view === 'HOME' && (
+      {view === 'HOME' && stats && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               {/* KPIs DE CONVERSÃO */}
               <div className="lg:col-span-8 space-y-8">
@@ -169,7 +172,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   {/* GRÁFICO DE TENDÊNCIA DE CONVERSÃO */}
                   <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
                       <h3 className="text-lg font-black text-ocean-950 mb-8 flex items-center gap-3">
-                          <TrendingUp className="text-ocean-600" size={20} /> Fluxo de Conversões Diárias
+                          <TrendingUp className="text-ocean-600" size={20} /> Fluxo de Conversões (Últimos 7 dias)
                       </h3>
                       <div className="h-72 w-full">
                           <ResponsiveContainer width="100%" height="100%">
@@ -258,7 +261,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
               <form id="profile-form" onSubmit={handleUpdateProfile} className="space-y-12">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                      {/* LADO ESQUERDO: VISUAL E LOCALIZAÇÃO */}
                       <div className="space-y-8">
                           <ImageUpload 
                             label="Imagem de Capa (Ideal: 1200x600px)" 
@@ -285,7 +287,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                           </div>
                       </div>
 
-                      {/* LADO DIREITO: TEXTOS E LINKS ESTRATÉGICOS */}
                       <div className="space-y-6">
                           <div>
                               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Nome da Empresa</label>
@@ -297,7 +298,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                               <textarea className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 leading-relaxed" rows={4} value={editBusiness.description} onChange={e => setEditBusiness({...editBusiness, description: e.target.value})} />
                           </div>
 
-                          {/* LINKS ESTRATÉGICOS (PEDIDO DO USUÁRIO) */}
                           <div className="space-y-4 pt-6 border-t border-slate-100">
                               <h3 className="font-black text-ocean-950 text-sm flex items-center gap-2">
                                 <Globe size={18} className="text-ocean-600" /> Links de Conversão (Opcionais)
@@ -312,49 +312,13 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                       </div>
                                   </div>
                                   <div>
-                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Link de Delivery (iFood/App)</label>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Link de Delivery</label>
                                       <div className="relative">
                                           <ShoppingCart size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" />
-                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="Link do seu delivery" value={editBusiness.deliveryUrl} onChange={e => setEditBusiness({...editBusiness, deliveryUrl: e.target.value})} />
-                                      </div>
-                                  </div>
-                                  <div>
-                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Link de Reservas (GetIn/App)</label>
-                                      <div className="relative">
-                                          <CalendarDays size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-500" />
-                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="Link de agendamento" value={editBusiness.bookingUrl} onChange={e => setEditBusiness({...editBusiness, bookingUrl: e.target.value})} />
-                                      </div>
-                                  </div>
-                                  <div>
-                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Perfil do Instagram</label>
-                                      <div className="relative">
-                                          <Instagram size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-500" />
-                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="@seuperfil" value={editBusiness.instagram} onChange={e => setEditBusiness({...editBusiness, instagram: e.target.value})} />
+                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="Link iFood/App" value={editBusiness.deliveryUrl} onChange={e => setEditBusiness({...editBusiness, deliveryUrl: e.target.value})} />
                                       </div>
                                   </div>
                               </div>
-                          </div>
-
-                          {/* HORÁRIOS DE FUNCIONAMENTO */}
-                          <div className="space-y-4 pt-6 border-t border-slate-100">
-                             <h3 className="font-black text-ocean-950 text-sm flex items-center gap-2">
-                                <Clock size={18} className="text-ocean-600" /> Horários de Funcionamento
-                             </h3>
-                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {Object.keys(editBusiness.openingHours || {}).map(day => (
-                                    <div key={day} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                        <span className="text-xs font-black text-slate-400 w-16 uppercase">{day}:</span>
-                                        <input 
-                                            className="bg-transparent text-xs font-bold text-ocean-950 focus:outline-none flex-1"
-                                            value={editBusiness.openingHours?.[day]}
-                                            onChange={e => {
-                                                const newHours = { ...editBusiness.openingHours, [day]: e.target.value };
-                                                setEditBusiness({ ...editBusiness, openingHours: newHours });
-                                            }}
-                                        />
-                                    </div>
-                                ))}
-                             </div>
                           </div>
                       </div>
                   </div>

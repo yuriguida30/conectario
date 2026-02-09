@@ -1,4 +1,5 @@
 
+
 export enum UserRole {
   CUSTOMER = 'CUSTOMER',
   COMPANY = 'COMPANY',
@@ -70,6 +71,7 @@ export interface BusinessProfile {
   lat?: number;
   lng?: number;
   views?: number;
+  shares?: number;
   isClaimed?: boolean;
   plan?: BusinessPlan;
 }

@@ -1,8 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Coupon, AppCategory, BusinessProfile } from '../types';
+import { User, Coupon, AppCategory, BusinessProfile, MenuSection, MenuItem } from '../types';
 import { getCoupons, saveCoupon, deleteCoupon, getCategories, getBusinesses, saveBusiness } from '../services/dataService';
-import { Plus, Trash2, Edit, Save, X, Ticket, Store, LayoutDashboard, Loader2, Star, Eye, ExternalLink, MessageCircle, BarChart3, Settings, Camera, Clock, MapPin, Share2, Facebook, Instagram, Phone } from 'lucide-react';
+import { 
+  Plus, Trash2, Edit, Save, X, Ticket, Store, LayoutDashboard, 
+  Loader2, Star, Eye, ExternalLink, MessageCircle, BarChart3, 
+  Settings, Camera, Clock, MapPin, Share2, Facebook, Instagram, 
+  Phone, Globe, Utensils, List 
+} from 'lucide-react';
 import { ImageUpload } from '../components/ImageUpload';
 
 interface AdminDashboardProps {
@@ -12,7 +17,7 @@ interface AdminDashboardProps {
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onNavigate, onLogout }) => {
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'STATS'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'MENU'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,13 +61,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
     refreshData();
   };
 
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (myBusiness) {
+      await saveBusiness(myBusiness);
+      alert("Perfil atualizado com sucesso!");
+      setView('HOME');
+    }
+  };
+
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-ocean-600" /></div>;
 
   return (
     <div className="pb-24 pt-8 md:pt-20 px-4 max-w-6xl mx-auto">
       
       {/* HEADER DE BOAS VINDAS */}
-      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
           <div className="flex items-center gap-4">
               <div className="w-14 h-14 bg-ocean-100 rounded-2xl flex items-center justify-center text-ocean-600 shadow-inner">
                   <Store size={28} />
@@ -113,10 +127,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
 
               {/* GRADE DE AÇÕES RÁPIDAS - ACESSO TOTAL FACILITADO */}
               <div>
-                  <h2 className="text-lg font-bold text-ocean-950 mb-4 px-2">Ações Rápidas</h2>
+                  <h2 className="text-lg font-bold text-ocean-950 mb-4 px-2">Ações de Gestão</h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                       
-                      {/* Criar Cupom */}
                       <button 
                         onClick={() => { setCurrentCoupon({}); setIsEditingCoupon(true); }}
                         className="bg-ocean-600 text-white p-6 rounded-3xl shadow-lg shadow-ocean-600/20 flex flex-col items-center justify-center text-center group hover:bg-ocean-700 transition-all active:scale-95"
@@ -125,34 +138,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                           <span className="text-xs font-bold leading-tight">Novo Cupom</span>
                       </button>
 
-                      {/* Editar Cupons */}
                       <button 
                         onClick={() => setView('COUPONS')}
                         className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group hover:border-ocean-300 transition-all active:scale-95"
                       >
                           <Ticket size={24} className="mb-2 text-ocean-600" />
-                          <span className="text-xs font-bold text-ocean-900 leading-tight">Meus Cupons</span>
+                          <span className="text-xs font-bold text-ocean-900 leading-tight">Gerenciar Ofertas</span>
                       </button>
 
-                      {/* Editar Perfil */}
                       <button 
                         onClick={() => setView('PROFILE')}
                         className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group hover:border-ocean-300 transition-all active:scale-95"
                       >
                           <Settings size={24} className="mb-2 text-ocean-600" />
-                          <span className="text-xs font-bold text-ocean-900 leading-tight">Configurações</span>
+                          <span className="text-xs font-bold text-ocean-900 leading-tight">Dados & Redes</span>
                       </button>
 
-                      {/* Fotos e Galeria */}
                       <button 
                         onClick={() => setView('PROFILE')}
                         className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group hover:border-ocean-300 transition-all active:scale-95"
                       >
                           <Camera size={24} className="mb-2 text-ocean-600" />
-                          <span className="text-xs font-bold text-ocean-900 leading-tight">Galeria / Capa</span>
+                          <span className="text-xs font-bold text-ocean-900 leading-tight">Fotos / Capa</span>
                       </button>
 
-                      {/* Horários */}
                       <button 
                         onClick={() => setView('PROFILE')}
                         className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group hover:border-ocean-300 transition-all active:scale-95"
@@ -161,13 +170,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                           <span className="text-xs font-bold text-ocean-900 leading-tight">Horários</span>
                       </button>
 
-                      {/* Endereço / Mapa */}
                       <button 
-                        onClick={() => setView('PROFILE')}
+                        onClick={() => alert("Função de Edição de Cardápio em breve via painel dinâmico.")}
                         className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group hover:border-ocean-300 transition-all active:scale-95"
                       >
-                          <MapPin size={24} className="mb-2 text-ocean-600" />
-                          <span className="text-xs font-bold text-ocean-900 leading-tight">Endereço</span>
+                          <Utensils size={24} className="mb-2 text-ocean-600" />
+                          <span className="text-xs font-bold text-ocean-900 leading-tight">Cardápio</span>
                       </button>
                   </div>
               </div>
@@ -195,8 +203,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
           </div>
       )}
 
-      {/* OUTRAS VIEWS (COUPONS, PROFILE) MANTIDAS MAS COM BOTÃO VOLTAR FÁCIL */}
-      {view !== 'HOME' && (
+      {/* VIEW DE EDIÇÃO DE PERFIL - ACESSO TOTAL A LINKS SOCIAIS */}
+      {view === 'PROFILE' && myBusiness && (
           <div className="animate-in fade-in slide-in-from-left-4">
               <button 
                 onClick={() => setView('HOME')}
@@ -205,61 +213,99 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                   <LayoutDashboard size={18}/> Voltar para a Central de Comando
               </button>
 
-              {view === 'COUPONS' && (
-                  <div className="space-y-6">
-                      <div className="flex justify-between items-center">
-                          <h3 className="font-bold text-ocean-950 text-xl">Gestão de Ofertas</h3>
-                          <button onClick={() => { setCurrentCoupon({}); setIsEditingCoupon(true); }} className="bg-ocean-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg">+ Novo Cupom</button>
-                      </div>
+              <form onSubmit={handleSaveProfile} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-10">
+                  
+                  {/* FOTOS */}
+                  <div className="space-y-4">
+                      <h3 className="text-xl font-bold text-ocean-950 flex items-center gap-2"><Camera size={20}/> Identidade Visual</h3>
+                      <ImageUpload label="Foto de Capa do Estabelecimento" currentImage={myBusiness.coverImage} onImageSelect={url => setMyBusiness({...myBusiness, coverImage: url})} />
+                  </div>
+
+                  {/* DADOS BÁSICOS */}
+                  <div className="space-y-4">
+                      <h3 className="text-xl font-bold text-ocean-950 flex items-center gap-2"><Store size={20}/> Dados Básicos</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {coupons.map(c => (
-                              <div key={c.id} className="bg-white p-4 rounded-3xl border border-slate-100 flex gap-4 items-center shadow-sm">
-                                  <img src={c.imageUrl} className="w-20 h-20 rounded-2xl object-cover" />
-                                  <div className="flex-1">
-                                      <h4 className="font-bold text-ocean-950 text-sm">{c.title}</h4>
-                                      <p className="text-[10px] text-green-600 font-bold uppercase tracking-widest mt-1">CÓDIGO: {c.code}</p>
-                                  </div>
-                                  <div className="flex gap-1">
-                                      <button onClick={() => { setCurrentCoupon(c); setIsEditingCoupon(true); }} className="p-2 text-slate-400 hover:text-ocean-600 hover:bg-ocean-50 rounded-lg"><Edit size={16}/></button>
-                                      <button onClick={() => { if(confirm('Excluir cupom?')) deleteCoupon(c.id).then(refreshData) }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
-                                  </div>
+                          <div><label className="text-xs font-bold text-slate-400 uppercase">Nome Fantasia</label><input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={myBusiness.name} onChange={e => setMyBusiness({...myBusiness, name: e.target.value})} /></div>
+                          <div><label className="text-xs font-bold text-slate-400 uppercase">Categoria</label><input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={myBusiness.category} readOnly /></div>
+                          <div className="md:col-span-2">
+                              <label className="text-xs font-bold text-slate-400 uppercase">Endereço Completo</label>
+                              <div className="relative">
+                                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                                  <input className="w-full pl-10 border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={myBusiness.address} onChange={e => setMyBusiness({...myBusiness, address: e.target.value})} />
                               </div>
-                          ))}
+                          </div>
                       </div>
                   </div>
-              )}
 
-              {view === 'PROFILE' && myBusiness && (
-                  <form onSubmit={async (e) => { e.preventDefault(); await saveBusiness(myBusiness); alert("Salvo!"); setView('HOME'); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <ImageUpload label="Foto de Capa do Estabelecimento" currentImage={myBusiness.coverImage} onImageSelect={url => setMyBusiness({...myBusiness, coverImage: url})} />
-                          <div className="space-y-4">
-                              <div><label className="text-xs font-bold text-slate-400 uppercase">Nome Fantasia</label><input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={myBusiness.name} onChange={e => setMyBusiness({...myBusiness, name: e.target.value})} /></div>
-                              <div><label className="text-xs font-bold text-slate-400 uppercase">WhatsApp de Reservas</label><input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={myBusiness.whatsapp} onChange={e => setMyBusiness({...myBusiness, whatsapp: e.target.value})} /></div>
-                          </div>
-                      </div>
-                      
+                  {/* REDES SOCIAIS E CONTATO - O QUE HAVIA "SUMIDO" */}
+                  <div className="space-y-4">
+                      <h3 className="text-xl font-bold text-ocean-950 flex items-center gap-2"><Share2 size={20}/> Canais de Contato & Redes</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
-                              <label className="text-xs font-bold text-slate-400 uppercase">Endereço Completo</label>
-                              <input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={myBusiness.address} onChange={e => setMyBusiness({...myBusiness, address: e.target.value})} />
-                          </div>
-                          <div>
-                              <label className="text-xs font-bold text-slate-400 uppercase">Instagram (sem @)</label>
+                              <label className="text-xs font-bold text-slate-400 uppercase">WhatsApp (Apenas números)</label>
                               <div className="relative">
-                                  <Instagram size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                  <input className="w-full pl-10 border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={myBusiness.instagram} onChange={e => setMyBusiness({...myBusiness, instagram: e.target.value})} />
+                                  <MessageCircle className="absolute left-3 top-1/2 -translate-y-1/2 text-green-500" size={18}/>
+                                  <input className="w-full pl-10 border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" placeholder="Ex: 21999999999" value={myBusiness.whatsapp} onChange={e => setMyBusiness({...myBusiness, whatsapp: e.target.value})} />
+                              </div>
+                          </div>
+                          <div>
+                              <label className="text-xs font-bold text-slate-400 uppercase">Instagram (Usuário sem @)</label>
+                              <div className="relative">
+                                  <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 text-pink-500" size={18}/>
+                                  <input className="w-full pl-10 border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" placeholder="Ex: seunegocio" value={myBusiness.instagram} onChange={e => setMyBusiness({...myBusiness, instagram: e.target.value})} />
+                              </div>
+                          </div>
+                          <div>
+                              <label className="text-xs font-bold text-slate-400 uppercase">Site Oficial (URL completa)</label>
+                              <div className="relative">
+                                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-500" size={18}/>
+                                  <input className="w-full pl-10 border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" placeholder="Ex: https://seusite.com.br" value={myBusiness.website} onChange={e => setMyBusiness({...myBusiness, website: e.target.value})} />
+                              </div>
+                          </div>
+                          <div>
+                              <label className="text-xs font-bold text-slate-400 uppercase">Telefone Fixo</label>
+                              <div className="relative">
+                                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                                  <input className="w-full pl-10 border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" placeholder="Ex: 2122223333" value={myBusiness.phone} onChange={e => setMyBusiness({...myBusiness, phone: e.target.value})} />
                               </div>
                           </div>
                       </div>
+                  </div>
 
-                      <button type="submit" className="w-full bg-ocean-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-ocean-700 active:scale-95 transition-all">SALVAR ALTERAÇÕES</button>
-                  </form>
-              )}
+                  <button type="submit" className="w-full bg-ocean-600 text-white font-black py-5 rounded-[1.5rem] shadow-xl hover:bg-ocean-700 active:scale-95 transition-all text-lg">
+                      SALVAR TODAS AS ALTERAÇÕES
+                  </button>
+              </form>
           </div>
       )}
 
-      {/* MODAL CRIAR CUPOM */}
+      {/* VIEW DE CUPONS MANTIDA */}
+      {view === 'COUPONS' && (
+          <div className="animate-in fade-in slide-in-from-left-4">
+              <button onClick={() => setView('HOME')} className="mb-6 flex items-center gap-2 text-ocean-600 font-bold text-sm hover:underline"><LayoutDashboard size={18}/> Voltar</button>
+              <div className="flex justify-between items-center mb-6">
+                  <h3 className="font-bold text-ocean-950 text-xl">Gestão de Ofertas</h3>
+                  <button onClick={() => { setCurrentCoupon({}); setIsEditingCoupon(true); }} className="bg-ocean-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg">+ Novo Cupom</button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {coupons.map(c => (
+                      <div key={c.id} className="bg-white p-4 rounded-3xl border border-slate-100 flex gap-4 items-center shadow-sm">
+                          <img src={c.imageUrl} className="w-20 h-20 rounded-2xl object-cover" />
+                          <div className="flex-1">
+                              <h4 className="font-bold text-ocean-950 text-sm">{c.title}</h4>
+                              <p className="text-[10px] text-green-600 font-bold uppercase tracking-widest mt-1">CÓDIGO: {c.code}</p>
+                          </div>
+                          <div className="flex gap-1">
+                              <button onClick={() => { setCurrentCoupon(c); setIsEditingCoupon(true); }} className="p-2 text-slate-400 hover:text-ocean-600 hover:bg-ocean-50 rounded-lg"><Edit size={16}/></button>
+                              <button onClick={() => { if(confirm('Excluir cupom?')) deleteCoupon(c.id).then(refreshData) }} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"><Trash2 size={16}/></button>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
+
+      {/* MODAL CRIAR CUPOM MANTIDO */}
       {isEditingCoupon && (
           <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95">
@@ -268,7 +314,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                       <button onClick={() => setIsEditingCoupon(false)}><X/></button>
                   </div>
                   <form onSubmit={handleSaveCoupon} className="p-8 space-y-4 max-h-[80vh] overflow-y-auto">
-                      <ImageUpload label="Foto do Cupom (Otimizada)" currentImage={currentCoupon.imageUrl} onImageSelect={url => setCurrentCoupon({...currentCoupon, imageUrl: url})} />
+                      <ImageUpload label="Foto do Cupom" currentImage={currentCoupon.imageUrl} onImageSelect={url => setCurrentCoupon({...currentCoupon, imageUrl: url})} />
                       <div><label className="text-xs font-bold text-slate-400 uppercase">Título da Oferta</label><input required className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={currentCoupon.title} onChange={e => setCurrentCoupon({...currentCoupon, title: e.target.value})} placeholder="Ex: Rodízio de Pizza 2x1" /></div>
                       <div className="grid grid-cols-2 gap-4">
                           <div><label className="text-xs font-bold text-slate-400 uppercase">Preço Original</label><input type="number" step="0.01" className="w-full border-slate-200 rounded-xl p-3 bg-slate-50" value={currentCoupon.originalPrice} onChange={e => setCurrentCoupon({...currentCoupon, originalPrice: Number(e.target.value)})} /></div>

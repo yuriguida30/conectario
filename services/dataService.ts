@@ -14,7 +14,9 @@ import {
 import { 
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword,
-    onAuthStateChanged
+    onAuthStateChanged,
+    GoogleAuthProvider,
+    signInWithPopup
 } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { 
@@ -97,6 +99,46 @@ export const initFirebaseData = async () => {
 };
 
 initFirebaseData();
+
+/**
+ * LOGIN COM GOOGLE (100% Gratuito via Firebase)
+ */
+export const loginWithGoogle = async (): Promise<User | null> => {
+    const provider = new GoogleAuthProvider();
+    try {
+        const result = await signInWithPopup(auth, provider);
+        const firebaseUser = result.user;
+        
+        // Verifica se o usuário já existe no nosso banco de dados (Firestore)
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        
+        if (userDoc.exists()) {
+            const userData = { id: userDoc.id, ...userDoc.data() } as User;
+            localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+            notifyListeners();
+            return userData;
+        } else {
+            // Se for a primeira vez, cria o perfil automaticamente para a Carteira Inteligente funcionar
+            const newUser: User = {
+                id: firebaseUser.uid,
+                name: firebaseUser.displayName || 'Usuário Google',
+                email: firebaseUser.email || '',
+                avatarUrl: firebaseUser.photoURL || undefined,
+                role: UserRole.CUSTOMER,
+                favorites: { coupons: [], businesses: [] },
+                history: [],
+                savedAmount: 0
+            };
+            await setDoc(doc(db, 'users', newUser.id), cleanObject(newUser));
+            localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
+            notifyListeners();
+            return newUser;
+        }
+    } catch (error: any) {
+        console.error("Erro no login com Google:", error);
+        throw new Error(error.message || "Falha na autenticação com Google.");
+    }
+};
 
 export const login = async (email: string, password?: string): Promise<User | null> => {
     const cleanEmail = email.toLowerCase().trim();
@@ -249,7 +291,6 @@ export const redeemCoupon = async (userId: string, coupon: Coupon): Promise<void
         savedAmount: (user.savedAmount || 0) + economy
     };
 
-    // Sincroniza carteira inteligente com Firestore
     await updateUser(updatedUser);
     
     try {

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserRole, AppCategory, AppConfig } from '../types';
-import { login, registerUser, createCompanyRequest, getCategories, getAppConfig } from '../services/dataService';
+import { login, registerUser, createCompanyRequest, getCategories, getAppConfig, loginWithGoogle } from '../services/dataService';
 import { Building2, User, ChevronLeft, CheckCircle2, Loader2, Instagram, Globe, Phone, Mail, Lock, UserPlus, LogIn, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 
 interface LoginProps {
@@ -24,6 +24,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [categories, setCategories] = useState<AppCategory[]>([]);
   const [config, setConfig] = useState<AppConfig>(getAppConfig());
   
@@ -61,6 +62,21 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         setError(err.message || 'Erro ao conectar. Tente novamente.');
     } finally {
         setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+        const user = await loginWithGoogle();
+        if (user) {
+            onLogin();
+        }
+    } catch (err: any) {
+        setError(err.message || 'Erro ao logar com Google.');
+    } finally {
+        setGoogleLoading(false);
     }
   };
 
@@ -116,7 +132,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 md:py-20">
       <div className="w-full max-w-md bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl shadow-slate-200/50">
         
-        {/* Branding */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-ocean-50 rounded-3xl mb-4 text-ocean-600 p-4 overflow-hidden shadow-inner">
             {config.loginLogoUrl || config.logoUrl ? (
@@ -129,7 +144,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
           <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Bem-vindo à maior rede do Rio</p>
         </div>
 
-        {/* Tabs */}
         {mode !== 'REGISTER_COMPANY' && (
             <div className="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
                 <button 
@@ -156,48 +170,78 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
 
         {/* --- LOGIN FORM --- */}
         {mode === 'LOGIN' && (
-            <form onSubmit={handleLoginSubmit} className="space-y-4 animate-in fade-in slide-in-from-left-4">
-                <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 ml-1 uppercase tracking-widest">Email cadastrado</label>
-                    <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-                        <input 
-                            type="email" 
-                            required
-                            placeholder="seu@email.com"
-                            className="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-ocean-500/10 focus:border-ocean-500 outline-none transition-all text-sm font-bold"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
+            <div className="space-y-4 animate-in fade-in slide-in-from-left-4">
+                <form onSubmit={handleLoginSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 mb-2 ml-1 uppercase tracking-widest">Email cadastrado</label>
+                        <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                            <input 
+                                type="email" 
+                                required
+                                placeholder="seu@email.com"
+                                className="w-full pl-12 pr-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-ocean-500/10 focus:border-ocean-500 outline-none transition-all text-sm font-bold"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                            />
+                        </div>
                     </div>
-                </div>
-                <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 ml-1 uppercase tracking-widest">Sua senha</label>
-                    <div className="relative">
-                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-                        <input 
-                            type={showPassword ? "text" : "password"}
-                            required
-                            placeholder="••••••••"
-                            className="w-full pl-12 pr-14 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-ocean-500/10 focus:border-ocean-500 outline-none transition-all text-sm font-bold"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                        />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-ocean-600">
-                            {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
-                        </button>
+                    <div>
+                        <label className="block text-[10px] font-black text-slate-400 mb-2 ml-1 uppercase tracking-widest">Sua senha</label>
+                        <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                            <input 
+                                type={showPassword ? "text" : "password"}
+                                required
+                                placeholder="••••••••"
+                                className="w-full pl-12 pr-14 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-ocean-500/10 focus:border-ocean-500 outline-none transition-all text-sm font-bold"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                            />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-ocean-600">
+                                {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                            </button>
+                        </div>
                     </div>
+
+                    <button 
+                        type="submit" 
+                        disabled={loading || googleLoading}
+                        className="w-full bg-ocean-600 hover:bg-ocean-700 text-white font-black py-5 rounded-2xl shadow-xl shadow-ocean-600/20 transition-all active:scale-[0.98] mt-2 flex justify-center items-center gap-2"
+                    >
+                        {loading ? <Loader2 className="animate-spin" size={20} /> : "ACESSAR MINHA CONTA"}
+                    </button>
+                </form>
+
+                <div className="relative flex items-center gap-4 py-2">
+                    <div className="flex-1 h-px bg-slate-100"></div>
+                    <span className="text-[10px] font-black text-slate-300 uppercase">Ou</span>
+                    <div className="flex-1 h-px bg-slate-100"></div>
                 </div>
 
+                {/* BOTÃO GOOGLE GRATUITO */}
                 <button 
-                    type="submit" 
-                    disabled={loading}
-                    className="w-full bg-ocean-600 hover:bg-ocean-700 text-white font-black py-5 rounded-2xl shadow-xl shadow-ocean-600/20 transition-all active:scale-[0.98] mt-4 flex justify-center items-center gap-2"
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={loading || googleLoading}
+                    className="w-full bg-white border border-slate-200 text-slate-600 font-bold py-4 rounded-2xl hover:bg-slate-50 transition-all flex items-center justify-center gap-3 shadow-sm active:scale-[0.98]"
                 >
-                    {loading ? <Loader2 className="animate-spin" size={20} /> : "ACESSAR MINHA CONTA"}
+                    {googleLoading ? (
+                        <Loader2 className="animate-spin" size={20} />
+                    ) : (
+                        <>
+                            <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                <path fill="#EA4335" d="M12 5.04c1.94 0 3.51.68 4.75 1.77l3.52-3.52C18.1 1.48 15.28 0 12 0 7.31 0 3.25 2.69 1.25 6.64l4.13 3.2C6.34 7.23 8.94 5.04 12 5.04z" />
+                                <path fill="#4285F4" d="M23.49 12.27c0-.86-.08-1.7-.22-2.52H12v4.77h6.44c-.28 1.47-1.11 2.72-2.36 3.56l3.71 2.87c2.17-2.01 3.7-4.98 3.7-8.68z" />
+                                <path fill="#34A853" d="M5.38 14.16c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29l-4.13-3.2C.47 8.09 0 9.99 0 12s.47 3.91 1.25 5.64l4.13-3.48z" />
+                                <path fill="#FBBC05" d="M12 24c3.24 0 5.97-1.07 7.96-2.91l-3.71-2.87c-1.08.73-2.47 1.16-4.25 1.16-3.06 0-5.66-2.19-6.62-5.12l-4.13 3.48C3.25 21.31 7.31 24 12 24z" />
+                            </svg>
+                            Continuar com Google
+                        </>
+                    )}
                 </button>
 
-                <div className="pt-8 border-t border-slate-100 mt-8 text-center flex flex-col gap-4">
+                <div className="pt-6 border-t border-slate-100 mt-6 text-center flex flex-col gap-4">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Possui um negócio?</p>
                     <button 
                         type="button"
@@ -207,34 +251,57 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         <Building2 size={18} /> CADASTRAR MINHA EMPRESA
                     </button>
                 </div>
-            </form>
+            </div>
         )}
 
         {/* --- REGISTER USER FORM --- */}
         {mode === 'REGISTER_USER' && (
-            <form onSubmit={handleUserRegisterSubmit} className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Nome Completo</label>
-                    <input required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-ocean-500/10 outline-none font-bold text-sm" value={regName} onChange={(e) => setRegName(e.target.value)} />
-                </div>
-                <div>
-                    <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Email</label>
-                    <input type="email" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-ocean-500/10 outline-none font-bold text-sm" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                <form onSubmit={handleUserRegisterSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Senha</label>
-                        <input type="password" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} />
+                        <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Nome Completo</label>
+                        <input required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-ocean-500/10 outline-none font-bold text-sm" value={regName} onChange={(e) => setRegName(e.target.value)} />
                     </div>
                     <div>
-                        <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Confirmação</label>
-                        <input type="password" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm" value={regConfirmPassword} onChange={(e) => setRegConfirmPassword(e.target.value)} />
+                        <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Email</label>
+                        <input type="email" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-ocean-500/10 outline-none font-bold text-sm" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} />
                     </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Senha</label>
+                            <input type="password" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Confirmação</label>
+                            <input type="password" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm" value={regConfirmPassword} onChange={(e) => setRegConfirmPassword(e.target.value)} />
+                        </div>
+                    </div>
+                    <button type="submit" disabled={loading} className="w-full bg-ocean-600 text-white font-black py-5 rounded-2xl shadow-xl mt-4">
+                        {loading ? <Loader2 className="animate-spin" size={20} /> : "CRIAR MINHA CONTA GRÁTIS"}
+                    </button>
+                </form>
+
+                <div className="relative flex items-center gap-4 py-2">
+                    <div className="flex-1 h-px bg-slate-100"></div>
+                    <span className="text-[10px] font-black text-slate-300 uppercase">Ou use</span>
+                    <div className="flex-1 h-px bg-slate-100"></div>
                 </div>
-                <button type="submit" disabled={loading} className="w-full bg-ocean-600 text-white font-black py-5 rounded-2xl shadow-xl mt-4">
-                    {loading ? <Loader2 className="animate-spin" size={20} /> : "CRIAR MINHA CONTA GRÁTIS"}
+
+                <button 
+                    type="button"
+                    onClick={handleGoogleLogin}
+                    disabled={loading || googleLoading}
+                    className="w-full bg-white border border-slate-200 text-slate-600 font-bold py-4 rounded-2xl hover:bg-slate-50 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+                >
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                        <path fill="#EA4335" d="M12 5.04c1.94 0 3.51.68 4.75 1.77l3.52-3.52C18.1 1.48 15.28 0 12 0 7.31 0 3.25 2.69 1.25 6.64l4.13 3.2C6.34 7.23 8.94 5.04 12 5.04z" />
+                        <path fill="#4285F4" d="M23.49 12.27c0-.86-.08-1.7-.22-2.52H12v4.77h6.44c-.28 1.47-1.11 2.72-2.36 3.56l3.71 2.87c2.17-2.01 3.7-4.98 3.7-8.68z" />
+                        <path fill="#34A853" d="M5.38 14.16c-.25-.72-.38-1.49-.38-2.29s.13-1.57.38-2.29l-4.13-3.2C.47 8.09 0 9.99 0 12s.47 3.91 1.25 5.64l4.13-3.48z" />
+                        <path fill="#FBBC05" d="M12 24c3.24 0 5.97-1.07 7.96-2.91l-3.71-2.87c-1.08.73-2.47 1.16-4.25 1.16-3.06 0-5.66-2.19-6.62-5.12l-4.13 3.48C3.25 21.31 7.31 24 12 24z" />
+                    </svg>
+                    Cadastrar com Google
                 </button>
-            </form>
+            </div>
         )}
 
         {/* --- REGISTER COMPANY FORM --- */}

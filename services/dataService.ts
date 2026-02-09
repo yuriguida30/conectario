@@ -9,7 +9,8 @@ import {
     deleteDoc, 
     query, 
     where, 
-    increment 
+    increment,
+    onSnapshot
 } from 'firebase/firestore';
 import { 
     signInWithEmailAndPassword, 
@@ -75,26 +76,45 @@ const cleanObject = (obj: any) => {
     return newObj;
 };
 
-export const initFirebaseData = async () => {
-    try {
-        const bizSnap = await getDocs(collection(db, 'businesses'));
-        const fbBusinesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
-        const coupSnap = await getDocs(collection(db, 'coupons'));
-        const fbCoupons = coupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
-        const userSnap = await getDocs(collection(db, 'users'));
-        _users = userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+/**
+ * Inicializa a conexão em tempo real com o Firestore.
+ * Qualquer mudança no console do Firebase refletirá no site sem Refresh.
+ */
+export const initFirebaseData = () => {
+    console.log("🚀 Iniciando monitoramento em tempo real do banco de dados...");
 
+    // 1. Escutar Empresas
+    onSnapshot(collection(db, 'businesses'), (snapshot) => {
+        const fbBusinesses = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
         _businesses = fbBusinesses.length > 0 ? fbBusinesses : MOCK_BUSINESSES;
-        _coupons = fbCoupons.length > 0 ? fbCoupons : MOCK_COUPONS;
-
+        console.log(`✅ ${fbBusinesses.length} empresas sincronizadas.`);
         notifyListeners();
-    } catch (error) {
+    }, (error) => {
+        console.error("❌ Erro ao sincronizar Empresas (Verifique as regras do Firestore):", error);
         _businesses = MOCK_BUSINESSES;
+        notifyListeners();
+    });
+
+    // 2. Escutar Cupons
+    onSnapshot(collection(db, 'coupons'), (snapshot) => {
+        const fbCoupons = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
+        _coupons = fbCoupons.length > 0 ? fbCoupons : MOCK_COUPONS;
+        console.log(`✅ ${fbCoupons.length} cupons sincronizados.`);
+        notifyListeners();
+    }, (error) => {
+        console.error("❌ Erro ao sincronizar Cupons:", error);
         _coupons = MOCK_COUPONS;
         notifyListeners();
-    }
+    });
+
+    // 3. Escutar Usuários (opcional, para admin ver novos cadastros)
+    onSnapshot(collection(db, 'users'), (snapshot) => {
+        _users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
+        notifyListeners();
+    });
 };
 
+// Auto-iniciar conexão
 initFirebaseData();
 
 export const loginWithGoogle = async (): Promise<User | null> => {
@@ -129,13 +149,8 @@ export const loginWithGoogle = async (): Promise<User | null> => {
     }
 };
 
-/**
- * Login Híbrido: Tenta Firebase, se falhar por credenciais, tenta Mock Data.
- * Isso resolve o erro 400 quando a conta ainda não existe no Firebase mas existe no código.
- */
 export const login = async (email: string, pass: string): Promise<User | null> => {
     try {
-        // 1. Tenta autenticação real no Firebase
         const res = await signInWithEmailAndPassword(auth, email, pass);
         const userDoc = await getDoc(doc(db, 'users', res.user.uid));
         if (userDoc.exists()) {
@@ -146,17 +161,12 @@ export const login = async (email: string, pass: string): Promise<User | null> =
         }
     } catch (e: any) {
         console.warn("Firebase Auth falhou, tentando fallback mock...", e.code);
-        
-        // 2. Fallback para dados Mock (Excelente para André Karamelo e testes rápidos)
         const mockUser = MOCK_USERS.find(u => u.email === email);
         if (mockUser) {
-            // Em ambiente de desenvolvimento, aceitamos qualquer senha para o mock user
             localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
             notifyListeners();
             return mockUser;
         }
-
-        // Se não for mock e deu erro de credencial no firebase
         if (e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password' || e.message?.includes('400')) {
             throw new Error("E-mail ou senha incorretos.");
         }
@@ -178,12 +188,8 @@ export const getBusinessById = (id: string) => _businesses.find(b => b.id === id
 export const saveBusiness = async (b: BusinessProfile) => {
     try { 
         await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); 
-        const idx = _businesses.findIndex(biz => biz.id === b.id);
-        if (idx !== -1) _businesses[idx] = b;
-        else _businesses.push(b);
-        notifyListeners();
     } catch (e) {
-        console.error("Erro ao salvar empresa:", e);
+        console.error("Erro ao salvar empresa no Firestore:", e);
     }
 };
 
@@ -204,22 +210,16 @@ export const getAllUsers = () => _users;
 export const saveCoupon = async (c: Coupon) => {
     try { 
         await setDoc(doc(db, 'coupons', c.id), cleanObject(c)); 
-        const idx = _coupons.findIndex(cp => cp.id === c.id);
-        if (idx !== -1) _coupons[idx] = c;
-        else _coupons.push(c);
-        notifyListeners();
     } catch(e) {
-        console.error("Erro ao salvar cupom:", e);
+        console.error("Erro ao salvar cupom no Firestore:", e);
     }
 };
 
 export const deleteCoupon = async (id: string) => {
     try { 
         await deleteDoc(doc(db, 'coupons', id)); 
-        _coupons = _coupons.filter(c => c.id !== id);
-        notifyListeners();
     } catch(e) {
-        console.error("Erro ao deletar cupom:", e);
+        console.error("Erro ao deletar cupom no Firestore:", e);
     }
 };
 
@@ -261,7 +261,7 @@ export const getBusinessStats = async (businessId: string) => {
         totalConversions: 0 
     };
     
-    const coupons = (await getCoupons()).filter(c => c.companyId === businessId);
+    const coupons = _coupons.filter(c => c.companyId === businessId);
     const totalCouponUsage = coupons.reduce((acc, c) => acc + (c.currentRedemptions || 0), 0);
 
     const conversionTrend = [
@@ -299,14 +299,10 @@ export const getBusinessStats = async (businessId: string) => {
 };
 
 export const getAdminStats = async () => {
-    const users = getAllUsers();
-    const biz = getBusinesses();
-    const coupons = await getCoupons();
-    
-    const totalEconomy = users.reduce((acc, u) => acc + (u.savedAmount || 0), 0);
-    const totalLeads = biz.reduce((acc, b: any) => acc + (b.totalConversions || 0), 0);
+    const totalEconomy = _users.reduce((acc, u) => acc + (u.savedAmount || 0), 0);
+    const totalLeads = _businesses.reduce((acc, b: any) => acc + (b.totalConversions || 0), 0);
 
-    const categoriesCount = biz.reduce((acc: any, b) => {
+    const categoriesCount = _businesses.reduce((acc: any, b) => {
         acc[b.category] = (acc[b.category] || 0) + 1;
         return acc;
     }, {});
@@ -317,12 +313,12 @@ export const getAdminStats = async () => {
     }));
 
     return {
-        totalUsers: users.length,
-        totalBusinesses: biz.length,
+        totalUsers: _users.length,
+        totalBusinesses: _businesses.length,
         totalEconomy,
         totalLeads,
         chartData,
-        totalCoupons: coupons.length
+        totalCoupons: _coupons.length
     };
 };
 
@@ -432,8 +428,4 @@ export const getCompanyRequests = async () => {
 
 export const approveCompanyRequest = async (requestId: string) => {
     await updateDoc(doc(db, 'companyRequests', requestId), { status: 'APPROVED' });
-};
-
-export const sendSupportMessage = async (msg: string) => {
-    console.log("Suporte msg:", msg);
 };

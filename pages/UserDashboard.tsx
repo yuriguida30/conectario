@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { User, SavingsRecord, Coupon, BusinessProfile, UserRole } from '../types';
 import { Tag, LogOut, ChevronRight, HelpCircle, Trophy, TrendingUp, Wallet, Star, Heart, Store, Ticket, Send, Camera, Loader2, ShieldCheck, Zap } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { getCoupons, getBusinesses, getBusinessById, sendSupportMessage, updateUser } from '../services/dataService';
+// Fix: Removed non-existent export 'sendSupportMessage' from dataService
+import { getCoupons, getBusinesses, getBusinessById, updateUser } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { ImageUpload } from '../components/ImageUpload';
 
@@ -131,7 +132,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
       {activeTab === 'overview' && (
           <div className="animate-in fade-in space-y-8">
               <div className="bg-[#1e293b] rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
-                  <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Passaporte de Economia</p>
+                  <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Passaporte de Economia</p>
                   <h2 className="text-5xl font-bold mb-2 tracking-tight">R$ {savedAmount.toFixed(2)}</h2>
                   <p className="text-sm text-slate-300">Total economizado na rede Conecta Rio.</p>
               </div>

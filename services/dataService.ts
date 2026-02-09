@@ -114,8 +114,6 @@ export const login = async (email: string, password?: string): Promise<User | nu
     } catch (err: any) {
         console.warn(`[Auth Fallback] Falha no Firebase Auth para ${cleanEmail}. Tentando Banco de Dados...`);
         
-        // Se falhou no Auth (ex: usuário não existe no Auth, mas existe no Firestore ou Mock)
-        // Verificamos no Mock primeiro para agilidade de desenvolvimento
         const mockUser = MOCK_USERS.find(u => u.email === cleanEmail);
         if (mockUser && pass === '123456') {
             localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
@@ -123,8 +121,6 @@ export const login = async (email: string, password?: string): Promise<User | nu
             return mockUser;
         }
 
-        // Se não está no Mock, verificamos se o usuário está na coleção 'users' do Firestore
-        // Isso resolve o problema de "Reset Admin" mas conta não existir no Auth.
         try {
             const usersRef = collection(db, 'users');
             const q = query(usersRef, where("email", "==", cleanEmail));
@@ -133,19 +129,15 @@ export const login = async (email: string, password?: string): Promise<User | nu
             if (!querySnap.empty) {
                 const docData = querySnap.docs[0];
                 const userData = { id: docData.id, ...docData.data() } as User;
-                
-                // Permitimos login se a senha for a de reset padrão
                 if (pass === '123456') {
                     localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
                     notifyListeners();
                     return userData;
                 }
             }
-        } catch (firestoreErr) {
-            console.error("Erro ao buscar fallback no Firestore", firestoreErr);
-        }
+        } catch (firestoreErr) {}
 
-        throw new Error("Credenciais inválidas. Use a senha 123456 se você resetou seu acesso.");
+        throw new Error("Credenciais inválidas. Use a senha 123456 se o reset foi realizado.");
     }
 };
 

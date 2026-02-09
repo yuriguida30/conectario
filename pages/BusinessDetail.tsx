@@ -25,8 +25,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
         setBusiness(busData);
         if (busData) {
             incrementBusinessView(businessId);
-            // Verifica se a visita foi por pesquisa ou direta (Simulação simples por referrer)
-            const isFromSearch = document.referrer.includes(window.location.hostname);
+            const isFromSearch = document.referrer.includes('/search') || document.referrer.includes('?q=');
             trackAction(businessId, isFromSearch ? 'visit_search' : 'visit_direct');
 
             const allCoupons = await getCoupons();
@@ -43,6 +42,17 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
   const handleAction = (type: 'menu' | 'social' | 'map' | 'share' | 'phone') => {
       trackAction(businessId, type);
       if (type === 'menu') setShowMenuOverlay(true);
+      if (type === 'social' && business?.instagram) window.open(`https://instagram.com/${business.instagram.replace('@', '')}`, '_blank');
+      if (type === 'phone' && business?.phone) window.open(`tel:${business.phone}`, '_self');
+      if (type === 'map' && business?.address) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`, '_blank');
+      if (type === 'share') {
+          if (navigator.share) {
+              navigator.share({ title: business?.name, url: window.location.href }).catch(() => {});
+          } else {
+              navigator.clipboard.writeText(window.location.href);
+              alert("Link copiado!");
+          }
+      }
   };
 
   const handleToggleFavorite = () => {
@@ -61,7 +71,10 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-black/20" />
             <div className="absolute top-10 left-0 w-full px-4 flex justify-between z-20">
                 <button onClick={() => window.history.back()} className="bg-white/20 text-white p-3 rounded-2xl backdrop-blur-xl"><ArrowLeft size={24} /></button>
-                <button onClick={handleToggleFavorite} className={`p-3 rounded-2xl backdrop-blur-xl ${isFav ? 'bg-red-500 text-white' : 'bg-white/20 text-white'}`}><Heart className={isFav ? 'fill-white' : ''} size={24} /></button>
+                <div className="flex gap-2">
+                    <button onClick={() => handleAction('share')} className="bg-white/20 text-white p-3 rounded-2xl backdrop-blur-xl"><Share2 size={24} /></button>
+                    <button onClick={handleToggleFavorite} className={`p-3 rounded-2xl backdrop-blur-xl ${isFav ? 'bg-red-500 text-white' : 'bg-white/20 text-white'}`}><Heart className={isFav ? 'fill-white' : ''} size={24} /></button>
+                </div>
             </div>
             <div className="absolute bottom-6 left-6 z-10">
                 <span className="bg-ocean-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase mb-2 inline-block tracking-wider">{business.category}</span>
@@ -72,9 +85,9 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
 
         <div className="max-w-4xl mx-auto px-6 py-10 space-y-12">
             <div className="grid grid-cols-4 gap-4 bg-slate-50 p-4 rounded-[2.5rem] border border-slate-100">
-                <button onClick={() => { handleAction('phone'); window.open(`tel:${business.phone}`); }} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-sm"><Phone size={24}/></div><span className="text-[9px] font-black uppercase text-slate-400">Ligar</span></button>
-                <button onClick={() => { handleAction('map'); window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`); }} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-sm"><Navigation size={24}/></div><span className="text-[9px] font-black uppercase text-slate-400">Rota</span></button>
-                {business.whatsapp && <button onClick={() => { handleAction('social'); window.open(`https://wa.me/${business.whatsapp}`); }} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-green-500 rounded-2xl flex items-center justify-center text-white shadow-sm"><MessageCircle size={24}/></div><span className="text-[9px] font-black uppercase text-slate-400">Zap</span></button>}
+                <button onClick={() => handleAction('phone')} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-sm"><Phone size={24}/></div><span className="text-[9px] font-black uppercase text-slate-400">Ligar</span></button>
+                <button onClick={() => handleAction('map')} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-sm"><Navigation size={24}/></div><span className="text-[9px] font-black uppercase text-slate-400">Rota</span></button>
+                {business.instagram && <button onClick={() => handleAction('social')} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white shadow-sm"><Instagram size={24}/></div><span className="text-[9px] font-black uppercase text-slate-400">Insta</span></button>}
                 <button onClick={() => handleAction('menu')} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-ocean-600 rounded-2xl flex items-center justify-center text-white shadow-sm"><Utensils size={24}/></div><span className="text-[9px] font-black uppercase text-ocean-600">Menu</span></button>
             </div>
 

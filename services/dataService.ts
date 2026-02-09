@@ -120,7 +120,6 @@ export const loginWithGoogle = async (): Promise<User | null> => {
     }
 };
 
-// Added login implementation
 export const login = async (email: string, pass: string): Promise<User | null> => {
     const res = await signInWithEmailAndPassword(auth, email, pass);
     const userDoc = await getDoc(doc(db, 'users', res.user.uid));
@@ -160,7 +159,6 @@ export const getCurrentUser = (): User | null => {
     return stored ? JSON.parse(stored) : null;
 };
 
-// Added updateUser implementation
 export const updateUser = async (user: User) => {
     await setDoc(doc(db, 'users', user.id), cleanObject(user), { merge: true });
     localStorage.setItem(SESSION_KEY, JSON.stringify(user));
@@ -192,9 +190,6 @@ export const deleteCoupon = async (id: string) => {
     }
 };
 
-/**
- * SISTEMA DE RASTREAMENTO DE AÇÕES (CONVERSÕES)
- */
 export const trackAction = async (businessId: string, action: 'menu' | 'social' | 'map' | 'share' | 'phone' | 'visit_direct' | 'visit_search') => {
     try {
         const fieldMap: any = {
@@ -208,11 +203,12 @@ export const trackAction = async (businessId: string, action: 'menu' | 'social' 
         };
         const field = fieldMap[action];
         if (field) {
-            await updateDoc(doc(db, 'businesses', businessId), { [field]: increment(1), totalConversions: increment(1) });
+            await updateDoc(doc(db, 'businesses', businessId), { 
+                [field]: increment(1), 
+                totalConversions: increment(1) 
+            });
         }
-    } catch (e) {
-        // Silencioso para não travar a UI
-    }
+    } catch (e) {}
 };
 
 export const getBusinessStats = async (businessId: string) => {
@@ -232,7 +228,6 @@ export const getBusinessStats = async (businessId: string) => {
     const coupons = (await getCoupons()).filter(c => c.companyId === businessId);
     const totalCouponUsage = coupons.reduce((acc, c) => acc + (c.currentRedemptions || 0), 0);
 
-    // Dados para o Gráfico de Área (Conversões por dia - Simulado)
     const conversionTrend = [
         { day: 'Seg', valor: Math.floor(Math.random() * 20) },
         { day: 'Ter', valor: Math.floor(Math.random() * 25) },
@@ -243,19 +238,17 @@ export const getBusinessStats = async (businessId: string) => {
         { day: 'Dom', valor: Math.floor(Math.random() * 40) },
     ];
 
-    // Dados para o Gráfico de Pizza (Origem do Tráfego)
     const trafficSource = [
-        { name: 'Direto/Guia', value: data.directVisits || 10 },
-        { name: 'Pesquisa', value: data.searchVisits || 5 },
+        { name: 'Direto/Tuga', value: data.directVisits || 10 },
+        { name: 'Pesquisas', value: data.searchVisits || 5 },
     ];
 
-    // Dados para o Gráfico de Barras (Heatmap de Cliques)
     const actionHeatmap = [
-        { name: 'Redes', cliques: data.socialClicks || 0 },
-        { name: 'Mapa', cliques: data.mapClicks || 0 },
-        { name: 'Cardápio', cliques: data.menuViews || 0 },
-        { name: 'Tel', cliques: data.phoneClicks || 0 },
-        { name: 'Cupons', cliques: totalCouponUsage || 0 },
+        { name: 'Redes Sociais', cliques: data.socialClicks || 0 },
+        { name: 'Mapa/GPS', cliques: data.mapClicks || 0 },
+        { name: 'Ver Cardápio', cliques: data.menuViews || 0 },
+        { name: 'Cliques Telefone', cliques: data.phoneClicks || 0 },
+        { name: 'Cupons Usados', cliques: totalCouponUsage || 0 },
     ];
 
     return {
@@ -300,31 +293,20 @@ export const getAdminStats = async () => {
 export const getAppConfig = () => _appConfig;
 export const getLocations = () => [{ id: 'sepetiba', name: 'Sepetiba', active: true }, { id: 'centro', name: 'Centro', active: true }];
 export const getAmenities = () => DEFAULT_AMENITIES;
-
-// Changed to return mock data for blog section
 export const getBlogPosts = () => MOCK_POSTS;
-
-// Added getBlogPostById implementation
 export const getBlogPostById = (id: string) => MOCK_POSTS.find(p => p.id === id);
-
 export const getCollections = () => [];
-
-// Added getCollectionById implementation
 export const getCollectionById = (id: string) => getCollections().find((c: Collection) => c.id === id);
-
 export const getFeaturedConfig = () => null;
 
-// Fixed identifyNeighborhood to accept lat/lng arguments
 export const identifyNeighborhood = (lat?: number, lng?: number) => {
     if (!lat || !lng) return "Rio de Janeiro";
-    // Mock logic based on coordinates for neighborhood detection
     if (lat < -22.98 && lng < -43.6) return "Sepetiba";
     return "Rio de Janeiro";
 };
 
-// Fixed calculateDistance implementation and signature
 export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const R = 6371; // km
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = 
@@ -335,30 +317,19 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
     return R * c;
 };
 
-// Fixed toggleFavorite implementation and signature
 export const toggleFavorite = async (type: 'coupon' | 'business', id: string) => {
     const user = getCurrentUser();
     if (!user) return;
-    
-    if (!user.favorites) {
-        user.favorites = { coupons: [], businesses: [] };
-    }
-    
+    if (!user.favorites) user.favorites = { coupons: [], businesses: [] };
     const list = type === 'coupon' ? user.favorites.coupons : user.favorites.businesses;
     const index = list.indexOf(id);
-    
-    if (index > -1) {
-        list.splice(index, 1);
-    } else {
-        list.push(id);
-    }
-    
+    if (index > -1) list.splice(index, 1);
+    else list.push(id);
     await updateUser(user);
 };
 
 export const incrementBusinessView = (id: string) => updateDoc(doc(db, 'businesses', id), { views: increment(1) });
 
-// Implemented redeemCoupon logic
 export const redeemCoupon = async (uid: string, c: Coupon) => {
     try {
         await updateDoc(doc(db, 'coupons', c.id), { currentRedemptions: increment(1) });
@@ -384,12 +355,9 @@ export const redeemCoupon = async (uid: string, c: Coupon) => {
             localStorage.setItem(SESSION_KEY, JSON.stringify(user));
             notifyListeners();
         }
-    } catch (e) {
-        console.error("Erro ao resgatar cupom:", e);
-    }
+    } catch (e) {}
 };
 
-// Implemented registerUser with Firebase Auth and initial profile creation
 export const registerUser = async (name: string, email: string, pass: string): Promise<User> => {
     const res = await createUserWithEmailAndPassword(auth, email, pass);
     const newUser: User = {
@@ -407,7 +375,6 @@ export const registerUser = async (name: string, email: string, pass: string): P
     return newUser;
 };
 
-// Fixed createCompanyRequest signature and implementation
 export const createCompanyRequest = async (request: any) => {
     const id = `req_${Date.now()}`;
     await setDoc(doc(db, 'companyRequests', id), { 
@@ -418,7 +385,6 @@ export const createCompanyRequest = async (request: any) => {
     });
 };
 
-// Fixed getCompanyRequests implementation
 export const getCompanyRequests = async () => {
     try {
         const snap = await getDocs(collection(db, 'companyRequests'));
@@ -428,12 +394,10 @@ export const getCompanyRequests = async () => {
     }
 };
 
-// Fixed approveCompanyRequest implementation
 export const approveCompanyRequest = async (requestId: string) => {
     await updateDoc(doc(db, 'companyRequests', requestId), { status: 'APPROVED' });
 };
 
-// Added sendSupportMessage implementation
 export const sendSupportMessage = async (msg: string) => {
     console.log("Suporte msg:", msg);
 };

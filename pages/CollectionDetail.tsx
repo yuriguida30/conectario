@@ -18,10 +18,8 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
 
   useEffect(() => {
     const col = getCollectionById(collectionId);
-    // Coalesce undefined to null to satisfy TypeScript state type Collection | null
-    setCollection(col || null);
-    
-    if (col && col.businessIds) {
+    if (col) {
+        setCollection(col);
         const loadedBusinesses = col.businessIds
             .map((id: string) => getBusinessById(id))
             .filter((b: BusinessProfile | undefined): b is BusinessProfile => b !== undefined);

@@ -7,7 +7,7 @@ import {
   Settings, ChevronLeft, Save, 
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
-  Navigation, Utensils, Instagram
+  Navigation, Utensils, Instagram, Share
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -81,24 +81,30 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                           <MousePointer2 className="absolute -right-4 -bottom-4 w-24 h-24 text-white/5 group-hover:scale-110 transition-transform" />
                           <p className="text-[10px] font-black text-ocean-400 uppercase tracking-widest mb-2">Total de Conversões</p>
                           <h3 className="text-4xl font-black">{stats.totalConversions}</h3>
-                          <p className="text-ocean-200 text-[10px] font-bold mt-2">Cliques + Resgates</p>
+                          <p className="text-ocean-200 text-[10px] font-bold mt-2">Leads Gerados pelo Tuga</p>
                       </div>
                       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Engajamento</p>
+                          <div className="flex justify-between items-start mb-2">
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Engajamento</p>
+                             <Share2 size={16} className="text-ocean-500" />
+                          </div>
                           <h3 className="text-4xl font-black text-ocean-950">{stats.shares}</h3>
                           <p className="text-slate-400 text-[10px] font-bold mt-2">Compartilhamentos</p>
                       </div>
                       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Visitas à Página</p>
+                          <div className="flex justify-between items-start mb-2">
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visitas Totais</p>
+                             <Eye size={16} className="text-ocean-500" />
+                          </div>
                           <h3 className="text-4xl font-black text-ocean-950">{stats.views}</h3>
-                          <p className="text-slate-400 text-[10px] font-bold mt-2">Audiência Total</p>
+                          <p className="text-slate-400 text-[10px] font-bold mt-2">Audiência da Página</p>
                       </div>
                   </div>
 
                   {/* GRÁFICO DE TENDÊNCIA DE CONVERSÃO */}
                   <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
                       <h3 className="text-lg font-black text-ocean-950 mb-8 flex items-center gap-3">
-                          <TrendingUp className="text-ocean-600" size={20} /> Tendência de Conversões (7 Dias)
+                          <TrendingUp className="text-ocean-600" size={20} /> Fluxo de Conversões Diárias
                       </h3>
                       <div className="h-72 w-full">
                           <ResponsiveContainer width="100%" height="100%">
@@ -128,14 +134,17 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   {/* HEATMAP DE CLIQUES */}
                   <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
                       <h3 className="text-lg font-black text-ocean-950 mb-6 flex items-center gap-3">
-                          <BarChart3 className="text-ocean-600" size={20} /> Onde Clicam?
+                          <BarChart3 className="text-ocean-600" size={20} /> Comportamento
                       </h3>
-                      <div className="h-56 w-full">
+                      <div className="h-64 w-full">
                           <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={stats.actionHeatmap} layout="vertical">
                                   <XAxis type="number" hide />
-                                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold'}} width={70} />
-                                  <Tooltip />
+                                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold'}} width={90} />
+                                  <Tooltip 
+                                    cursor={{fill: 'transparent'}}
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                  />
                                   <Bar dataKey="cliques" fill="#0ea5e9" radius={[0, 10, 10, 0]} />
                               </BarChart>
                           </ResponsiveContainer>
@@ -147,13 +156,13 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                       <h3 className="text-lg font-black text-ocean-950 mb-6 flex items-center gap-3">
                           <PieIcon className="text-ocean-600" size={20} /> Origem das Visitas
                       </h3>
-                      <div className="h-56 w-full">
+                      <div className="h-64 w-full">
                           <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
                                   <Pie
                                     data={stats.trafficSource}
-                                    innerRadius={50}
-                                    outerRadius={70}
+                                    innerRadius={60}
+                                    outerRadius={80}
                                     paddingAngle={8}
                                     dataKey="value"
                                   >
@@ -176,20 +185,20 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               </button>
               {view === 'CREATE_COUPON' && (
                   <form onSubmit={async (e) => { e.preventDefault(); setIsSaving(true); await saveCoupon({...newCoupon, id: `c_${Date.now()}`, companyId: currentUser.id} as Coupon); setView('HOME'); refreshData(); setIsSaving(false); }} className="space-y-8">
-                      <h2 className="text-3xl font-black text-ocean-950">Criar Novo Cupom</h2>
+                      <h2 className="text-3xl font-black text-ocean-950">Lançar Nova Oferta</h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                           <ImageUpload label="Foto da Oferta" onImageSelect={img => setNewCoupon({...newCoupon, imageUrl: img})} />
                           <div className="space-y-4">
                               <input required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold" placeholder="Título" value={newCoupon.title} onChange={e => setNewCoupon({...newCoupon, title: e.target.value})} />
                               <textarea className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100" rows={3} placeholder="Descrição" value={newCoupon.description} onChange={e => setNewCoupon({...newCoupon, description: e.target.value})} />
                               <div className="grid grid-cols-2 gap-4">
-                                  <input type="number" className="w-full bg-slate-50 p-4 rounded-xl border" placeholder="De" value={newCoupon.originalPrice} onChange={e => setNewCoupon({...newCoupon, originalPrice: Number(e.target.value)})} />
-                                  <input type="number" className="w-full bg-slate-50 p-4 rounded-xl border text-green-600 font-bold" placeholder="Por" value={newCoupon.discountedPrice} onChange={e => setNewCoupon({...newCoupon, discountedPrice: Number(e.target.value)})} />
+                                  <input type="number" className="w-full bg-slate-50 p-4 rounded-xl border" placeholder="Preço original" value={newCoupon.originalPrice} onChange={e => setNewCoupon({...newCoupon, originalPrice: Number(e.target.value)})} />
+                                  <input type="number" className="w-full bg-slate-50 p-4 rounded-xl border text-green-600 font-bold" placeholder="Preço com desconto" value={newCoupon.discountedPrice} onChange={e => setNewCoupon({...newCoupon, discountedPrice: Number(e.target.value)})} />
                               </div>
                           </div>
                       </div>
                       <button type="submit" disabled={isSaving} className="w-full bg-ocean-600 text-white font-black py-6 rounded-2xl shadow-xl flex items-center justify-center gap-3">
-                          {isSaving ? <Loader2 className="animate-spin" /> : <Save size={24} />} PUBLICAR CUPOM
+                          {isSaving ? <Loader2 className="animate-spin" /> : <Save size={24} />} PUBLICAR NO GUIA
                       </button>
                   </form>
               )}

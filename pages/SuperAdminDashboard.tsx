@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, CompanyRequest, BusinessProfile, UserRole, BusinessPlan } from '../types';
 import { 
   getCompanyRequests, approveCompanyRequest, getAllUsers, 
-  getBusinesses, getCoupons, saveBusiness, updateUser 
+  getBusinesses, getCoupons, saveBusiness, updateUser, updateUserPassword 
 } from '../services/dataService';
 import { 
   LayoutDashboard, Store, CheckCircle, XCircle, Clock, 
@@ -70,14 +70,19 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
       }
       
       setLoadingAction('reset-pass');
-      // Nota: Em um ambiente real de Firebase, resets de admin exigem Firebase Admin SDK (Backend)
-      // Aqui simulamos o sucesso e notificamos o admin.
-      setTimeout(() => {
-          alert(`Senha de ${resetTarget.name} alterada com sucesso para: ${newPassword}`);
+      try {
+          // CHAMA A FUNÇÃO REAL DE UPDATE
+          await updateUserPassword(resetTarget.id, newPassword);
+          
+          alert(`Senha de ${resetTarget.name} alterada com sucesso! O usuário já pode logar com a nova senha.`);
           setResetTarget(null);
           setNewPassword('');
+          setShowPass(false);
+      } catch (err) {
+          alert("Erro ao redefinir senha.");
+      } finally {
           setLoadingAction(null);
-      }, 1000);
+      }
   };
 
   const handleToggleBlock = async (user: User) => {
@@ -272,7 +277,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                         <Key size={24} />
                         <h3 className="font-black text-lg">Trocar Senha</h3>
                       </div>
-                      <button onClick={() => {setResetTarget(null); setNewPassword('');}} className="p-2 hover:bg-black/10 rounded-full transition-colors"><X size={20}/></button>
+                      <button onClick={() => {setResetTarget(null); setNewPassword(''); setShowPass(false);}} className="p-2 hover:bg-black/10 rounded-full transition-colors"><X size={20}/></button>
                   </div>
                   <form onSubmit={handleConfirmReset} className="p-8 space-y-6">
                       <div className="text-center mb-4">
@@ -312,7 +317,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                       <div className="flex gap-3">
                           <button 
                             type="button" 
-                            onClick={() => {setResetTarget(null); setNewPassword('');}}
+                            onClick={() => {setResetTarget(null); setNewPassword(''); setShowPass(false);}}
                             className="flex-1 bg-slate-100 text-slate-600 font-black py-4 rounded-2xl hover:bg-slate-200 transition-all uppercase text-[10px] tracking-widest"
                           >
                             Cancelar

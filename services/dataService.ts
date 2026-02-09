@@ -25,6 +25,7 @@ import {
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
 const SESSION_KEY = 'cr_session_v3';
+const PASSWORDS_KEY = 'cr_custom_passwords'; // Novo "cofre" de senhas resetadas
 
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
@@ -77,13 +78,11 @@ export const initFirebaseData = async () => {
         const coupSnap = await getDocs(collection(db, 'coupons'));
         const fbCoupons = coupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
         
-        // Merge Prioritário: Mocks da Karamelo sempre vencem dados vazios
         const mergedBiz = [...fbBusinesses];
         MOCK_BUSINESSES.forEach(mock => {
             const existingIdx = mergedBiz.findIndex(b => b.id === mock.id);
             if (existingIdx === -1) mergedBiz.push(mock);
             else {
-                // Se o dado do cloud for muito menor que o mock (ex: descrição curta), assume que o mock é o original
                 if ((mergedBiz[existingIdx].description?.length || 0) < (mock.description?.length || 0)) {
                     mergedBiz[existingIdx] = { ...mock, ...mergedBiz[existingIdx], description: mock.description, address: mock.address, amenities: mock.amenities };
                 }
@@ -113,7 +112,9 @@ initFirebaseData();
 export const login = async (email: string, password?: string): Promise<User | null> => {
     const cleanEmail = email.toLowerCase().trim();
     const pass = password || '123456';
+    
     try {
+        // 1. Tenta Firebase Real primeiro
         const userCred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
         const firebaseUser = userCred.user;
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
@@ -123,17 +124,23 @@ export const login = async (email: string, password?: string): Promise<User | nu
             notifyListeners();
             return userData;
         }
-        return null;
     } catch (err: any) {
-        // Fallback para Mock do André
+        // 2. Fallback para Mock (André, Admin, etc)
         const mockUser = MOCK_USERS.find(u => u.email === cleanEmail);
-        if (mockUser && pass === '123456') {
-            localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
-            notifyListeners();
-            return mockUser;
+        if (mockUser) {
+            // Verifica se existe uma senha customizada definida pelo Admin
+            const customPasses = JSON.parse(localStorage.getItem(PASSWORDS_KEY) || '{}');
+            const savedPass = customPasses[mockUser.id] || '123456';
+            
+            if (pass === savedPass) {
+                localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
+                notifyListeners();
+                return mockUser;
+            }
         }
         throw new Error("Credenciais inválidas.");
     }
+    return null;
 };
 
 export const logout = async () => {
@@ -182,6 +189,17 @@ export const updateUser = async (u: User) => {
     localStorage.setItem(SESSION_KEY, JSON.stringify(u));
     try { await setDoc(doc(db, 'users', u.id), cleanObject(u), { merge: true }); } catch(e){}
     notifyListeners();
+};
+
+// Função para o Admin trocar a senha de qualquer usuário
+export const updateUserPassword = async (userId: string, newPass: string) => {
+    // Para persistir em ambiente de teste, salvamos no localStorage
+    const customPasses = JSON.parse(localStorage.getItem(PASSWORDS_KEY) || '{}');
+    customPasses[userId] = newPass;
+    localStorage.setItem(PASSWORDS_KEY, JSON.stringify(customPasses));
+    
+    // Se fosse Firebase Real com Cloud Functions, chamaríamos a API aqui.
+    console.log(`Senha do usuário ${userId} atualizada para ${newPass}`);
 };
 
 export const getAmenities = () => DEFAULT_AMENITIES;

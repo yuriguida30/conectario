@@ -6,6 +6,7 @@ import {
     setDoc, 
     doc, 
     updateDoc, 
+    deleteDoc, 
     query, 
     where, 
     increment 
@@ -217,8 +218,20 @@ export const saveCoupon = async (c: Coupon) => {
     notifyListeners();
 };
 
+/**
+ * EXCLUSÃO DEFINITIVA DE CUPOM
+ * Remove o documento fisicamente do Firestore.
+ */
 export const deleteCoupon = async (id: string) => {
-    try { await updateDoc(doc(db, 'coupons', id), { active: false }); } catch(e){}
+    try { 
+        // Remove do Banco de Dados (Firestore) permanentemente
+        await deleteDoc(doc(db, 'coupons', id)); 
+        console.log(`Cupom ${id} excluído permanentemente do banco.`);
+    } catch(e) {
+        console.error("Erro ao deletar cupom no Firestore:", e);
+    }
+    
+    // Remove da lista local para atualização instantânea da tela
     _coupons = _coupons.filter(c => c.id !== id);
     notifyListeners();
 };

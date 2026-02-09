@@ -13,7 +13,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { ImageUpload } from '../components/ImageUpload';
 import { LocationPicker } from '../components/LocationPicker';
 
-const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
+const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
   const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU'>('HOME');
@@ -51,7 +51,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
   useEffect(() => {
     refreshData();
-    // Escuta atualizações do Firebase em tempo real
     const handleUpdate = () => refreshData();
     window.addEventListener('dataUpdated', handleUpdate);
     return () => window.removeEventListener('dataUpdated', handleUpdate);
@@ -73,7 +72,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     }
   };
 
-  // Funções de Gestão de Cardápio
   const handleAddMenuSection = () => {
       const currentMenu = [...(editBusiness.menu || [])];
       currentMenu.push({ title: 'Nova Categoria', items: [] });
@@ -147,17 +145,17 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="bg-ocean-950 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
                           <MousePointer2 className="absolute -right-4 -bottom-4 w-24 h-24 text-white/5 group-hover:scale-110 transition-transform" />
-                          <p className="text-[10px] font-black text-ocean-400 uppercase tracking-widest mb-2">Total de Conversões</p>
+                          <p className="text-[10px] font-black text-ocean-400 uppercase tracking-widest mb-2">Total de Resgates</p>
                           <h3 className="text-4xl font-black">{stats.totalConversions}</h3>
                           <p className="text-ocean-200 text-[10px] font-bold mt-2">Leads Gerados pelo Guia</p>
                       </div>
                       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
                           <div className="flex justify-between items-start mb-2">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Engajamento</p>
+                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compartilhamentos</p>
                              <Share2 size={16} className="text-ocean-500" />
                           </div>
                           <h3 className="text-4xl font-black text-ocean-950">{stats.shares}</h3>
-                          <p className="text-slate-400 text-[10px] font-bold mt-2">Compartilhamentos</p>
+                          <p className="text-slate-400 text-[10px] font-bold mt-2">Engajamento Social</p>
                       </div>
                       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
                           <div className="flex justify-between items-start mb-2">
@@ -172,7 +170,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   {/* GRÁFICO DE TENDÊNCIA DE CONVERSÃO */}
                   <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
                       <h3 className="text-lg font-black text-ocean-950 mb-8 flex items-center gap-3">
-                          <TrendingUp className="text-ocean-600" size={20} /> Fluxo de Conversões (Últimos 7 dias)
+                          <TrendingUp className="text-ocean-600" size={20} /> Fluxo de Resgates (Últimos 7 dias)
                       </h3>
                       <div className="h-72 w-full">
                           <ResponsiveContainer width="100%" height="100%">
@@ -199,12 +197,12 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
               {/* GRÁFICOS LATERAIS - ORIGEM E HEATMAP */}
               <div className="lg:col-span-4 space-y-8">
-                  {/* HEATMAP DE CLIQUES */}
+                  {/* HEATMAP DE CLIQUES - AGORA COM DADOS REAIS DE BOTÕES */}
                   <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
                       <h3 className="text-lg font-black text-ocean-950 mb-6 flex items-center gap-3">
-                          <BarChart3 className="text-ocean-600" size={20} /> Comportamento
+                          <BarChart3 className="text-ocean-600" size={20} /> Comportamento (Botões)
                       </h3>
-                      <div className="h-64 w-full">
+                      <div className="h-[400px] w-full">
                           <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={stats.actionHeatmap} layout="vertical">
                                   <XAxis type="number" hide />
@@ -213,10 +211,15 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                     cursor={{fill: 'transparent'}}
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                                   />
-                                  <Bar dataKey="cliques" fill="#0ea5e9" radius={[0, 10, 10, 0]} />
+                                  <Bar dataKey="cliques" radius={[0, 10, 10, 0]}>
+                                      {stats.actionHeatmap.map((_: any, index: number) => (
+                                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                      ))}
+                                  </Bar>
                               </BarChart>
                           </ResponsiveContainer>
                       </div>
+                      <p className="text-[10px] text-slate-400 mt-4 text-center font-bold uppercase">Métricas em tempo real</p>
                   </div>
 
                   {/* ORIGEM DO TRÁFEGO */}

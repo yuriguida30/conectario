@@ -1,5 +1,4 @@
 
-
 import { 
     collection, 
     getDocs, 
@@ -31,14 +30,12 @@ import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockDat
 
 const SESSION_KEY = 'cr_session_v4';
 
-// Estado reativo global do serviço
 let _businesses: BusinessProfile[] = MOCK_BUSINESSES;
 let _coupons: Coupon[] = MOCK_COUPONS;
 let _users: User[] = MOCK_USERS;
 let _isInitialized = false;
 
 let _collections: Collection[] = [];
-
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
 
 const notifyListeners = () => {
@@ -46,24 +43,18 @@ const notifyListeners = () => {
     window.dispatchEvent(new Event('appConfigUpdated'));
 };
 
-// Monitoramento da Sessão de Usuário
 onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
         try {
             const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
             if (userDoc.exists()) {
                 const data = userDoc.data();
-                const userData = { 
-                    id: userDoc.id, 
-                    ...data,
-                    name: data.name || 'Usuário',
-                    email: data.email || ''
-                } as User;
+                const userData = { id: userDoc.id, ...data } as User;
                 localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
                 notifyListeners();
             }
         } catch (e) {
-            console.error("Erro ao sincronizar sessão Auth:", e);
+            console.error("Auth session sync error:", e);
         }
     }
 });
@@ -78,60 +69,26 @@ const cleanObject = (obj: any) => {
     return newObj;
 };
 
-/**
- * Inicializa a conexão em tempo real.
- */
 export const initFirebaseData = () => {
     if (_isInitialized) return;
     _isInitialized = true;
 
-    // Sincronizar Empresas
     onSnapshot(collection(db, 'businesses'), (snapshot) => {
-        const fbBusinesses = snapshot.docs.map(d => {
-            const data = d.data();
-            return { 
-                id: d.id, 
-                ...data,
-                name: data.name || 'Sem nome',
-                category: data.category || 'Outros'
-            } as BusinessProfile;
-        });
-        _businesses = fbBusinesses.length > 0 ? fbBusinesses : MOCK_BUSINESSES;
+        _businesses = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
         notifyListeners();
     });
 
-    // Sincronizar Cupons
     onSnapshot(collection(db, 'coupons'), (snapshot) => {
-        const fbCoupons = snapshot.docs.map(d => {
-            const data = d.data();
-            return { 
-                id: d.id, 
-                ...data,
-                title: data.title || 'Cupom',
-                companyName: data.companyName || 'Empresa'
-            } as Coupon;
-        });
-        _coupons = fbCoupons.length > 0 ? fbCoupons : MOCK_COUPONS;
+        _coupons = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
         notifyListeners();
     });
 
-    // Sincronizar Usuários
     onSnapshot(collection(db, 'users'), (snapshot) => {
-        const fbUsers = snapshot.docs.map(d => {
-            const data = d.data();
-            return { 
-                id: d.id, 
-                ...data,
-                name: data.name || 'Usuário',
-                email: data.email || ''
-            } as User;
-        });
-        _users = fbUsers.length > 0 ? fbUsers : MOCK_USERS;
+        _users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
         notifyListeners();
     });
 };
 
-// Início automático
 initFirebaseData();
 
 export const login = async (email: string, pass: string): Promise<User | null> => {
@@ -143,73 +100,44 @@ export const login = async (email: string, pass: string): Promise<User | null> =
             return foundUser;
         }
     }
-
-    try {
-        const res = await signInWithEmailAndPassword(auth, email, pass);
-        const userDoc = await getDoc(doc(db, 'users', res.user.uid));
-        if (userDoc.exists()) {
-            const data = userDoc.data();
-            const userData = { 
-                id: userDoc.id, 
-                ...data,
-                name: data.name || 'Usuário',
-                email: data.email || ''
-            } as User;
-            localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
-            notifyListeners();
-            return userData;
-        }
-    } catch (e: any) {
-        throw new Error("E-mail ou senha incorretos.");
+    const res = await signInWithEmailAndPassword(auth, email, pass);
+    const userDoc = await getDoc(doc(db, 'users', res.user.uid));
+    if (userDoc.exists()) {
+        const userData = { id: userDoc.id, ...userDoc.data() } as User;
+        localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+        notifyListeners();
+        return userData;
     }
     return null;
 };
 
-// Fixed error: loginWithGoogle member was missing
 export const loginWithGoogle = async (): Promise<User | null> => {
-    try {
-        const provider = new GoogleAuthProvider();
-        const res = await signInWithPopup(auth, provider);
-        const userDoc = await getDoc(doc(db, 'users', res.user.uid));
-        
-        let userData: User;
-        if (userDoc.exists()) {
-            const data = userDoc.data();
-            userData = { 
-                id: userDoc.id, 
-                ...data,
-                name: data.name || res.user.displayName || 'Usuário',
-                email: data.email || res.user.email || ''
-            } as User;
-        } else {
-            userData = {
-                id: res.user.uid,
-                name: res.user.displayName || 'Usuário',
-                email: res.user.email || '',
-                role: UserRole.CUSTOMER,
-                favorites: { coupons: [], businesses: [] },
-                history: [],
-                savedAmount: 0,
-                avatarUrl: res.user.photoURL || undefined
-            };
-            await setDoc(doc(db, 'users', userData.id), cleanObject(userData));
-        }
-        
-        localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
-        notifyListeners();
-        return userData;
-    } catch (e: any) {
-        throw new Error(e.message || "Erro ao fazer login com Google.");
+    const provider = new GoogleAuthProvider();
+    const res = await signInWithPopup(auth, provider);
+    const userDoc = await getDoc(doc(db, 'users', res.user.uid));
+    let userData: User;
+    if (userDoc.exists()) {
+        userData = { id: userDoc.id, ...userDoc.data() } as User;
+    } else {
+        userData = {
+            id: res.user.uid,
+            name: res.user.displayName || 'Usuário',
+            email: res.user.email || '',
+            role: UserRole.CUSTOMER,
+            favorites: { coupons: [], businesses: [] },
+            history: [],
+            savedAmount: 0,
+            avatarUrl: res.user.photoURL || undefined
+        };
+        await setDoc(doc(db, 'users', userData.id), cleanObject(userData));
     }
+    localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+    notifyListeners();
+    return userData;
 };
 
-// Fixed error: resetUserPassword member was missing
 export const resetUserPassword = async (email: string) => {
-    try {
-        await sendPasswordResetEmail(auth, email);
-    } catch (e: any) {
-        throw new Error(e.message || "Erro ao enviar e-mail de redefinição.");
-    }
+    await sendPasswordResetEmail(auth, email);
 };
 
 export const logout = async () => {
@@ -227,25 +155,11 @@ export const saveBusiness = async (b: BusinessProfile) => {
 };
 
 export const deleteBusiness = async (id: string) => {
-    try {
-        await deleteDoc(doc(db, 'businesses', id));
-        _businesses = _businesses.filter(b => b.id !== id);
-        notifyListeners();
-    } catch (e) {
-        console.error("Erro ao deletar empresa:", e);
-        throw e;
-    }
+    await deleteDoc(doc(db, 'businesses', id));
 };
 
 export const deleteUser = async (id: string) => {
-    try {
-        await deleteDoc(doc(db, 'users', id));
-        _users = _users.filter(u => u.id !== id);
-        notifyListeners();
-    } catch (e) {
-        console.error("Erro ao deletar usuário:", e);
-        throw e;
-    }
+    await deleteDoc(doc(db, 'users', id));
 };
 
 export const getCurrentUser = (): User | null => {
@@ -277,8 +191,8 @@ export const getBusinessStats = async (businessId: string) => {
     const totalRedemptions = coupons.reduce((acc, c) => acc + (c.currentRedemptions || 0), 0);
     const views = biz?.views || 0;
     const shares = biz?.shares || 0;
+    const counts = biz?.actionCounts || {};
 
-    // Gera tendência baseada nos dados reais (mock visual para os dias anteriores)
     const trend = [
         { day: 'Seg', valor: Math.max(0, totalRedemptions - 12) },
         { day: 'Ter', valor: Math.max(0, totalRedemptions - 8) },
@@ -300,10 +214,13 @@ export const getBusinessStats = async (businessId: string) => {
             { name: 'Compartilhado', value: Math.floor(views * 0.1) }
         ],
         actionHeatmap: [
-            { name: 'Visualizações', cliques: views },
-            { name: 'Resgates', cliques: totalRedemptions },
-            { name: 'Compartilhamentos', cliques: shares },
-            { name: 'Cliques Site', cliques: Math.floor(views * 0.15) }
+            { name: 'Telefone', cliques: counts['phone'] || 0 },
+            { name: 'Mapa/GPS', cliques: counts['map'] || 0 },
+            { name: 'Instagram', cliques: counts['social'] || 0 },
+            { name: 'Site', cliques: counts['website'] || 0 },
+            { name: 'Delivery', cliques: counts['delivery'] || 0 },
+            { name: 'Cardápio', cliques: counts['menu'] || 0 },
+            { name: 'Resgates', cliques: totalRedemptions }
         ],
         activeCoupons: coupons.filter(c => c.active).length
     };
@@ -330,7 +247,10 @@ export const getAmenities = () => DEFAULT_AMENITIES;
 export const getBlogPosts = () => MOCK_POSTS;
 export const getBlogPostById = (id: string) => MOCK_POSTS.find(p => p.id === id);
 export const getCollections = (): Collection[] => _collections;
+
+// Fix: Added missing getCollectionById function export to resolve the import error in CollectionDetail.tsx
 export const getCollectionById = (id: string) => _collections.find(c => c.id === id);
+
 export const getFeaturedConfig = () => null;
 
 export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
@@ -361,9 +281,14 @@ export const incrementBusinessView = (id: string) => updateDoc(doc(db, 'business
 
 export const trackAction = async (businessId: string, type: string) => {
     try {
-        if (type === 'share') {
-            await updateDoc(doc(db, 'businesses', businessId), { shares: increment(1) });
-        }
+        // Incrementa o contador específico dentro do objeto actionCounts
+        // Se o tipo for 'share', também incrementamos o campo shares legado para compatibilidade
+        const updates: any = {
+            [`actionCounts.${type}`]: increment(1)
+        };
+        if (type === 'share') updates.shares = increment(1);
+        
+        await updateDoc(doc(db, 'businesses', businessId), updates);
     } catch (e) {
         console.error("Error tracking action:", e);
     }
@@ -393,15 +318,7 @@ export const createCompanyRequest = async (request: any) => {
 
 export const getCompanyRequests = async () => {
     const snap = await getDocs(collection(db, 'companyRequests'));
-    return snap.docs.map(d => {
-        const data = d.data();
-        return { 
-            id: d.id, 
-            ...data,
-            companyName: data.companyName || 'Empresa',
-            category: data.category || 'Gastronomia'
-        } as CompanyRequest;
-    });
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
 };
 
 export const approveCompanyRequest = async (requestId: string) => {

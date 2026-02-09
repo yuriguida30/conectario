@@ -1,5 +1,4 @@
 
-
 export enum UserRole {
   CUSTOMER = 'CUSTOMER',
   COMPANY = 'COMPANY',
@@ -72,6 +71,7 @@ export interface BusinessProfile {
   lng?: number;
   views?: number;
   shares?: number;
+  actionCounts?: { [key: string]: number };
   isClaimed?: boolean;
   plan?: BusinessPlan;
 }

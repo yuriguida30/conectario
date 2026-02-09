@@ -74,42 +74,28 @@ const cleanObject = (obj: any) => {
     return newObj;
 };
 
-/**
- * INICIALIZAÇÃO ROBUSTA
- * Prioriza Firestore e só usa Mocks se o banco estiver vazio ou inacessível.
- */
 export const initFirebaseData = async () => {
     try {
-        console.log("Iniciando sincronização com Firestore...");
-        
-        // 1. Carrega Empresas
         const bizSnap = await getDocs(collection(db, 'businesses'));
         const fbBusinesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
         
-        // 2. Carrega Cupons
         const coupSnap = await getDocs(collection(db, 'coupons'));
         const fbCoupons = coupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
         
-        // 3. Carrega Usuários
         const userSnap = await getDocs(collection(db, 'users'));
         _users = userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
 
-        // SOBERANIA DOS DADOS: Se houver dados no banco, eles são a única verdade.
-        // Só injetamos Mocks se o banco estiver zerado (primeiro acesso).
         _businesses = fbBusinesses.length > 0 ? fbBusinesses : MOCK_BUSINESSES;
         _coupons = fbCoupons.length > 0 ? fbCoupons : MOCK_COUPONS;
 
-        console.log(`Sincronização concluída: ${_businesses.length} empresas e ${_coupons.length} cupons.`);
         notifyListeners();
     } catch (error) {
-        console.warn("Falha na sincronização em tempo real, usando dados locais de segurança.");
         _businesses = MOCK_BUSINESSES;
         _coupons = MOCK_COUPONS;
         notifyListeners();
     }
 };
 
-// Executa a carga inicial
 initFirebaseData();
 
 export const login = async (email: string, password?: string): Promise<User | null> => {
@@ -199,7 +185,7 @@ export const saveBusiness = async (b: BusinessProfile) => {
         else _businesses.push(b);
         notifyListeners();
     } catch (e) {
-        console.error("Erro ao salvar empresa no Firestore:", e);
+        console.error("Erro ao salvar empresa:", e);
     }
 };
 
@@ -221,36 +207,70 @@ export const saveCoupon = async (c: Coupon) => {
         else _coupons.push(c);
         notifyListeners();
     } catch(e) {
-        console.error("Erro ao salvar cupom no Firestore:", e);
+        console.error("Erro ao salvar cupom:", e);
     }
 };
 
-/**
- * EXCLUSÃO DEFINITIVA E SEGURA
- */
 export const deleteCoupon = async (id: string) => {
     try { 
-        // 1. Remove do banco de dados primeiro
         await deleteDoc(doc(db, 'coupons', id)); 
-        
-        // 2. Remove da memória local imediatamente
         _coupons = _coupons.filter(c => c.id !== id);
-        
-        // 3. Notifica a interface para sumir com o card
         notifyListeners();
-        
-        console.log(`Cupom ${id} removido com sucesso.`);
     } catch(e) {
         console.error("Erro ao deletar cupom:", e);
-        // Fallback: remove localmente mesmo se o banco falhar para não travar a UI
-        _coupons = _coupons.filter(c => c.id !== id);
-        notifyListeners();
     }
 };
 
 export const updateUser = async (u: User) => {
-    try { await setDoc(doc(db, 'users', u.id), cleanObject(u), { merge: true }); } catch(e){}
-    notifyListeners();
+    try { 
+        // 1. Atualiza no Banco
+        await setDoc(doc(db, 'users', u.id), cleanObject(u), { merge: true }); 
+        // 2. Atualiza na Sessão Local
+        localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+        // 3. Notifica interface
+        notifyListeners();
+    } catch(e){
+        console.error("Erro ao atualizar usuário:", e);
+    }
+};
+
+/**
+ * REDENÇÃO COM PRECISÃO 100%
+ * Só chamada no momento da validação final do cupom.
+ */
+export const redeemCoupon = async (userId: string, coupon: Coupon) => {
+    const user = getCurrentUser();
+    if (!user) throw new Error("Usuário não logado.");
+
+    // Calcula a economia real (Diferença entre original e desconto)
+    const economy = Math.max(0, coupon.originalPrice - coupon.discountedPrice);
+    
+    // Cria o registro histórico
+    const historyItem = { 
+        date: new Date().toISOString(), 
+        amount: economy, 
+        couponTitle: coupon.title, 
+        couponId: coupon.id 
+    };
+
+    // Atualiza objeto local
+    const updatedUser: User = {
+        ...user,
+        history: [...(user.history || []), historyItem],
+        savedAmount: (user.savedAmount || 0) + economy
+    };
+
+    // Salva e Sincroniza
+    await updateUser(updatedUser);
+    
+    // Incrementa contador de uso no cupom no banco
+    try {
+        await updateDoc(doc(db, 'coupons', coupon.id), { 
+            currentRedemptions: increment(1) 
+        });
+    } catch(e) {}
+
+    return updatedUser;
 };
 
 export const updateUserPassword = async (userId: string, newPass: string) => {
@@ -260,7 +280,6 @@ export const updateUserPassword = async (userId: string, newPass: string) => {
         }, { merge: true });
         await initFirebaseData(); 
     } catch(e) {
-        console.error("Erro ao gravar override de senha:", e);
         throw e;
     }
 };
@@ -283,15 +302,6 @@ export const getFeaturedConfig = (): FeaturedConfig => ({
 
 export const identifyNeighborhood = (lat: number, lng: number): string => "Rio de Janeiro";
 export const calculateDistance = (la1: number, lo1: number, la2: number, lo2: number) => 0;
-
-export const redeemCoupon = async (userId: string, coupon: Coupon) => {
-    const user = getCurrentUser();
-    if (!user) return;
-    const historyItem = { date: new Date().toISOString(), amount: coupon.originalPrice - coupon.discountedPrice, couponTitle: coupon.title, couponId: coupon.id };
-    user.history = [...(user.history || []), historyItem];
-    user.savedAmount = (user.savedAmount || 0) + historyItem.amount;
-    await updateUser(user);
-};
 
 export const toggleFavorite = async (type: string, id: string) => {
     const user = getCurrentUser();
@@ -331,10 +341,7 @@ export const registerUser = async (name: string, email: string, pass: string): P
     return newUser;
 };
 
-export const sendSupportMessage = async (message: string) => {
-    console.log("Support Message received:", message);
-};
-
+export const sendSupportMessage = async (message: string) => {};
 export const createCompanyRequest = async (form: any) => {};
 export const getCompanyRequests = async () => {
     const snap = await getDocs(collection(db, 'requests'));

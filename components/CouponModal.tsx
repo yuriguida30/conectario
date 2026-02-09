@@ -1,19 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, MapPin, Clock, FileText, Check, Copy, AlertTriangle } from 'lucide-react';
+import { X, MapPin, Clock, FileText, Check, Copy, AlertTriangle, Loader2 } from 'lucide-react';
 import { Coupon } from '../types';
 import { getCurrentUser } from '../services/dataService';
 
 interface CouponModalProps {
   coupon: Coupon;
   onClose: () => void;
-  onRedeem: (coupon: Coupon) => void;
+  onRedeem: (coupon: Coupon) => Promise<void>;
   isRedeemed: boolean;
 }
 
 export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRedeem, isRedeemed }) => {
   const [step, setStep] = useState<'details' | 'code' | 'success'>(isRedeemed ? 'code' : 'details');
   const [error, setError] = useState<string | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
   const user = getCurrentUser();
 
   // Check Eligibility on Mount
@@ -30,19 +31,24 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
       if (coupon.maxRedemptions && (coupon.currentRedemptions || 0) >= coupon.maxRedemptions && !isRedeemed) {
           setError("Este lote de cupons esgotou!");
       }
-  }, []);
+  }, [user, coupon, isRedeemed]);
 
-  const handleRedeemClick = async () => {
-    try {
-        await onRedeem(coupon); 
-        setStep('code');
-    } catch (e: any) {
-        setError(e.message || "Erro ao resgatar. Tente novamente.");
-    }
+  const handleGetCode = () => {
+      // Apenas mostra o código, sem contabilizar na carteira ainda
+      setStep('code');
   };
 
-  const handleValidateClick = () => {
-      setStep('success');
+  const handleValidateFinal = async () => {
+    setIsValidating(true);
+    try {
+        // Agora sim: contabiliza a economia na Carteira Inteligente e atualiza o banco
+        await onRedeem(coupon); 
+        setStep('success');
+    } catch (e: any) {
+        setError(e.message || "Erro ao validar. Tente novamente.");
+    } finally {
+        setIsValidating(false);
+    }
   };
 
   return (
@@ -55,9 +61,12 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
                     <Check size={48} strokeWidth={4} />
                 </div>
                 <h2 className="text-3xl font-bold text-ocean-950 mb-4">Validado com Sucesso!</h2>
-                <p className="text-slate-500 text-lg mb-10 leading-relaxed">
-                    Seu cupom foi confirmado. <br/>Aproveite sua experiência no <br/><span className="font-bold text-ocean-600">{coupon.companyName}</span>!
+                <p className="text-slate-500 text-lg mb-2 leading-relaxed">
+                    Seu cupom foi confirmado.
                 </p>
+                <div className="bg-green-50 border border-green-100 p-4 rounded-2xl mb-8">
+                    <p className="text-green-800 font-bold text-sm">Economia de R$ {(coupon.originalPrice - coupon.discountedPrice).toFixed(2)} adicionada à sua carteira!</p>
+                </div>
                 <button 
                     onClick={onClose}
                     className="w-full bg-ocean-100 text-ocean-700 font-bold py-4 rounded-2xl hover:bg-ocean-200 transition-colors"
@@ -69,7 +78,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
             <>
                 {/* Header Image */}
                 <div className="relative h-56 shrink-0">
-                  <img src={coupon.imageUrl} className="w-full h-full object-cover" />
+                  <img src={coupon.imageUrl} className="w-full h-full object-cover" alt="Coupon" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                   <button onClick={onClose} className="absolute top-4 right-4 bg-black/40 text-white p-2 rounded-full hover:bg-black/60 backdrop-blur-sm">
                     <X size={20} />
@@ -132,8 +141,8 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
                          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 mb-6">
                              <Check size={40} strokeWidth={3} />
                          </div>
-                         <h3 className="text-2xl font-bold text-ocean-900 mb-2">Cupom Resgatado!</h3>
-                         <p className="text-slate-500 text-sm mb-8">Apresente o código abaixo no estabelecimento.</p>
+                         <h3 className="text-2xl font-bold text-ocean-900 mb-2">Código do Cupom</h3>
+                         <p className="text-slate-500 text-sm mb-8">Apresente este código no caixa.</p>
                          
                          <div className="bg-slate-100 border-2 border-dashed border-slate-300 rounded-xl p-6 w-full mb-6 relative group cursor-pointer" onClick={() => navigator.clipboard.writeText(coupon.code)}>
                              <p className="text-3xl font-mono font-bold text-ocean-900 tracking-widest">{coupon.code}</p>
@@ -144,7 +153,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
                          </div>
 
                          <div className="bg-yellow-50 text-yellow-800 p-4 rounded-xl text-xs w-full text-left">
-                             ⚠️ <strong>Importante:</strong> Só clique em "Validar" quando o atendente solicitar ou após o pagamento.
+                             ⚠️ <strong>Atenção:</strong> A economia de <strong>R$ {(coupon.originalPrice - coupon.discountedPrice).toFixed(2)}</strong> só será adicionada à sua Carteira Inteligente após clicar no botão Validar abaixo.
                          </div>
                      </div>
                    )}
@@ -160,7 +169,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
                             </div>
                         ) : (
                             <button 
-                                onClick={handleRedeemClick}
+                                onClick={handleGetCode}
                                 className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-500/20 active:scale-[0.98] transition-all"
                             >
                                 PEGAR CUPOM
@@ -168,10 +177,11 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
                         )
                     ) : (
                         <button 
-                            onClick={handleValidateClick}
-                            className="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-600/20 active:scale-[0.98] transition-all"
+                            onClick={handleValidateFinal}
+                            disabled={isValidating}
+                            className="w-full bg-green-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                         >
-                            VALIDAR & ECONOMIZAR
+                            {isValidating ? <Loader2 className="animate-spin" size={24} /> : "VALIDAR & ECONOMIZAR"}
                         </button>
                     )}
                 </div>

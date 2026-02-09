@@ -25,7 +25,6 @@ import {
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
 const SESSION_KEY = 'cr_session_v3';
-const PASSWORDS_KEY = 'cr_custom_passwords'; 
 
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
@@ -78,26 +77,18 @@ export const initFirebaseData = async () => {
         const coupSnap = await getDocs(collection(db, 'coupons'));
         const fbCoupons = coupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
         
-        const mergedBiz = [...fbBusinesses];
-        MOCK_BUSINESSES.forEach(mock => {
-            const existingIdx = mergedBiz.findIndex(b => b.id === mock.id);
-            if (existingIdx === -1) mergedBiz.push(mock);
-            else {
-                if ((mergedBiz[existingIdx].description?.length || 0) < (mock.description?.length || 0)) {
-                    mergedBiz[existingIdx] = { ...mock, ...mergedBiz[existingIdx], description: mock.description, address: mock.address, amenities: mock.amenities };
-                }
-            }
-        });
-        _businesses = mergedBiz;
-
-        const mergedCoupons = [...fbCoupons];
-        MOCK_COUPONS.forEach(mock => {
-            if (!mergedCoupons.find(c => c.id === mock.id)) mergedCoupons.push(mock);
-        });
-        _coupons = mergedCoupons;
-
         const userSnap = await getDocs(collection(db, 'users'));
         _users = userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+
+        _businesses = [...fbBusinesses];
+        MOCK_BUSINESSES.forEach(mock => {
+            if (!_businesses.find(b => b.id === mock.id)) _businesses.push(mock);
+        });
+
+        _coupons = [...fbCoupons];
+        MOCK_COUPONS.forEach(mock => {
+            if (!_coupons.find(c => c.id === mock.id)) _coupons.push(mock);
+        });
 
         notifyListeners();
     } catch (error) {
@@ -109,39 +100,43 @@ export const initFirebaseData = async () => {
 
 initFirebaseData();
 
+/**
+ * LOGIN HÍBRIDO DEFINITIVO
+ * Prioriza senhas alteradas pelo Admin no Firestore.
+ */
 export const login = async (email: string, password?: string): Promise<User | null> => {
     const cleanEmail = email.toLowerCase().trim();
     const inputPass = password || '123456';
     
-    // Busca o usuário em todas as fontes disponíveis (Mocks e Firestore carregado)
-    const allAvailableUsers = [...MOCK_USERS, ..._users];
-    const targetUser = allAvailableUsers.find(u => u.email.toLowerCase() === cleanEmail);
+    // 1. BUSCA O USUÁRIO NO FIRESTORE PRIMEIRO (Para checar bypass de senha)
+    const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+    const querySnapshot = await getDocs(q);
+    
+    let targetUser: User | null = null;
 
-    if (targetUser) {
-        // VERIFICAÇÃO DE SENHA ALTERADA PELO ADMIN (OVERRIDE)
-        const customPasses = JSON.parse(localStorage.getItem(PASSWORDS_KEY) || '{}');
-        const adminDefinedPass = customPasses[targetUser.id];
-
-        // Se o admin definiu uma senha, ELA É A ÚNICA QUE VALE
-        if (adminDefinedPass) {
-            if (inputPass === adminDefinedPass) {
-                localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
-                notifyListeners();
-                return targetUser;
-            } else {
-                throw new Error("Senha incorreta conforme definido pelo Administrador.");
-            }
+    if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        targetUser = { id: userDoc.id, ...userDoc.data() } as User;
+        
+        // CHECAGEM DE BYPASS (A senha que o Admin definiu)
+        const userData = userDoc.data() as any;
+        if (userData.passwordOverride && inputPass === userData.passwordOverride) {
+            console.log("Login realizado via Bypass de Administrador.");
+            localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
+            notifyListeners();
+            return targetUser;
         }
-
-        // Se for um MockUser sem senha alterada, aceita 123456
-        if (MOCK_USERS.some(u => u.id === targetUser.id) && inputPass === '123456') {
+    } else {
+        // Fallback para usuários MOCK (que ainda não estão no Firestore)
+        targetUser = MOCK_USERS.find(u => u.email.toLowerCase() === cleanEmail) || null;
+        if (targetUser && inputPass === '123456') {
             localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
             notifyListeners();
             return targetUser;
         }
     }
 
-    // Se não houver override de admin, tenta o Firebase Auth tradicional
+    // 2. SE NÃO HOUVER BYPASS, TENTA O FIREBASE AUTH NORMAL
     try {
         const userCred = await signInWithEmailAndPassword(auth, cleanEmail, inputPass);
         const firebaseUser = userCred.user;
@@ -153,7 +148,8 @@ export const login = async (email: string, password?: string): Promise<User | nu
             return userData;
         }
     } catch (err: any) {
-        throw new Error("Credenciais inválidas.");
+        // Se chegamos aqui, as credenciais realmente estão erradas tanto no bypass quanto no Auth
+        throw new Error("Credenciais inválidas. Verifique o email e a senha.");
     }
     
     throw new Error("Usuário não encontrado.");
@@ -202,22 +198,26 @@ export const deleteCoupon = async (id: string) => {
 };
 
 export const updateUser = async (u: User) => {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(u));
     try { await setDoc(doc(db, 'users', u.id), cleanObject(u), { merge: true }); } catch(e){}
     notifyListeners();
 };
 
+/**
+ * ATUALIZAÇÃO DE SENHA PELO ADMIN (SALVA NO BANCO)
+ */
 export const updateUserPassword = async (userId: string, newPass: string) => {
-    const customPasses = JSON.parse(localStorage.getItem(PASSWORDS_KEY) || '{}');
-    customPasses[userId] = newPass;
-    localStorage.setItem(PASSWORDS_KEY, JSON.stringify(customPasses));
-    
-    // Atualizamos o Firestore também para registro, embora o login local use o localStorage como override imediato
     try {
-        await updateDoc(doc(db, 'users', userId), { lastPasswordReset: new Date().toISOString() });
-    } catch(e) {}
-    
-    console.log(`Senha do usuário ${userId} atualizada localmente para ${newPass}`);
+        // Gravamos o override diretamente no Firestore para ser acessível em qualquer lugar
+        await setDoc(doc(db, 'users', userId), { 
+            passwordOverride: newPass 
+        }, { merge: true });
+        
+        console.log(`Senha de override gravada para o usuário ${userId}`);
+        await initFirebaseData(); // Atualiza lista local
+    } catch(e) {
+        console.error("Erro ao gravar override de senha:", e);
+        throw e;
+    }
 };
 
 export const getAmenities = () => DEFAULT_AMENITIES;

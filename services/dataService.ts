@@ -23,15 +23,30 @@ import {
 } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
-const SESSION_KEY = 'cr_session_v2';
+const SESSION_KEY = 'cr_session_v3';
 
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
 let _posts: BlogPost[] = [...MOCK_POSTS];
-let _collections: Collection[] = [];
 let _categories: AppCategory[] = DEFAULT_CATEGORIES.map(name => ({ id: name.toLowerCase(), name }));
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
+
+// Fix: Define the missing _collections variable
+let _collections: Collection[] = [
+    {
+        id: 'col1',
+        title: 'Melhores de Arraial',
+        description: 'Uma seleção dos lugares mais incríveis para visitar em Arraial do Cabo.',
+        coverImage: 'https://images.unsplash.com/photo-1590089415225-401cd6f9ad5d?auto=format&fit=crop&q=80&w=800',
+        businessIds: ['comp1', 'b1']
+    }
+];
+
+const notifyListeners = () => {
+    window.dispatchEvent(new Event('dataUpdated'));
+    window.dispatchEvent(new Event('appConfigUpdated'));
+};
 
 onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
@@ -39,6 +54,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
         if (userDoc.exists()) {
             const userData = { id: userDoc.id, ...userDoc.data() } as User;
             localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+            notifyListeners();
         }
     }
 });
@@ -53,30 +69,29 @@ const cleanObject = (obj: any) => {
     return newObj;
 };
 
-const notifyListeners = () => {
-    window.dispatchEvent(new Event('dataUpdated'));
-    window.dispatchEvent(new Event('appConfigUpdated'));
-};
-
 export const initFirebaseData = async () => {
+    console.log("🔄 Inicializando dados do Banco...");
     try {
         const bizSnap = await getDocs(collection(db, 'businesses'));
-        _businesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
+        const fbBusinesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
         
         const coupSnap = await getDocs(collection(db, 'coupons'));
-        _coupons = coupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
+        const fbCoupons = coupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
         
         const userSnap = await getDocs(collection(db, 'users'));
         _users = userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
 
-        if (_businesses.length === 0) _businesses = MOCK_BUSINESSES;
-        if (_coupons.length === 0) _coupons = MOCK_COUPONS;
+        // Mescla ou substitui Mock apenas se o FB estiver vazio
+        _businesses = fbBusinesses.length > 0 ? fbBusinesses : MOCK_BUSINESSES;
+        _coupons = fbCoupons.length > 0 ? fbCoupons : MOCK_COUPONS;
         
         notifyListeners();
+        console.log("✅ Dados carregados com sucesso!");
     } catch (error) {
-        console.warn("Firebase vazio ou erro, usando dados locais.");
+        console.warn("⚠️ Usando dados Mock (Firebase Offline ou Vazio)");
         _businesses = MOCK_BUSINESSES;
         _coupons = MOCK_COUPONS;
+        notifyListeners();
     }
 };
 
@@ -99,14 +114,15 @@ export const login = async (email: string, password?: string): Promise<User | nu
         }
         return null;
     } catch (err: any) {
-        console.warn("Firebase Auth falhou, tentando fallback mock...");
+        console.warn(`Fallback Login para ${cleanEmail}...`);
+        // Fallback para usuários MOCK para facilitar o desenvolvimento
         const mockUser = MOCK_USERS.find(u => u.email === cleanEmail);
         if (mockUser && pass === '123456') {
             localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
             notifyListeners();
             return mockUser;
         }
-        throw err;
+        throw new Error("Credenciais inválidas.");
     }
 };
 
@@ -117,11 +133,16 @@ export const logout = async () => {
 };
 
 export const getBusinesses = () => _businesses;
+
 export const getCoupons = async () => {
     try {
         const snap = await getDocs(collection(db, 'coupons'));
         const cloudCoupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
-        return cloudCoupons.length > 0 ? cloudCoupons : MOCK_COUPONS;
+        if (cloudCoupons.length > 0) {
+            _coupons = cloudCoupons;
+            return cloudCoupons;
+        }
+        return _coupons.length > 0 ? _coupons : MOCK_COUPONS;
     } catch {
         return _coupons.length > 0 ? _coupons : MOCK_COUPONS;
     }
@@ -135,10 +156,12 @@ export const saveBusiness = async (b: BusinessProfile) => {
     try {
         const cleaned = cleanObject(b);
         await setDoc(doc(db, 'businesses', b.id), cleaned);
-    } catch (e) { console.error("Erro firestore:", e); }
+    } catch (e) { console.error("Erro ao salvar no Firestore:", e); }
+    
     const idx = _businesses.findIndex(biz => biz.id === b.id);
     if (idx !== -1) _businesses[idx] = b;
     else _businesses.push(b);
+    
     notifyListeners();
 };
 
@@ -150,6 +173,7 @@ export const getCurrentUser = (): User | null => {
 export const getCategories = () => _categories;
 export const getAllUsers = () => _users;
 export const getBlogPostById = (id: string) => _posts.find(p => p.id === id);
+
 export const registerUser = async (name: string, email: string, password?: string) => { 
     const pass = password || '123456';
     const userCred = await createUserWithEmailAndPassword(auth, email.toLowerCase(), pass);
@@ -288,20 +312,24 @@ export const getLocations = () => [
     { id: 'centro', name: 'Centro', active: true },
     { id: 'zona-sul', name: 'Zona Sul', active: true }
 ];
+
 export const toggleFavorite = async (type: string, id: string) => {
     const user = getCurrentUser();
     if (!user) return;
-    if (!user.favorites) user.favorites = { coupons: [], businesses: [] };
+    
+    const favs = user.favorites || { coupons: [], businesses: [] };
     
     if (type === 'coupon') {
-        const idx = user.favorites.coupons.indexOf(id);
-        if (idx === -1) user.favorites.coupons.push(id);
-        else user.favorites.coupons.splice(idx, 1);
+        const idx = favs.coupons.indexOf(id);
+        if (idx === -1) favs.coupons.push(id);
+        else favs.coupons.splice(idx, 1);
     } else {
-        const idx = user.favorites.businesses.indexOf(id);
-        if (idx === -1) user.favorites.businesses.push(id);
-        else user.favorites.businesses.splice(idx, 1);
+        const idx = favs.businesses.indexOf(id);
+        if (idx === -1) favs.businesses.push(id);
+        else favs.businesses.splice(idx, 1);
     }
+    
+    user.favorites = favs;
     await updateUser(user);
 };
 
@@ -312,6 +340,7 @@ export const incrementBusinessView = async (id: string) => {
     } catch(e) {}
 };
 
+// Fix: Now uses the defined _collections variable
 export const getCollections = () => _collections;
 export const getFeaturedConfig = () => null;
 export const identifyNeighborhood = (lat: number, lng: number) => "Rio de Janeiro";
@@ -326,4 +355,5 @@ export const calculateDistance = (la1: number, lo1: number, la2: number, lo2: nu
     return R * c;
 };
 
+// Fix: Now uses the defined _collections variable
 export const getCollectionById = (id: string) => _collections.find(c => c.id === id) || null;

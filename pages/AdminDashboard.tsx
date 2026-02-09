@@ -60,11 +60,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     setIsSaving(true);
     try {
         await saveBusiness({ ...myBusiness, ...editBusiness } as BusinessProfile);
-        alert("Perfil atualizado com sucesso!");
+        alert("Alterações salvas com sucesso!");
         setView('HOME');
         refreshData();
     } catch (error) {
-        alert("Erro ao salvar alterações.");
+        alert("Erro ao salvar alterações. Tente novamente.");
     } finally {
         setIsSaving(false);
     }
@@ -446,7 +446,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
           </div>
       )}
 
-      {/* Restante do Dashboard (Cupons, etc) permanece igual... */}
       {view === 'CREATE_COUPON' && (
           <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6">
               <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase mb-8">

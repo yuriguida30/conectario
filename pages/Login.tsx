@@ -16,18 +16,18 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Register User State
-  const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirmPassword, setRegConfirmPassword] = useState('');
-
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [categories, setCategories] = useState<AppCategory[]>([]);
   const [config, setConfig] = useState<AppConfig>(getAppConfig());
   
+  // Register User State
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+
   // Company Reg Form State
   const [regForm, setRegForm] = useState({
       companyName: '',
@@ -57,11 +57,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         const user = await login(email, password);
         if (user) {
             onLogin();
+        } else {
+            setError("Usuário não encontrado ou senha inválida.");
         }
     } catch (err: any) {
-        // Tratamento de erro 400 e outros do Firebase
-        const msg = err.message || 'Erro ao conectar. Tente novamente.';
-        setError(msg);
+        setError(err.message || 'Erro ao conectar. Verifique sua conexão.');
     } finally {
         setLoading(false);
     }
@@ -221,7 +221,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     <div className="flex-1 h-px bg-slate-100"></div>
                 </div>
 
-                {/* BOTÃO GOOGLE GRATUITO */}
                 <button 
                     type="button"
                     onClick={handleGoogleLogin}

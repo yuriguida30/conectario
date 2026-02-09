@@ -19,7 +19,8 @@ import { auth, db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, 
     CompanyRequest, AppCategory, DEFAULT_CATEGORIES, 
-    DEFAULT_AMENITIES, AppConfig, Collection, BusinessPlan
+    DEFAULT_AMENITIES, AppConfig, Collection, BusinessPlan,
+    FeaturedConfig
 } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
@@ -31,15 +32,26 @@ let _users: User[] = [];
 let _posts: BlogPost[] = [...MOCK_POSTS];
 let _categories: AppCategory[] = DEFAULT_CATEGORIES.map(name => ({ id: name.toLowerCase(), name }));
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
+
+// Internal state for collections and company requests
 let _collections: Collection[] = [
     {
         id: 'col1',
-        title: 'Melhores de Arraial',
-        description: 'Uma seleção dos lugares mais incríveis para visitar em Arraial do Cabo.',
-        coverImage: 'https://images.unsplash.com/photo-1590089415225-401cd6f9ad5d?auto=format&fit=crop&q=80&w=800',
-        businessIds: ['comp1', 'b1']
+        title: 'Os Melhores Cafés',
+        description: 'Uma seleção dos cafés mais charmosos do Rio.',
+        coverImage: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&q=80&w=800',
+        businessIds: ['andre_karamelo']
+    },
+    {
+        id: 'col2',
+        title: 'Noite Carioca',
+        description: 'Bares e restaurantes para curtir a noite no Rio.',
+        coverImage: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=800',
+        businessIds: []
     }
 ];
+
+let _companyRequests: CompanyRequest[] = [];
 
 const notifyListeners = () => {
     window.dispatchEvent(new Event('dataUpdated'));
@@ -67,25 +79,39 @@ const cleanObject = (obj: any) => {
     return newObj;
 };
 
+// --- CRITICAL: MERGE LOGIC ---
 export const initFirebaseData = async () => {
     console.log("🔄 Sincronizando com o Banco de Dados Firestore...");
     try {
+        // Busca Empresas
         const bizSnap = await getDocs(collection(db, 'businesses'));
         const fbBusinesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
         
+        // Busca Cupons
         const coupSnap = await getDocs(collection(db, 'coupons'));
         const fbCoupons = coupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
         
+        // Merge: Cloud data takes priority, but Mocks fill the gaps
+        const mergedBiz = [...fbBusinesses];
+        MOCK_BUSINESSES.forEach(mock => {
+            if (!mergedBiz.find(b => b.id === mock.id)) mergedBiz.push(mock);
+        });
+        _businesses = mergedBiz;
+
+        const mergedCoupons = [...fbCoupons];
+        MOCK_COUPONS.forEach(mock => {
+            if (!mergedCoupons.find(c => c.id === mock.id)) mergedCoupons.push(mock);
+        });
+        _coupons = mergedCoupons;
+
+        // Busca Usuários
         const userSnap = await getDocs(collection(db, 'users'));
         _users = userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
 
-        _businesses = fbBusinesses.length > 0 ? fbBusinesses : MOCK_BUSINESSES;
-        _coupons = fbCoupons.length > 0 ? fbCoupons : MOCK_COUPONS;
-        
         notifyListeners();
-        console.log("✅ Reflexão de dados concluída!");
+        console.log(`✅ Sincronizado: ${_businesses.length} empresas e ${_coupons.length} cupons carregados.`);
     } catch (error) {
-        console.warn("⚠️ Firestore Offline ou Erro - Usando fallbacks locais.");
+        console.warn("⚠️ Firestore Offline - Usando mocks locais.");
         _businesses = MOCK_BUSINESSES;
         _coupons = MOCK_COUPONS;
         notifyListeners();
@@ -99,7 +125,6 @@ export const login = async (email: string, password?: string): Promise<User | nu
     const pass = password || '123456';
 
     try {
-        // Tenta autenticação real no Firebase Auth
         const userCred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
         const firebaseUser = userCred.user;
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
@@ -112,32 +137,13 @@ export const login = async (email: string, password?: string): Promise<User | nu
         }
         return null;
     } catch (err: any) {
-        console.warn(`[Auth Fallback] Falha no Firebase Auth para ${cleanEmail}. Tentando Banco de Dados...`);
-        
         const mockUser = MOCK_USERS.find(u => u.email === cleanEmail);
         if (mockUser && pass === '123456') {
             localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
             notifyListeners();
             return mockUser;
         }
-
-        try {
-            const usersRef = collection(db, 'users');
-            const q = query(usersRef, where("email", "==", cleanEmail));
-            const querySnap = await getDocs(q);
-            
-            if (!querySnap.empty) {
-                const docData = querySnap.docs[0];
-                const userData = { id: docData.id, ...docData.data() } as User;
-                if (pass === '123456') {
-                    localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
-                    notifyListeners();
-                    return userData;
-                }
-            }
-        } catch (firestoreErr) {}
-
-        throw new Error("Credenciais inválidas. Use a senha 123456 se o reset foi realizado.");
+        throw new Error("Credenciais inválidas.");
     }
 };
 
@@ -150,29 +156,28 @@ export const logout = async () => {
 export const getBusinesses = () => _businesses;
 
 export const getCoupons = async () => {
+    // Tenta atualizar do cloud antes de retornar
     try {
         const snap = await getDocs(collection(db, 'coupons'));
-        const cloudCoupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
-        if (cloudCoupons.length > 0) {
-            _coupons = cloudCoupons;
-            return cloudCoupons;
-        }
+        const fbCoupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
+        const merged = [...fbCoupons];
+        MOCK_COUPONS.forEach(mock => {
+            if (!merged.find(c => c.id === mock.id)) merged.push(mock);
+        });
+        _coupons = merged;
     } catch {}
-    return _coupons.length > 0 ? _coupons : MOCK_COUPONS;
+    return _coupons;
 };
 
 export const getBusinessById = (id: string) => {
-    return _businesses.find(b => b.id === id) || MOCK_BUSINESSES.find(b => b.id === id);
+    return _businesses.find(b => b.id === id);
 };
 
 export const saveBusiness = async (b: BusinessProfile) => {
     try {
         const cleaned = cleanObject(b);
         await setDoc(doc(db, 'businesses', b.id), cleaned, { merge: true });
-        console.log(`✅ Empresa ${b.name} salva no Firestore.`);
-    } catch (e) { 
-        console.error("Erro ao salvar no Firestore:", e); 
-    }
+    } catch (e) {}
     
     const idx = _businesses.findIndex(biz => biz.id === b.id);
     if (idx !== -1) _businesses[idx] = b;
@@ -188,6 +193,9 @@ export const getCurrentUser = (): User | null => {
 
 export const getCategories = () => _categories;
 export const getAllUsers = () => _users;
+export const getBlogPosts = () => _posts;
+
+// Fix: Missing getBlogPostById function
 export const getBlogPostById = (id: string) => _posts.find(p => p.id === id);
 
 export const registerUser = async (name: string, email: string, password?: string) => { 
@@ -260,73 +268,8 @@ export const redeemCoupon = async (userId: string, coupon: Coupon) => {
     await initFirebaseData(); 
 };
 
-export const createCompanyRequest = async (r: any) => { 
-    const id = Math.random().toString(36).substring(2, 9);
-    const newReq = { ...r, id, status: 'PENDING', requestDate: new Date().toISOString() };
-    try { await setDoc(doc(db, 'requests', id), cleanObject(newReq)); } catch(e){}
-    notifyListeners();
-};
-
-export const sendSupportMessage = async (msg: string) => { 
-    console.log("Suporte acionado:", msg); 
-};
-
-export const getCompanyRequests = async () => {
-    try {
-        const snap = await getDocs(collection(db, 'requests'));
-        return snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
-    } catch {
-        return [];
-    }
-};
-
-export const approveCompanyRequest = async (id: string) => {
-    try {
-        const reqRef = doc(db, 'requests', id);
-        const reqSnap = await getDoc(reqRef);
-        
-        if (reqSnap.exists()) {
-            const req = reqSnap.data() as CompanyRequest;
-            await updateDoc(reqRef, { status: 'APPROVED' });
-            
-            const userId = `company_${id}`;
-            const newUser: User = {
-                id: userId,
-                name: req.ownerName,
-                email: req.email.toLowerCase(),
-                role: UserRole.COMPANY,
-                companyName: req.companyName,
-                category: req.category,
-                permissions: { canCreateCoupons: true, canManageBusiness: true }
-            };
-            await setDoc(doc(db, 'users', userId), cleanObject(newUser));
-
-            const newBiz: BusinessProfile = {
-                id: userId,
-                name: req.companyName,
-                category: req.category,
-                description: req.description || 'Bem-vindo ao nosso espaço!',
-                coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=1200',
-                gallery: [],
-                address: 'Rio de Janeiro, Brasil',
-                phone: req.phone,
-                whatsapp: req.whatsapp || req.phone,
-                amenities: [],
-                openingHours: { 'Seg-Sex': '09:00 - 18:00' },
-                rating: 5.0,
-                views: 0,
-                isOpenNow: true,
-                menu: []
-            };
-            await setDoc(doc(db, 'businesses', userId), cleanObject(newBiz));
-            await initFirebaseData();
-        }
-    } catch(e) {}
-};
-
 export const getAmenities = () => DEFAULT_AMENITIES;
 export const getAppConfig = () => _appConfig;
-export const getBlogPosts = () => _posts;
 export const getLocations = () => [
     { id: 'sepetiba', name: 'Sepetiba', active: true },
     { id: 'centro', name: 'Centro', active: true },
@@ -361,9 +304,6 @@ export const incrementBusinessView = async (id: string) => {
     } catch(e) {}
 };
 
-export const getCollections = () => _collections;
-export const getFeaturedConfig = () => null;
-export const identifyNeighborhood = (lat: number, lng: number) => "Rio de Janeiro";
 export const calculateDistance = (la1: number, lo1: number, la2: number, lo2: number) => {
     const R = 6371;
     const dLat = (la2 - la1) * Math.PI / 180;
@@ -375,4 +315,91 @@ export const calculateDistance = (la1: number, lo1: number, la2: number, lo2: nu
     return R * c;
 };
 
-export const getCollectionById = (id: string) => _collections.find(c => c.id === id) || null;
+// Fix: Missing getCollections function
+export const getCollections = () => _collections;
+
+// Fix: Missing getCollectionById function
+export const getCollectionById = (id: string) => _collections.find(c => c.id === id);
+
+// Fix: Missing getFeaturedConfig function
+export const getFeaturedConfig = (): FeaturedConfig => ({
+    title: "Destaque do Rio",
+    subtitle: "Aproveite o melhor da Cidade Maravilhosa com descontos exclusivos.",
+    imageUrl: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=1600",
+    buttonText: "Explorar Agora"
+});
+
+// Fix: Missing identifyNeighborhood function
+export const identifyNeighborhood = (lat: number, lng: number): string => {
+    if (lat < -23.0) return "Recreio / Barra";
+    if (lat < -22.95) return "Zona Sul";
+    if (lng < -43.3) return "Zona Oeste";
+    return "Rio de Janeiro";
+};
+
+// Fix: Missing sendSupportMessage function
+export const sendSupportMessage = async (msg: string) => {
+    console.log("Suporte acionado:", msg);
+};
+
+// Fix: Missing createCompanyRequest function
+export const createCompanyRequest = async (form: any) => {
+    const newReq: CompanyRequest = {
+        ...form,
+        id: Math.random().toString(36).substr(2, 9),
+        status: 'PENDING',
+        requestDate: new Date().toISOString()
+    };
+    _companyRequests.push(newReq);
+    try {
+        await setDoc(doc(db, 'companyRequests', newReq.id), cleanObject(newReq));
+    } catch(e) {}
+    notifyListeners();
+};
+
+// Fix: Missing getCompanyRequests function
+export const getCompanyRequests = async () => {
+    try {
+        const snap = await getDocs(collection(db, 'companyRequests'));
+        _companyRequests = snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
+    } catch(e) {}
+    return _companyRequests;
+};
+
+// Fix: Missing approveCompanyRequest function
+export const approveCompanyRequest = async (id: string) => {
+    const reqIdx = _companyRequests.findIndex(r => r.id === id);
+    if (reqIdx === -1) return;
+    
+    _companyRequests[reqIdx].status = 'APPROVED';
+    const req = _companyRequests[reqIdx];
+
+    const newBiz: BusinessProfile = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: req.companyName,
+        category: req.category,
+        description: req.description,
+        coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=1200',
+        gallery: [],
+        address: '',
+        phone: req.phone,
+        whatsapp: req.whatsapp,
+        instagram: req.instagram,
+        website: req.website,
+        amenities: [],
+        openingHours: { 'Seg-Sex': '09:00 - 18:00' },
+        rating: 5,
+        reviewCount: 0,
+        views: 0,
+        isOpenNow: true,
+        plan: BusinessPlan.FREE
+    };
+
+    await saveBusiness(newBiz);
+    
+    try {
+        await updateDoc(doc(db, 'companyRequests', id), { status: 'APPROVED' });
+    } catch(e) {}
+    
+    notifyListeners();
+};

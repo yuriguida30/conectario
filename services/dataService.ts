@@ -32,7 +32,6 @@ const SESSION_KEY = 'cr_session_v4';
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
-// Explicitly type collections to avoid 'never' inference
 let _collections: Collection[] = [
     {
         id: 'col1',
@@ -131,13 +130,20 @@ export const loginWithGoogle = async (): Promise<User | null> => {
 };
 
 export const login = async (email: string, pass: string): Promise<User | null> => {
-    const res = await signInWithEmailAndPassword(auth, email, pass);
-    const userDoc = await getDoc(doc(db, 'users', res.user.uid));
-    if (userDoc.exists()) {
-        const userData = { id: userDoc.id, ...userDoc.data() } as User;
-        localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
-        notifyListeners();
-        return userData;
+    try {
+        const res = await signInWithEmailAndPassword(auth, email, pass);
+        const userDoc = await getDoc(doc(db, 'users', res.user.uid));
+        if (userDoc.exists()) {
+            const userData = { id: userDoc.id, ...userDoc.data() } as User;
+            localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+            notifyListeners();
+            return userData;
+        }
+    } catch (e: any) {
+        if (e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
+            throw new Error("E-mail ou senha incorretos.");
+        }
+        throw e;
     }
     return null;
 };

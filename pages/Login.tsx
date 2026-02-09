@@ -59,7 +59,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             onLogin();
         }
     } catch (err: any) {
-        setError(err.message || 'Erro ao conectar. Tente novamente.');
+        // Tratamento de erro 400 e outros do Firebase
+        const msg = err.message || 'Erro ao conectar. Tente novamente.';
+        setError(msg);
     } finally {
         setLoading(false);
     }

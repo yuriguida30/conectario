@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES } from '../types';
+import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem } from '../types';
 import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, saveBusiness, getBusinessStats, getCategories } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
-  Settings, ChevronLeft, Save, 
+  Settings, ChevronLeft, Save, Trash2,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
-  Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check
+  Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -16,7 +16,7 @@ import { LocationPicker } from '../components/LocationPicker';
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -70,6 +70,30 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     }
   };
 
+  // Funções de Gestão de Cardápio
+  const handleAddMenuSection = () => {
+      const currentMenu = [...(editBusiness.menu || [])];
+      currentMenu.push({ title: 'Nova Categoria', items: [] });
+      setEditBusiness({ ...editBusiness, menu: currentMenu });
+  };
+
+  const handleAddMenuItem = (sectionIndex: number) => {
+      const currentMenu = [...(editBusiness.menu || [])];
+      currentMenu[sectionIndex].items.push({
+          id: `item_${Date.now()}`,
+          name: 'Novo Item',
+          price: 0,
+          description: ''
+      });
+      setEditBusiness({ ...editBusiness, menu: currentMenu });
+  };
+
+  const handleDeleteMenuItem = (sectionIndex: number, itemIndex: number) => {
+      const currentMenu = [...(editBusiness.menu || [])];
+      currentMenu[sectionIndex].items.splice(itemIndex, 1);
+      setEditBusiness({ ...editBusiness, menu: currentMenu });
+  };
+
   if (loading && !stats) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-ocean-600" size={48} /></div>;
 
   const renderName = () => {
@@ -93,12 +117,18 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   <p className="text-[10px] text-ocean-600 font-black uppercase tracking-widest mt-1">Painel Administrativo Parceiro</p>
               </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3 justify-center">
+              <button 
+                onClick={() => setView('MENU')} 
+                className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'MENU' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+              >
+                <Utensils size={18} /> CARDÁPIO
+              </button>
               <button 
                 onClick={() => setView(view === 'PROFILE' ? 'HOME' : 'PROFILE')} 
                 className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'PROFILE' ? 'bg-slate-200 text-slate-700' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
               >
-                <Settings size={18} /> {view === 'PROFILE' ? 'VOLTAR' : 'EDITAR PERFIL'}
+                <Settings size={18} /> {view === 'PROFILE' ? 'VOLTAR' : 'CONFIGURAR PERFIL'}
               </button>
               <button onClick={() => setView('CREATE_COUPON')} className="bg-ocean-600 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-ocean-600/20 active:scale-95 transition-all">
                 + NOVO CUPOM
@@ -215,6 +245,208 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
           </div>
       )}
 
+      {view === 'PROFILE' && (
+          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-12">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                    <ChevronLeft size={16} /> Voltar ao Painel
+                  </button>
+                  <button form="profile-form" type="submit" disabled={isSaving} className="bg-green-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 hover:bg-green-700 transition-all">
+                      {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />} SALVAR CONFIGURAÇÕES
+                  </button>
+              </div>
+
+              <form id="profile-form" onSubmit={handleUpdateProfile} className="space-y-12">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                      {/* LADO ESQUERDO: VISUAL E LOCALIZAÇÃO */}
+                      <div className="space-y-8">
+                          <ImageUpload 
+                            label="Imagem de Capa (Ideal: 1200x600px)" 
+                            currentImage={editBusiness.coverImage} 
+                            onImageSelect={img => setEditBusiness({...editBusiness, coverImage: img})} 
+                          />
+                          
+                          <div className="space-y-4">
+                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Localização Exata no Mapa</label>
+                              <div className="h-72">
+                                <LocationPicker 
+                                    initialLat={editBusiness.lat} 
+                                    initialLng={editBusiness.lng} 
+                                    onLocationSelect={(lat, lng) => setEditBusiness({...editBusiness, lat, lng})} 
+                                />
+                              </div>
+                              <input 
+                                required 
+                                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold" 
+                                placeholder="Endereço Completo para o GPS" 
+                                value={editBusiness.address} 
+                                onChange={e => setEditBusiness({...editBusiness, address: e.target.value})} 
+                              />
+                          </div>
+                      </div>
+
+                      {/* LADO DIREITO: TEXTOS E LINKS ESTRATÉGICOS */}
+                      <div className="space-y-6">
+                          <div>
+                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Nome da Empresa</label>
+                              <input required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-lg" value={editBusiness.name} onChange={e => setEditBusiness({...editBusiness, name: e.target.value})} />
+                          </div>
+
+                          <div>
+                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Descrição / História da Empresa</label>
+                              <textarea className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 leading-relaxed" rows={4} value={editBusiness.description} onChange={e => setEditBusiness({...editBusiness, description: e.target.value})} />
+                          </div>
+
+                          {/* LINKS ESTRATÉGICOS (PEDIDO DO USUÁRIO) */}
+                          <div className="space-y-4 pt-6 border-t border-slate-100">
+                              <h3 className="font-black text-ocean-950 text-sm flex items-center gap-2">
+                                <Globe size={18} className="text-ocean-600" /> Links de Conversão (Opcionais)
+                              </h3>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Site Oficial</label>
+                                      <div className="relative">
+                                          <Globe size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-ocean-500" />
+                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="https://seusite.com.br" value={editBusiness.website} onChange={e => setEditBusiness({...editBusiness, website: e.target.value})} />
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Link de Delivery (iFood/App)</label>
+                                      <div className="relative">
+                                          <ShoppingCart size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" />
+                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="Link do seu delivery" value={editBusiness.deliveryUrl} onChange={e => setEditBusiness({...editBusiness, deliveryUrl: e.target.value})} />
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Link de Reservas (GetIn/App)</label>
+                                      <div className="relative">
+                                          <CalendarDays size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-500" />
+                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="Link de agendamento" value={editBusiness.bookingUrl} onChange={e => setEditBusiness({...editBusiness, bookingUrl: e.target.value})} />
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Perfil do Instagram</label>
+                                      <div className="relative">
+                                          <Instagram size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-500" />
+                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="@seuperfil" value={editBusiness.instagram} onChange={e => setEditBusiness({...editBusiness, instagram: e.target.value})} />
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+
+                          {/* HORÁRIOS DE FUNCIONAMENTO */}
+                          <div className="space-y-4 pt-6 border-t border-slate-100">
+                             <h3 className="font-black text-ocean-950 text-sm flex items-center gap-2">
+                                <Clock size={18} className="text-ocean-600" /> Horários de Funcionamento
+                             </h3>
+                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {Object.keys(editBusiness.openingHours || {}).map(day => (
+                                    <div key={day} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                        <span className="text-xs font-black text-slate-400 w-16 uppercase">{day}:</span>
+                                        <input 
+                                            className="bg-transparent text-xs font-bold text-ocean-950 focus:outline-none flex-1"
+                                            value={editBusiness.openingHours?.[day]}
+                                            onChange={e => {
+                                                const newHours = { ...editBusiness.openingHours, [day]: e.target.value };
+                                                setEditBusiness({ ...editBusiness, openingHours: newHours });
+                                            }}
+                                        />
+                                    </div>
+                                ))}
+                             </div>
+                          </div>
+                      </div>
+                  </div>
+              </form>
+          </div>
+      )}
+
+      {view === 'MENU' && (
+          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+              <div className="flex justify-between items-center">
+                  <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                    <ChevronLeft size={16} /> Voltar
+                  </button>
+                  <button onClick={handleUpdateProfile} disabled={isSaving} className="bg-ocean-600 text-white px-8 py-4 rounded-2xl font-black flex items-center gap-2">
+                      {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />} SALVAR CARDÁPIO
+                  </button>
+              </div>
+
+              <div className="space-y-10">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-3xl font-black text-ocean-950">Gestão de Cardápio</h2>
+                    <button onClick={handleAddMenuSection} className="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2">
+                        <Plus size={16} /> NOVA SEÇÃO
+                    </button>
+                  </div>
+
+                  {editBusiness.menu?.map((section, sIdx) => (
+                      <div key={sIdx} className="space-y-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                          <div className="flex justify-between items-center">
+                              <input 
+                                className="bg-transparent text-xl font-black text-ocean-950 focus:outline-none border-b-2 border-transparent focus:border-ocean-300 w-full"
+                                value={section.title}
+                                onChange={e => {
+                                    const newMenu = [...(editBusiness.menu || [])];
+                                    newMenu[sIdx].title = e.target.value;
+                                    setEditBusiness({ ...editBusiness, menu: newMenu });
+                                }}
+                              />
+                              <button onClick={() => handleAddMenuItem(sIdx)} className="bg-ocean-100 text-ocean-600 p-2 rounded-lg ml-4">
+                                  <Plus size={20} />
+                              </button>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {section.items.map((item, iIdx) => (
+                                  <div key={item.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex gap-4">
+                                      <div className="flex-1 space-y-2">
+                                          <div className="flex justify-between">
+                                            <input 
+                                                className="font-bold text-sm text-ocean-950 bg-transparent focus:outline-none w-full"
+                                                value={item.name}
+                                                onChange={e => {
+                                                    const newMenu = [...(editBusiness.menu || [])];
+                                                    newMenu[sIdx].items[iIdx].name = e.target.value;
+                                                    setEditBusiness({ ...editBusiness, menu: newMenu });
+                                                }}
+                                            />
+                                            <input 
+                                                type="number"
+                                                className="font-black text-green-600 bg-transparent focus:outline-none text-right w-20"
+                                                value={item.price}
+                                                onChange={e => {
+                                                    const newMenu = [...(editBusiness.menu || [])];
+                                                    newMenu[sIdx].items[iIdx].price = Number(e.target.value);
+                                                    setEditBusiness({ ...editBusiness, menu: newMenu });
+                                                }}
+                                            />
+                                          </div>
+                                          <input 
+                                            className="text-xs text-slate-400 bg-transparent focus:outline-none w-full"
+                                            placeholder="Descrição curta..."
+                                            value={item.description}
+                                            onChange={e => {
+                                                const newMenu = [...(editBusiness.menu || [])];
+                                                newMenu[sIdx].items[iIdx].description = e.target.value;
+                                                setEditBusiness({ ...editBusiness, menu: newMenu });
+                                            }}
+                                          />
+                                      </div>
+                                      <button onClick={() => handleDeleteMenuItem(sIdx, iIdx)} className="text-red-300 hover:text-red-500">
+                                          <Trash2 size={16} />
+                                      </button>
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
+
+      {/* Restante do Dashboard (Cupons, etc) permanece igual... */}
       {view === 'CREATE_COUPON' && (
           <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6">
               <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase mb-8">
@@ -236,127 +468,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   <button type="submit" disabled={isSaving} className="w-full bg-ocean-600 text-white font-black py-6 rounded-2xl shadow-xl flex items-center justify-center gap-3">
                       {isSaving ? <Loader2 className="animate-spin" /> : <Save size={24} />} PUBLICAR NO GUIA
                   </button>
-              </form>
-          </div>
-      )}
-
-      {view === 'PROFILE' && (
-          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-12">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div>
-                      <h2 className="text-3xl font-black text-ocean-950">Editar Perfil da Empresa</h2>
-                      <p className="text-slate-500 font-medium">Mantenha seus dados atualizados para atrair mais clientes.</p>
-                  </div>
-                  <button form="profile-form" type="submit" disabled={isSaving} className="bg-green-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 hover:bg-green-700 transition-all">
-                      {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />} SALVAR ALTERAÇÕES
-                  </button>
-              </div>
-
-              <form id="profile-form" onSubmit={handleUpdateProfile} className="space-y-12">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                      {/* LADO ESQUERDO: VISUAL E LOCALIZAÇÃO */}
-                      <div className="space-y-8">
-                          <ImageUpload 
-                            label="Imagem de Capa (1200x600 recomendado)" 
-                            currentImage={editBusiness.coverImage} 
-                            onImageSelect={img => setEditBusiness({...editBusiness, coverImage: img})} 
-                          />
-                          
-                          <div className="space-y-4">
-                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Localização Exata</label>
-                              <div className="h-72">
-                                <LocationPicker 
-                                    initialLat={editBusiness.lat} 
-                                    initialLng={editBusiness.lng} 
-                                    onLocationSelect={(lat, lng) => setEditBusiness({...editBusiness, lat, lng})} 
-                                />
-                              </div>
-                              <input 
-                                required 
-                                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold" 
-                                placeholder="Endereço Completo" 
-                                value={editBusiness.address} 
-                                onChange={e => setEditBusiness({...editBusiness, address: e.target.value})} 
-                              />
-                          </div>
-                      </div>
-
-                      {/* LADO DIREITO: TEXTOS E LINKS */}
-                      <div className="space-y-6">
-                          <div>
-                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Nome Comercial</label>
-                              <input required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-lg" value={editBusiness.name} onChange={e => setEditBusiness({...editBusiness, name: e.target.value})} />
-                          </div>
-
-                          <div>
-                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Descrição / Bio</label>
-                              <textarea className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 leading-relaxed" rows={4} value={editBusiness.description} onChange={e => setEditBusiness({...editBusiness, description: e.target.value})} />
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Categoria</label>
-                                  <select className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold" value={editBusiness.category} onChange={e => setEditBusiness({...editBusiness, category: e.target.value})}>
-                                      {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                                  </select>
-                              </div>
-                              <div>
-                                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Telefone Público</label>
-                                  <input className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold" value={editBusiness.phone} onChange={e => setEditBusiness({...editBusiness, phone: e.target.value})} />
-                              </div>
-                          </div>
-
-                          {/* LINKS EXTERNOS */}
-                          <div className="space-y-4 pt-4 border-t border-slate-100">
-                              <h3 className="font-black text-ocean-950 text-sm flex items-center gap-2">
-                                <Globe size={18} className="text-ocean-600" /> Canais Digitais
-                              </h3>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="relative">
-                                      <Instagram size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-500" />
-                                      <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="@instagram" value={editBusiness.instagram} onChange={e => setEditBusiness({...editBusiness, instagram: e.target.value})} />
-                                  </div>
-                                  <div className="relative">
-                                      <Globe size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-ocean-500" />
-                                      <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="www.seusite.com.br" value={editBusiness.website} onChange={e => setEditBusiness({...editBusiness, website: e.target.value})} />
-                                  </div>
-                                  <div className="relative">
-                                      <ShoppingCart size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-green-500" />
-                                      <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="Link de Delivery (Opcional)" value={editBusiness.deliveryUrl} onChange={e => setEditBusiness({...editBusiness, deliveryUrl: e.target.value})} />
-                                  </div>
-                                  <div className="relative">
-                                      <CalendarDays size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-500" />
-                                      <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="Link de Reservas (Opcional)" value={editBusiness.bookingUrl} onChange={e => setEditBusiness({...editBusiness, bookingUrl: e.target.value})} />
-                                  </div>
-                              </div>
-                          </div>
-
-                          {/* AMENITIES */}
-                          <div className="space-y-4 pt-4 border-t border-slate-100">
-                             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Comodidades</label>
-                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                {DEFAULT_AMENITIES.map(am => (
-                                    <button 
-                                        key={am.id}
-                                        type="button"
-                                        onClick={() => {
-                                            const current = editBusiness.amenities || [];
-                                            const next = current.includes(am.id) ? current.filter(x => x !== am.id) : [...current, am.id];
-                                            setEditBusiness({...editBusiness, amenities: next});
-                                        }}
-                                        className={`p-3 rounded-xl border text-[10px] font-black uppercase flex items-center gap-2 transition-all ${editBusiness.amenities?.includes(am.id) ? 'bg-ocean-600 border-ocean-600 text-white' : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-ocean-300'}`}
-                                    >
-                                        <div className={`w-4 h-4 rounded-full flex items-center justify-center ${editBusiness.amenities?.includes(am.id) ? 'bg-white text-ocean-600' : 'bg-slate-200 text-slate-400'}`}>
-                                            {editBusiness.amenities?.includes(am.id) && <Check size={12} strokeWidth={4} />}
-                                        </div>
-                                        {am.label}
-                                    </button>
-                                ))}
-                             </div>
-                          </div>
-                      </div>
-                  </div>
               </form>
           </div>
       )}

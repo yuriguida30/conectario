@@ -6,6 +6,11 @@ export enum UserRole {
   CONTENT_CREATOR = 'CONTENT_CREATOR',
 }
 
+export enum BusinessPlan {
+  FREE = 'FREE',
+  PREMIUM = 'PREMIUM'
+}
+
 export interface UserPermissions {
   canCreateCoupons: boolean;
   canManageBusiness: boolean;
@@ -25,6 +30,7 @@ export interface User {
   category?: string;
   phone?: string;
   maxCoupons?: number;
+  plan?: BusinessPlan;
   permissions?: UserPermissions;
   isBlocked?: boolean;
   profession?: string;
@@ -62,13 +68,8 @@ export interface BusinessProfile {
   lat?: number;
   lng?: number;
   views?: number;
-  socialClicks?: {
-      whatsapp?: number;
-      instagram?: number;
-      website?: number;
-      phone?: number;
-      map?: number;
-  };
+  isClaimed?: boolean;
+  plan?: BusinessPlan;
 }
 
 export interface CompanyRequest {
@@ -83,7 +84,7 @@ export interface CompanyRequest {
   document: string;
   category: string;
   description: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CLAIM';
   requestDate: string;
 }
 
@@ -148,16 +149,6 @@ export interface AppConfig {
     faviconUrl?: string;
 }
 
-export interface SupportMessage {
-    id: string;
-    userId: string;
-    userName: string;
-    userEmail: string;
-    message: string;
-    date: string;
-    status: 'OPEN' | 'RESOLVED';
-}
-
 export interface MenuItem {
   id: string;
   name: string;
@@ -181,7 +172,6 @@ export interface Review {
   date: string;
 }
 
-// Added missing BlogPost interface
 export interface BlogPost {
   id: string;
   title: string;
@@ -194,7 +184,6 @@ export interface BlogPost {
   authorId?: string;
 }
 
-// Added missing Collection interface
 export interface Collection {
   id: string;
   title: string;
@@ -203,19 +192,17 @@ export interface Collection {
   businessIds: string[];
 }
 
-// Added missing FeaturedConfig interface
+// Added FeaturedConfig interface to fix error in Home.tsx
 export interface FeaturedConfig {
   title: string;
   subtitle: string;
   imageUrl: string;
   buttonText: string;
-  link?: string;
 }
 
 export const PROTECTED_CATEGORIES = ['Gastronomia', 'Hospedagem', 'Comércio', 'Serviços'];
 export const DEFAULT_CATEGORIES = [...PROTECTED_CATEGORIES, 'Passeios', 'Entretenimento'];
 
-// Added AMENITIES_LABELS mapping
 export const AMENITIES_LABELS: { [key: string]: string } = {
     wifi: 'Wi-Fi Grátis',
     ac: 'Ar Condicionado',

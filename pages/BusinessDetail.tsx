@@ -2,12 +2,12 @@
 import React, { useEffect, useState } from 'react';
 import { 
   ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, 
-  MessageCircle, Map, Share2, Loader2, Ticket, 
-  ChevronRight, Star, Heart, Utensils, Info, 
-  CheckCircle2, Camera, ExternalLink, Navigation
+  MessageCircle, Share2, Loader2, Ticket, 
+  Star, Heart, Utensils, Info, 
+  CheckCircle2, Camera, Navigation, ShieldCheck, Lock
 } from 'lucide-react';
-import { BusinessProfile, AMENITIES_LABELS, Coupon, User } from '../types';
-import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon } from '../services/dataService';
+import { BusinessProfile, AMENITIES_LABELS, Coupon, User, BusinessPlan } from '../types';
+import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, createCompanyRequest } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 
@@ -18,6 +18,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isFav, setIsFav] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isClaiming, setIsClaiming] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -35,6 +36,23 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
     };
     loadData();
   }, [businessId]);
+
+  const handleClaim = async () => {
+      if(!currentUser) return onNavigate('login');
+      setIsClaiming(true);
+      // Cria uma requisição do tipo CLAIM
+      await createCompanyRequest({
+          companyName: business?.name,
+          ownerName: currentUser.name,
+          email: currentUser.email,
+          phone: currentUser.phone || '',
+          status: 'PENDING',
+          type: 'CLAIM',
+          businessId: businessId
+      });
+      alert("Solicitação de reivindicação enviada! Nossa equipe entrará em contato.");
+      setIsClaiming(false);
+  };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -55,9 +73,11 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
   if (loading) return <div className="p-10 text-center flex items-center justify-center h-screen"><Loader2 className="animate-spin text-ocean-500" size={40}/></div>;
   if (!business) return <div className="p-10 text-center">Empresa não encontrada.</div>;
 
+  const isPremium = business.plan === BusinessPlan.PREMIUM;
+
   return (
     <div className="bg-white min-h-screen pb-32">
-        {/* HERO SECTION - REFINED */}
+        {/* HERO SECTION */}
         <div className="relative h-[45vh] w-full overflow-hidden bg-slate-900">
             <img src={business.coverImage} className="w-full h-full object-cover opacity-90" alt={business.name} />
             <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-black/20" />
@@ -91,33 +111,32 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             </div>
         </div>
 
-        {/* ACTION BAR - PREMIUM ICONS STYLE */}
+        {/* CLAIM BANNER - DISCRETO */}
+        {!business.isClaimed && (
+            <div className="bg-gold-50 border-b border-gold-100 py-3 px-6 text-center">
+                <button 
+                    onClick={handleClaim}
+                    disabled={isClaiming}
+                    className="text-xs font-bold text-gold-700 flex items-center justify-center gap-2 mx-auto hover:underline"
+                >
+                    <ShieldCheck size={14} /> {isClaiming ? 'Enviando...' : 'É o dono deste estabelecimento? Reivindique aqui'}
+                </button>
+            </div>
+        )}
+
+        {/* ACTION BAR */}
         <div className="px-6 -mt-4 relative z-20 max-w-6xl mx-auto">
             <div className="bg-white/80 backdrop-blur-2xl rounded-[2.5rem] shadow-2xl shadow-ocean-900/10 border border-white p-4 flex justify-around items-center">
-                {business.whatsapp && (
-                    <a href={`https://wa.me/${business.whatsapp}`} target="_blank" className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-green-500/30 group-hover:scale-110 transition-transform">
-                            <MessageCircle size={28} />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">WhatsApp</span>
-                    </a>
-                )}
-                {business.instagram && (
-                    <a href={`https://instagram.com/${business.instagram.replace('@','')}`} target="_blank" className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 bg-gradient-to-tr from-purple-600 via-pink-500 to-orange-400 rounded-full flex items-center justify-center text-white shadow-lg shadow-pink-500/30 group-hover:scale-110 transition-transform">
-                            <Instagram size={28} />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Instagram</span>
-                    </a>
-                )}
-                {business.phone && (
-                    <a href={`tel:${business.phone}`} className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
-                            <Phone size={28} />
-                        </div>
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Ligar</span>
-                    </a>
-                )}
+                <button 
+                  onClick={() => window.open(`tel:${business.phone}`)}
+                  className="flex flex-col items-center gap-2 group"
+                >
+                    <div className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                        <Phone size={28} />
+                    </div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Ligar</span>
+                </button>
+
                 <button 
                   onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`)}
                   className="flex flex-col items-center gap-2 group"
@@ -127,14 +146,43 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                     </div>
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Como Chegar</span>
                 </button>
+
+                {/* BOTÕES PREMIUM BLOQUEADOS NO FREE */}
+                {isPremium ? (
+                    <>
+                        {business.whatsapp && (
+                            <a href={`https://wa.me/${business.whatsapp}`} target="_blank" className="flex flex-col items-center gap-2 group">
+                                <div className="w-14 h-14 bg-green-500 rounded-full flex items-center justify-center text-white shadow-lg shadow-green-500/30 group-hover:scale-110 transition-transform">
+                                    <MessageCircle size={28} />
+                                </div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">WhatsApp</span>
+                            </a>
+                        )}
+                        {business.instagram && (
+                            <a href={`https://instagram.com/${business.instagram.replace('@','')}`} target="_blank" className="flex flex-col items-center gap-2 group">
+                                <div className="w-14 h-14 bg-gradient-to-tr from-purple-600 via-pink-500 to-orange-400 rounded-full flex items-center justify-center text-white shadow-lg shadow-pink-500/30 group-hover:scale-110 transition-transform">
+                                    <Instagram size={28} />
+                                </div>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Instagram</span>
+                            </a>
+                        )}
+                    </>
+                ) : (
+                    <div className="flex flex-col items-center gap-2 opacity-30 grayscale cursor-not-allowed">
+                        <div className="w-14 h-14 bg-slate-200 rounded-full flex items-center justify-center text-slate-400">
+                            <Lock size={20} />
+                        </div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Social</span>
+                    </div>
+                )}
             </div>
         </div>
 
         {/* CONTENT SECTIONS */}
         <div className="max-w-6xl mx-auto px-6 py-10 space-y-12">
             
-            {/* 1. GALERIA DE FOTOS */}
-            {business.gallery && business.gallery.length > 0 && (
+            {/* GALERIA - APENAS PREMIUM */}
+            {isPremium && business.gallery && business.gallery.length > 0 && (
                 <div className="space-y-4">
                     <h3 className="text-2xl font-black text-ocean-950 flex items-center gap-2">
                         <Camera size={24} className="text-ocean-600" /> Galeria do Local
@@ -149,8 +197,8 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                 </div>
             )}
 
-            {/* 2. CARDÁPIO E SERVIÇOS */}
-            {business.menu && business.menu.length > 0 && (
+            {/* CARDÁPIO - APENAS PREMIUM */}
+            {isPremium && business.menu && business.menu.length > 0 && (
                 <div className="space-y-6">
                     <h3 className="text-2xl font-black text-ocean-950 flex items-center gap-2">
                         <Utensils size={24} className="text-ocean-600" /> Cardápio & Preços
@@ -183,7 +231,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                 </div>
             )}
 
-            {/* 3. INFO & HORÁRIOS */}
+            {/* INFO & HORÁRIOS - DISPONÍVEL PARA TODOS */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="bg-slate-50 p-8 rounded-[2.5rem]">
                     <h3 className="text-xl font-black text-ocean-950 mb-6 flex items-center gap-2">
@@ -214,7 +262,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                 </div>
             </div>
 
-            {/* 4. CUPONS */}
+            {/* CUPONS */}
             {coupons.length > 0 && (
                 <div className="pt-10">
                     <h3 className="text-2xl font-black text-ocean-950 mb-8 flex items-center gap-2">

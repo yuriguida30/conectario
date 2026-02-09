@@ -48,7 +48,6 @@ const parseUrl = (): { page: string; params: any } => {
   }
 };
 
-// Função para construir a URL baseada na página e params
 const buildUrl = (page: string, params?: any): string => {
   switch (page) {
     case 'home': return '/';
@@ -132,32 +131,23 @@ export default function App() {
       setConfigVersion(v => v + 1);
   };
 
-  // NAVEGAÇÃO CENTRAL: Atualiza o Histórico do Navegador
   const handleNavigate = (newPage: string, params?: any) => {
-      // Se for a mesma página, não faz nada
       if (page === newPage && JSON.stringify(params) === JSON.stringify(pageParams)) return;
-
       const url = buildUrl(newPage, params);
-      
-      // Push State: Adiciona nova entrada no histórico (faz o botão voltar funcionar)
       window.history.pushState({}, '', url);
-      
       setPage(newPage);
       if (params) setPageParams(params);
-      
       window.scrollTo(0, 0);
   };
 
   const handleLoginSuccess = async () => {
     const u = getCurrentUser();
     setUser(u);
-    
     if (u?.role === UserRole.COMPANY) {
       handleNavigate('admin-dashboard');
     } else if (u?.role === UserRole.SUPER_ADMIN) {
       handleNavigate('super-admin-dashboard');
     } else {
-      // Se estava tentando acessar algo protegido, poderia voltar pra lá, mas por padrão vai pra Home
       handleNavigate('home');
     }
   };
@@ -191,13 +181,11 @@ export default function App() {
       case 'collection-detail':
         return <CollectionDetail collectionId={pageParams?.collectionId} onNavigate={handleNavigate} />;
       case 'user-dashboard':
-        return user ? <UserDashboard currentUser={user} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} />;
+        return user ? <UserDashboard currentUser={user} onLogout={handleLogout} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} />;
       case 'admin-dashboard':
         return user && user.role === UserRole.COMPANY ? <AdminDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} />;
       case 'super-admin-dashboard':
         return user && user.role === UserRole.SUPER_ADMIN ? <SuperAdminDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} />;
-      case 'create-coupon': 
-        return user && user.role === UserRole.COMPANY ? <AdminDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} />;
       case 'login':
         return <Login onLogin={handleLoginSuccess} />;
       case 'map': 

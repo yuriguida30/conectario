@@ -5,24 +5,21 @@ import {
     getDoc, 
     setDoc, 
     doc, 
-    addDoc, 
     updateDoc, 
     query, 
     where, 
-    increment,
-    serverTimestamp 
+    increment 
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, 
-    CompanyRequest, AppCategory, AppLocation, AppAmenity, 
-    DEFAULT_CATEGORIES, DEFAULT_AMENITIES, AppConfig, Collection
+    CompanyRequest, AppCategory, DEFAULT_CATEGORIES, 
+    DEFAULT_AMENITIES, AppConfig, Collection
 } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
 const SESSION_KEY = 'cr_session_v2';
 
-// Cache em memória para performance, mas sincronizado com o Firebase
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
@@ -31,51 +28,49 @@ let _collections: Collection[] = [];
 let _categories: AppCategory[] = DEFAULT_CATEGORIES.map(name => ({ id: name.toLowerCase(), name }));
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
 
+// Helper para remover campos undefined que quebram o Firestore
+const cleanObject = (obj: any) => {
+    const newObj = { ...obj };
+    Object.keys(newObj).forEach(key => {
+        if (newObj[key] === undefined) {
+            delete newObj[key];
+        }
+    });
+    return newObj;
+};
+
 const notifyListeners = () => {
     window.dispatchEvent(new Event('dataUpdated'));
     window.dispatchEvent(new Event('appConfigUpdated'));
 };
 
-// --- INICIALIZAÇÃO E SINCRONIZAÇÃO ---
-
 export const initFirebaseData = async () => {
     try {
-        // Carrega Empresas
         const bizSnap = await getDocs(collection(db, 'businesses'));
         _businesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
         
-        // Carrega Cupons
         const coupSnap = await getDocs(collection(db, 'coupons'));
         _coupons = coupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
         
-        // Carrega Usuários
         const userSnap = await getDocs(collection(db, 'users'));
         _users = userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
 
-        // Se o banco estiver vazio (primeiro acesso), podemos carregar os Mocks opcionalmente
         if (_businesses.length === 0) _businesses = MOCK_BUSINESSES;
         if (_coupons.length === 0) _coupons = MOCK_COUPONS;
         
         notifyListeners();
-        console.log("✅ Firebase sincronizado com sucesso!");
     } catch (error) {
         console.error("❌ Erro ao inicializar Firebase:", error);
     }
 };
 
-// Chama a inicialização imediatamente
 initFirebaseData();
-
-// --- FUNÇÕES DE BUSCA ---
 
 export const getCategories = () => _categories;
 export const getBusinesses = () => _businesses;
-
-// Added missing getAllUsers export to fix errors in Blog and BlogDetail pages
 export const getAllUsers = () => _users;
 
 export const getCoupons = async () => {
-    // Forçamos um refresh rápido para garantir que novos cupons apareçam
     const snap = await getDocs(collection(db, 'coupons'));
     _coupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
     return _coupons;
@@ -83,8 +78,6 @@ export const getCoupons = async () => {
 
 export const getBusinessById = (id: string) => _businesses.find(b => b.id === id);
 export const getBlogPostById = (id: string) => _posts.find(p => p.id === id);
-
-// --- AUTENTICAÇÃO E SESSÃO ---
 
 export const getCurrentUser = (): User | null => {
     const stored = localStorage.getItem(SESSION_KEY);
@@ -94,20 +87,17 @@ export const getCurrentUser = (): User | null => {
 export const login = async (email: string, password?: string): Promise<User | null> => {
     const cleanEmail = email.toLowerCase().trim();
     
-    // Login especial para Admin Master
     if (cleanEmail === 'admin@conectario.com' && password === '123456') {
         const admin = _users.find(u => u.role === UserRole.SUPER_ADMIN) || MOCK_USERS[0];
         localStorage.setItem(SESSION_KEY, JSON.stringify(admin));
         return admin;
     }
 
-    // Busca no Firestore
     const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
     const snap = await getDocs(q);
     
     if (!snap.empty) {
         const userData = { id: snap.docs[0].id, ...snap.docs[0].data() } as User;
-        // Senha padrão para demo 123456
         if (password === '123456') {
             localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
             notifyListeners();
@@ -133,16 +123,15 @@ export const registerUser = async (name: string, email: string, password?: strin
         favorites: { coupons: [], businesses: [] }
     };
     
-    await setDoc(doc(db, 'users', newUser.id), newUser);
+    await setDoc(doc(db, 'users', newUser.id), cleanObject(newUser));
     localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
     notifyListeners();
     return newUser;
 };
 
-// --- GESTÃO DE DADOS (ESCRITA NO FIREBASE) ---
-
 export const saveBusiness = async (b: BusinessProfile) => {
-    await setDoc(doc(db, 'businesses', b.id), b);
+    const cleaned = cleanObject(b);
+    await setDoc(doc(db, 'businesses', b.id), cleaned);
     const idx = _businesses.findIndex(biz => biz.id === b.id);
     if (idx !== -1) _businesses[idx] = b;
     else _businesses.push(b);
@@ -150,7 +139,8 @@ export const saveBusiness = async (b: BusinessProfile) => {
 };
 
 export const saveCoupon = async (c: Coupon) => {
-    await setDoc(doc(db, 'coupons', c.id), c);
+    const cleaned = cleanObject(c);
+    await setDoc(doc(db, 'coupons', c.id), cleaned);
     const idx = _coupons.findIndex(cp => cp.id === c.id);
     if (idx !== -1) _coupons[idx] = c;
     else _coupons.push(c);
@@ -158,7 +148,6 @@ export const saveCoupon = async (c: Coupon) => {
 };
 
 export const deleteCoupon = async (id: string) => {
-    // Nota: Para deletar no Firebase use deleteDoc, aqui marcamos como inativo para segurança
     const couponRef = doc(db, 'coupons', id);
     await updateDoc(couponRef, { active: false });
     _coupons = _coupons.filter(c => c.id !== id);
@@ -166,8 +155,15 @@ export const deleteCoupon = async (id: string) => {
 };
 
 export const updateUser = async (u: User) => {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(u));
-    await setDoc(doc(db, 'users', u.id), u);
+    const loggedUser = getCurrentUser();
+    // CRÍTICO: Só atualiza o localStorage se estivermos editando o PRÓPRIO perfil
+    if (loggedUser && loggedUser.id === u.id) {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+    }
+    
+    const cleaned = cleanObject(u);
+    await setDoc(doc(db, 'users', u.id), cleaned);
+    
     const idx = _users.findIndex(user => user.id === u.id);
     if (idx !== -1) _users[idx] = u;
     notifyListeners();
@@ -183,23 +179,21 @@ export const redeemCoupon = async (userId: string, coupon: Coupon) => {
     const userRef = doc(db, 'users', userId);
     await updateDoc(userRef, {
         savedAmount: increment(amount),
-        // Nota: No Firebase real usaríamos arrayUnion, aqui sobrescrevemos para simplificar a demo
         history: [...(user.history || []), historyItem]
     });
 
-    // Atualiza contagem do cupom - FIXED: Removed extra doc() call
     const couponRef = doc(db, 'coupons', coupon.id);
     await updateDoc(couponRef, {
         currentRedemptions: increment(1)
     });
 
-    await initFirebaseData(); // Refresh total
+    await initFirebaseData(); 
 };
 
 export const createCompanyRequest = async (req: any) => {
     const id = Math.random().toString(36).substring(2, 9);
     const newReq = { ...req, id, status: 'PENDING', requestDate: new Date().toISOString() };
-    await setDoc(doc(db, 'requests', id), newReq);
+    await setDoc(doc(db, 'requests', id), cleanObject(newReq));
     notifyListeners();
 };
 
@@ -226,7 +220,7 @@ export const approveCompanyRequest = async (id: string) => {
             category: req.category,
             permissions: { canCreateCoupons: true, canManageBusiness: true }
         };
-        await setDoc(doc(db, 'users', userId), newUser);
+        await setDoc(doc(db, 'users', userId), cleanObject(newUser));
 
         const newBiz: BusinessProfile = {
             id: userId,
@@ -244,13 +238,12 @@ export const approveCompanyRequest = async (id: string) => {
             views: 0,
             isOpenNow: true
         };
-        await setDoc(doc(db, 'businesses', userId), newBiz);
+        await setDoc(doc(db, 'businesses', userId), cleanObject(newBiz));
         
         await initFirebaseData();
     }
 };
 
-// Outros helpers
 export const getAmenities = () => DEFAULT_AMENITIES;
 export const getAppConfig = () => _appConfig;
 export const getBlogPosts = () => _posts;

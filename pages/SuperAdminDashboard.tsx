@@ -76,21 +76,32 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
 
       setLoadingAction('save-edit');
       try {
-          await updateUser(editingCompany.user);
+          // Garante que campos opcionais não sejam undefined
+          const userToSave = {
+              ...editingCompany.user,
+              plan: editingCompany.user.plan || BusinessPlan.FREE,
+              maxCoupons: editingCompany.user.maxCoupons || 0,
+              phone: editingCompany.user.phone || ''
+          };
+
+          await updateUser(userToSave);
+          
           if (editingCompany.biz) {
-              // Sincroniza o plano e reivindicação no perfil também
-              const updatedBiz = { 
+              const updatedBiz: BusinessProfile = { 
                   ...editingCompany.biz, 
-                  plan: editingCompany.user.plan,
-                  isClaimed: true // Quando o admin edita/vincula, marcamos como reivindicado
+                  plan: userToSave.plan,
+                  isClaimed: true,
+                  phone: editingCompany.biz.phone || userToSave.phone || ''
               };
               await saveBusiness(updatedBiz);
           }
+          
           alert("Dados atualizados com sucesso!");
           setEditingCompany(null);
           loadData();
-      } catch (err) {
-          alert("Erro ao salvar.");
+      } catch (err: any) {
+          console.error("Erro ao salvar:", err);
+          alert(`Erro ao salvar: ${err.message || 'Erro desconhecido'}`);
       } finally {
           setLoadingAction(null);
       }
@@ -142,7 +153,6 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
 
       <div className="flex-1 p-4 md:p-10 overflow-x-hidden">
           <div className="max-w-6xl mx-auto">
-              
               {/* HOME VIEW */}
               {view === 'HOME' && (
                   <div className="space-y-10 animate-in fade-in">

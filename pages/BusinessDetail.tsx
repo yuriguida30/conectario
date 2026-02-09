@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { 
   ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, 
   MessageCircle, Share2, Loader2, Ticket, 
-  Star, Heart, Utensils, Navigation, X
+  Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays
 } from 'lucide-react';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, BusinessPlan } from '../types';
 import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction } from '../services/dataService';
@@ -39,19 +39,26 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
     refreshData();
   }, [businessId]);
 
-  const handleAction = (type: 'menu' | 'social' | 'map' | 'share' | 'phone') => {
-      trackAction(businessId, type);
-      if (type === 'menu') setShowMenuOverlay(true);
-      if (type === 'social' && business?.instagram) window.open(`https://instagram.com/${business.instagram.replace('@', '')}`, '_blank');
-      if (type === 'phone' && business?.phone) window.open(`tel:${business.phone}`, '_self');
-      if (type === 'map' && business?.address) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`, '_blank');
-      if (type === 'share') {
-          if (navigator.share) {
-              navigator.share({ title: business?.name, url: window.location.href }).catch(() => {});
-          } else {
-              navigator.clipboard.writeText(window.location.href);
-              alert("Link copiado!");
-          }
+  const handleAction = (type: 'menu' | 'social' | 'map' | 'share' | 'phone' | 'website' | 'delivery' | 'booking') => {
+      if (!business) return;
+      trackAction(businessId, type as any);
+      
+      switch(type) {
+          case 'menu': setShowMenuOverlay(true); break;
+          case 'social': if(business.instagram) window.open(`https://instagram.com/${business.instagram.replace('@', '')}`, '_blank'); break;
+          case 'phone': if(business.phone) window.open(`tel:${business.phone}`, '_self'); break;
+          case 'website': if(business.website) window.open(business.website.startsWith('http') ? business.website : `https://${business.website}`, '_blank'); break;
+          case 'delivery': if(business.deliveryUrl) window.open(business.deliveryUrl, '_blank'); break;
+          case 'booking': if(business.bookingUrl) window.open(business.bookingUrl, '_blank'); break;
+          case 'map': if(business.address) window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`, '_blank'); break;
+          case 'share': 
+            if (navigator.share) {
+                navigator.share({ title: business.name, url: window.location.href }).catch(() => {});
+            } else {
+                navigator.clipboard.writeText(window.location.href);
+                alert("Link copiado!");
+            }
+            break;
       }
   };
 
@@ -70,30 +77,81 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             <img src={business.coverImage} className="w-full h-full object-cover opacity-80" alt={business.name} />
             <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-black/20" />
             <div className="absolute top-10 left-0 w-full px-4 flex justify-between z-20">
-                <button onClick={() => window.history.back()} className="bg-white/20 text-white p-3 rounded-2xl backdrop-blur-xl"><ArrowLeft size={24} /></button>
+                <button onClick={() => window.history.back()} className="bg-white/20 text-white p-3 rounded-2xl backdrop-blur-xl hover:bg-white/40 transition-all"><ArrowLeft size={24} /></button>
                 <div className="flex gap-2">
-                    <button onClick={() => handleAction('share')} className="bg-white/20 text-white p-3 rounded-2xl backdrop-blur-xl"><Share2 size={24} /></button>
-                    <button onClick={handleToggleFavorite} className={`p-3 rounded-2xl backdrop-blur-xl ${isFav ? 'bg-red-500 text-white' : 'bg-white/20 text-white'}`}><Heart className={isFav ? 'fill-white' : ''} size={24} /></button>
+                    <button onClick={() => handleAction('share')} className="bg-white/20 text-white p-3 rounded-2xl backdrop-blur-xl hover:bg-white/40 transition-all"><Share2 size={24} /></button>
+                    <button onClick={handleToggleFavorite} className={`p-3 rounded-2xl backdrop-blur-xl transition-all ${isFav ? 'bg-red-500 text-white' : 'bg-white/20 text-white hover:bg-white/40'}`}><Heart className={isFav ? 'fill-white' : ''} size={24} /></button>
                 </div>
             </div>
             <div className="absolute bottom-6 left-6 z-10">
-                <span className="bg-ocean-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase mb-2 inline-block tracking-wider">{business.category}</span>
-                <h1 className="text-4xl font-black text-ocean-950 mb-1">{business.name}</h1>
+                <span className="bg-ocean-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase mb-2 inline-block tracking-wider shadow-lg">{business.category}</span>
+                <h1 className="text-4xl font-black text-ocean-950 mb-1 drop-shadow-sm">{business.name}</h1>
                 <p className="text-sm text-slate-500 font-bold flex items-center gap-1"><MapPin size={14} className="text-ocean-500"/> {business.address}</p>
             </div>
         </div>
 
         <div className="max-w-4xl mx-auto px-6 py-10 space-y-12">
-            <div className="grid grid-cols-4 gap-4 bg-slate-50 p-4 rounded-[2.5rem] border border-slate-100">
-                <button onClick={() => handleAction('phone')} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-sm"><Phone size={24}/></div><span className="text-[9px] font-black uppercase text-slate-400">Ligar</span></button>
-                <button onClick={() => handleAction('map')} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-sm"><Navigation size={24}/></div><span className="text-[9px] font-black uppercase text-slate-400">Rota</span></button>
-                {business.instagram && <button onClick={() => handleAction('social')} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white shadow-sm"><Instagram size={24}/></div><span className="text-[9px] font-black uppercase text-slate-400">Insta</span></button>}
-                <button onClick={() => handleAction('menu')} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-ocean-600 rounded-2xl flex items-center justify-center text-white shadow-sm"><Utensils size={24}/></div><span className="text-[9px] font-black uppercase text-ocean-600">Menu</span></button>
+            {/* RÉGUA DE BOTÕES DINÂMICA */}
+            <div className="overflow-x-auto hide-scrollbar -mx-6 px-6">
+                <div className="flex gap-4 min-w-max pb-2">
+                    <button onClick={() => handleAction('phone')} className="flex flex-col items-center gap-2 group">
+                        <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-md border border-slate-50 group-active:scale-95 transition-all"><Phone size={24}/></div>
+                        <span className="text-[9px] font-black uppercase text-slate-400">Ligar</span>
+                    </button>
+                    
+                    <button onClick={() => handleAction('map')} className="flex flex-col items-center gap-2 group">
+                        <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-md border border-slate-50 group-active:scale-95 transition-all"><Navigation size={24}/></div>
+                        <span className="text-[9px] font-black uppercase text-slate-400">Rota</span>
+                    </button>
+
+                    {business.instagram && (
+                        <button onClick={() => handleAction('social')} className="flex flex-col items-center gap-2 group">
+                            <div className="w-14 h-14 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white shadow-lg group-active:scale-95 transition-all"><Instagram size={24}/></div>
+                            <span className="text-[9px] font-black uppercase text-slate-400">Instagram</span>
+                        </button>
+                    )}
+
+                    {business.website && (
+                        <button onClick={() => handleAction('website')} className="flex flex-col items-center gap-2 group">
+                            <div className="w-14 h-14 bg-ocean-100 rounded-2xl flex items-center justify-center text-ocean-600 shadow-md border border-ocean-200 group-active:scale-95 transition-all"><Globe size={24}/></div>
+                            <span className="text-[9px] font-black uppercase text-slate-400">Website</span>
+                        </button>
+                    )}
+
+                    {business.deliveryUrl && (
+                        <button onClick={() => handleAction('delivery')} className="flex flex-col items-center gap-2 group">
+                            <div className="w-14 h-14 bg-red-500 rounded-2xl flex items-center justify-center text-white shadow-lg group-active:scale-95 transition-all"><ShoppingCart size={24}/></div>
+                            <span className="text-[9px] font-black uppercase text-red-500">Delivery</span>
+                        </button>
+                    )}
+
+                    {business.bookingUrl && (
+                        <button onClick={() => handleAction('booking')} className="flex flex-col items-center gap-2 group">
+                            <div className="w-14 h-14 bg-orange-500 rounded-2xl flex items-center justify-center text-white shadow-lg group-active:scale-95 transition-all"><CalendarDays size={24}/></div>
+                            <span className="text-[9px] font-black uppercase text-orange-500">Reserva</span>
+                        </button>
+                    )}
+
+                    <button onClick={() => handleAction('menu')} className="flex flex-col items-center gap-2 group">
+                        <div className="w-14 h-14 bg-ocean-600 rounded-2xl flex items-center justify-center text-white shadow-lg group-active:scale-95 transition-all"><Utensils size={24}/></div>
+                        <span className="text-[9px] font-black uppercase text-ocean-600 font-bold">Cardápio</span>
+                    </button>
+                </div>
             </div>
 
             <div className="space-y-4">
                 <h3 className="text-xl font-black text-ocean-950">Sobre o Local</h3>
                 <p className="text-slate-600 leading-relaxed text-sm">{business.description}</p>
+            </div>
+
+            {/* COMODIDADES VISUAIS */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {business.amenities?.map(am => (
+                    <div key={am} className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                        <div className="w-2 h-2 rounded-full bg-ocean-500" />
+                        <span className="text-xs font-bold text-slate-600">{AMENITIES_LABELS[am] || am}</span>
+                    </div>
+                ))}
             </div>
 
             {coupons.length > 0 && (
@@ -118,8 +176,11 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                             <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest">{section.title}</h3>
                             {section.items.map(item => (
                                 <div key={item.id} className="bg-slate-50 p-5 rounded-2xl flex justify-between items-center">
-                                    <div><h4 className="font-bold text-sm">{item.name}</h4><p className="text-xs text-slate-400">{item.description}</p></div>
-                                    <span className="font-black text-green-600">R$ {item.price.toFixed(2)}</span>
+                                    <div className="flex-1">
+                                        <h4 className="font-bold text-sm text-ocean-950">{item.name}</h4>
+                                        <p className="text-xs text-slate-400">{item.description}</p>
+                                    </div>
+                                    <span className="font-black text-green-600 whitespace-nowrap ml-4">R$ {item.price.toFixed(2)}</span>
                                 </div>
                             ))}
                         </div>

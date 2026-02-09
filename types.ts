@@ -57,6 +57,8 @@ export interface BusinessProfile {
   whatsapp?: string;
   instagram?: string;
   website?: string;
+  deliveryUrl?: string;
+  bookingUrl?: string;
   amenities: string[];
   openingHours: { [key: string]: string };
   menu?: MenuSection[];
@@ -192,7 +194,6 @@ export interface Collection {
   businessIds: string[];
 }
 
-// Added FeaturedConfig interface to fix error in Home.tsx
 export interface FeaturedConfig {
   title: string;
   subtitle: string;

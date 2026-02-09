@@ -28,13 +28,18 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
 
   const loadData = async () => {
     setLoadingData(true);
-    const reqs = await getCompanyRequests();
-    setRequests(reqs);
-    setAllUsers(getAllUsers());
-    setBusinesses(getBusinesses());
-    const s = await getAdminStats();
-    setStats(s);
-    setLoadingData(false);
+    try {
+        const reqs = await getCompanyRequests();
+        setRequests(reqs || []);
+        setAllUsers(getAllUsers() || []);
+        setBusinesses(getBusinesses() || []);
+        const s = await getAdminStats();
+        setStats(s);
+    } catch (e) {
+        console.error("Erro ao carregar dados do admin:", e);
+    } finally {
+        setLoadingData(false);
+    }
   };
 
   useEffect(() => {
@@ -45,7 +50,11 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
   }, []);
 
   const handleResetPassword = async (user: User) => {
-    if (!window.confirm(`Deseja enviar um e-mail de redefinição de senha para ${user.name} (${user.email})?`)) return;
+    if (!user?.email) {
+        alert("Este usuário não possui um e-mail cadastrado.");
+        return;
+    }
+    if (!window.confirm(`Deseja enviar um e-mail de redefinição de senha para ${user.name || 'Usuário'} (${user.email})?`)) return;
     
     setActionLoading(user.id);
     try {
@@ -58,14 +67,18 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
     }
   };
 
-  const filteredUsers = allUsers.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const safeSearch = (searchTerm || '').toLowerCase();
 
-  const filteredBusinesses = businesses.filter(b => 
-    b.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = (allUsers || []).filter(u => {
+    const name = (u?.name || '').toLowerCase();
+    const email = (u?.email || '').toLowerCase();
+    return name.includes(safeSearch) || email.includes(safeSearch);
+  });
+
+  const filteredBusinesses = (businesses || []).filter(b => {
+    const name = (b?.name || '').toLowerCase();
+    return name.includes(safeSearch);
+  });
 
   if (loadingData && !stats) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-ocean-600" size={48} /></div>;
 
@@ -143,8 +156,8 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                       <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm h-80">
                           <ResponsiveContainer width="100%" height="100%">
                               <PieChart>
-                                  <Pie data={stats?.chartData} innerRadius={80} outerRadius={100} paddingAngle={8} dataKey="value">
-                                    {stats?.chartData?.map((_: any, index: number) => (
+                                  <Pie data={stats?.chartData || []} innerRadius={80} outerRadius={100} paddingAngle={8} dataKey="value">
+                                    {(stats?.chartData || []).map((_: any, index: number) => (
                                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                   </Pie>
@@ -172,11 +185,11 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                       <td className="px-6 py-5">
                                           <div className="flex items-center gap-3">
                                               <div className="w-10 h-10 rounded-full bg-ocean-50 text-ocean-600 flex items-center justify-center font-black text-sm">
-                                                  {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full rounded-full object-cover" /> : u.name[0]}
+                                                  {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full rounded-full object-cover" /> : (u.name?.[0] || '?')}
                                               </div>
                                               <div>
-                                                <p className="font-bold text-ocean-950 text-sm">{u.name}</p>
-                                                <p className="text-[10px] text-slate-400">{u.email}</p>
+                                                <p className="font-bold text-ocean-950 text-sm">{u.name || 'Sem nome'}</p>
+                                                <p className="text-[10px] text-slate-400">{u.email || 'Sem e-mail'}</p>
                                               </div>
                                           </div>
                                       </td>
@@ -224,10 +237,10 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                     <tr key={b.id} className="hover:bg-slate-50/50">
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-3">
-                                                <img src={b.coverImage} className="w-12 h-12 rounded-2xl object-cover" />
+                                                <img src={b.coverImage || 'https://via.placeholder.com/150'} className="w-12 h-12 rounded-2xl object-cover" />
                                                 <div>
-                                                    <p className="font-black text-ocean-950 text-sm">{b.name}</p>
-                                                    <p className="text-[10px] text-slate-400">{companyUser?.email || 'N/A'}</p>
+                                                    <p className="font-black text-ocean-950 text-sm">{b.name || 'Sem nome'}</p>
+                                                    <p className="text-[10px] text-slate-400">{companyUser?.email || 'Sem e-mail cadastrado'}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -263,7 +276,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                           <div key={req.id} className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6">
                               <div className="flex items-center gap-6">
                                   <div className="w-16 h-16 bg-ocean-50 text-ocean-600 rounded-3xl flex items-center justify-center font-black text-xl">
-                                      {req.companyName[0]}
+                                      {(req.companyName?.[0] || '?')}
                                   </div>
                                   <div>
                                       <h3 className="text-xl font-black text-ocean-950">{req.companyName}</h3>

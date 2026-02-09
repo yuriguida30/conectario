@@ -59,7 +59,13 @@ onAuthStateChanged(auth, async (firebaseUser) => {
         try {
             const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
             if (userDoc.exists()) {
-                const userData = { id: userDoc.id, ...userDoc.data() } as User;
+                const data = userDoc.data();
+                const userData = { 
+                    id: userDoc.id, 
+                    ...data,
+                    name: data.name || 'Usuário',
+                    email: data.email || ''
+                } as User;
                 localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
                 notifyListeners();
             }
@@ -88,21 +94,45 @@ export const initFirebaseData = () => {
 
     // Sincronizar Empresas
     onSnapshot(collection(db, 'businesses'), (snapshot) => {
-        const fbBusinesses = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
+        const fbBusinesses = snapshot.docs.map(d => {
+            const data = d.data();
+            return { 
+                id: d.id, 
+                ...data,
+                name: data.name || 'Sem nome',
+                category: data.category || 'Outros'
+            } as BusinessProfile;
+        });
         if (fbBusinesses.length > 0) _businesses = fbBusinesses;
         notifyListeners();
     });
 
     // Sincronizar Cupons
     onSnapshot(collection(db, 'coupons'), (snapshot) => {
-        const fbCoupons = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
+        const fbCoupons = snapshot.docs.map(d => {
+            const data = d.data();
+            return { 
+                id: d.id, 
+                ...data,
+                title: data.title || 'Cupom',
+                companyName: data.companyName || 'Empresa'
+            } as Coupon;
+        });
         if (fbCoupons.length > 0) _coupons = fbCoupons;
         notifyListeners();
     });
 
     // Sincronizar Usuários
     onSnapshot(collection(db, 'users'), (snapshot) => {
-        const fbUsers = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
+        const fbUsers = snapshot.docs.map(d => {
+            const data = d.data();
+            return { 
+                id: d.id, 
+                ...data,
+                name: data.name || 'Usuário',
+                email: data.email || ''
+            } as User;
+        });
         if (fbUsers.length > 0) _users = fbUsers;
         notifyListeners();
     });
@@ -112,17 +142,17 @@ export const initFirebaseData = () => {
 initFirebaseData();
 
 export const login = async (email: string, pass: string): Promise<User | null> => {
-    const mockUser = MOCK_USERS.find(u => u.email === email);
-    if (mockUser) {
-        localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
-        notifyListeners();
-        return mockUser;
-    }
     try {
         const res = await signInWithEmailAndPassword(auth, email, pass);
         const userDoc = await getDoc(doc(db, 'users', res.user.uid));
         if (userDoc.exists()) {
-            const userData = { id: userDoc.id, ...userDoc.data() } as User;
+            const data = userDoc.data();
+            const userData = { 
+                id: userDoc.id, 
+                ...data,
+                name: data.name || 'Usuário',
+                email: data.email || ''
+            } as User;
             localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
             notifyListeners();
             return userData;
@@ -139,7 +169,13 @@ export const loginWithGoogle = async (): Promise<User | null> => {
         const res = await signInWithPopup(auth, provider);
         const userDoc = await getDoc(doc(db, 'users', res.user.uid));
         if (userDoc.exists()) {
-            const userData = { id: userDoc.id, ...userDoc.data() } as User;
+            const data = userDoc.data();
+            const userData = { 
+                id: userDoc.id, 
+                ...data,
+                name: data.name || res.user.displayName || 'Usuário Google',
+                email: data.email || res.user.email || ''
+            } as User;
             localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
             notifyListeners();
             return userData;
@@ -174,11 +210,12 @@ export const logout = async () => {
  * Função de Redefinição de Senha
  */
 export const resetUserPassword = async (email: string) => {
+    if (!email) throw new Error("E-mail não fornecido.");
     try {
         await sendPasswordResetEmail(auth, email);
     } catch (e: any) {
         console.error("Erro ao resetar senha:", e);
-        throw new Error(e.message || "Falha ao enviar e-mail de redefinição.");
+        throw new Error("Falha ao enviar e-mail. Verifique se o endereço é válido.");
     }
 };
 
@@ -313,7 +350,15 @@ export const createCompanyRequest = async (request: any) => {
 
 export const getCompanyRequests = async () => {
     const snap = await getDocs(collection(db, 'companyRequests'));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
+    return snap.docs.map(d => {
+        const data = d.data();
+        return { 
+            id: d.id, 
+            ...data,
+            companyName: data.companyName || 'Empresa',
+            category: data.category || 'Gastronomia'
+        } as CompanyRequest;
+    });
 };
 
 export const approveCompanyRequest = async (requestId: string) => {

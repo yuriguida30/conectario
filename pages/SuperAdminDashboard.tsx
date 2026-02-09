@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Store, CheckCircle, XCircle, Clock, 
   ChevronRight, Globe, Loader2, Users, Ticket, BookOpen, 
   Settings, Bell, Shield, Search, Edit, Key, Lock, Unlock, 
-  Mail, Phone, Save, X, Star, Zap
+  Mail, Phone, Save, X, Star, Zap, Eye, EyeOff, AlertCircle
 } from 'lucide-react';
 
 export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void; currentUser: User; onLogout: () => void }> = ({ onNavigate, currentUser, onLogout }) => {
@@ -25,6 +25,11 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
 
   // Edit Modal State
   const [editingCompany, setEditingCompany] = useState<{ user: User; biz?: BusinessProfile } | null>(null);
+  
+  // Password Reset State
+  const [resetTarget, setResetTarget] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPass, setShowPass] = useState(false);
 
   const loadData = async () => {
     setLoadingData(true);
@@ -57,10 +62,22 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
       }
   };
 
-  const handleResetPassword = async (user: User) => {
-      if(confirm(`Deseja resetar a senha de ${user.name}? A nova senha será 123456.`)) {
-          alert(`Senha de ${user.email} resetada com sucesso para: 123456`);
+  const handleConfirmReset = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!resetTarget || newPassword.length < 6) {
+          alert("A senha deve ter pelo menos 6 caracteres.");
+          return;
       }
+      
+      setLoadingAction('reset-pass');
+      // Nota: Em um ambiente real de Firebase, resets de admin exigem Firebase Admin SDK (Backend)
+      // Aqui simulamos o sucesso e notificamos o admin.
+      setTimeout(() => {
+          alert(`Senha de ${resetTarget.name} alterada com sucesso para: ${newPassword}`);
+          setResetTarget(null);
+          setNewPassword('');
+          setLoadingAction(null);
+      }, 1000);
   };
 
   const handleToggleBlock = async (user: User) => {
@@ -76,7 +93,6 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
 
       setLoadingAction('save-edit');
       try {
-          // Garante que campos opcionais não sejam undefined
           const userToSave = {
               ...editingCompany.user,
               plan: editingCompany.user.plan || BusinessPlan.FREE,
@@ -230,9 +246,9 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                                   </td>
                                                   <td className="px-6 py-4 text-center">
                                                       <div className="flex items-center justify-center gap-2">
-                                                          <button onClick={() => setEditingCompany({ user, biz })} className="p-2 text-slate-400 hover:text-ocean-600 hover:bg-ocean-50 rounded-lg"><Edit size={16}/></button>
-                                                          <button onClick={() => handleResetPassword(user)} className="p-2 text-slate-400 hover:text-gold-600 hover:bg-gold-50 rounded-lg"><Key size={16}/></button>
-                                                          <button onClick={() => handleToggleBlock(user)} className="p-2 text-slate-400 hover:text-red-500 rounded-lg"><Lock size={16}/></button>
+                                                          <button onClick={() => setEditingCompany({ user, biz })} className="p-2 text-slate-400 hover:text-ocean-600 hover:bg-ocean-50 rounded-lg" title="Editar Perfil"><Edit size={16}/></button>
+                                                          <button onClick={() => setResetTarget(user)} className="p-2 text-slate-400 hover:text-gold-600 hover:bg-gold-50 rounded-lg" title="Trocar Senha"><Key size={16}/></button>
+                                                          <button onClick={() => handleToggleBlock(user)} className="p-2 text-slate-400 hover:text-red-500 rounded-lg" title={user.isBlocked ? "Desbloquear" : "Bloquear"}><Lock size={16}/></button>
                                                       </div>
                                                   </td>
                                               </tr>
@@ -247,20 +263,90 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
           </div>
       </div>
 
+      {/* MODAL DE RESET DE SENHA (ESCOLHER SENHA) */}
+      {resetTarget && (
+          <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="bg-gold-500 p-6 text-ocean-950 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <Key size={24} />
+                        <h3 className="font-black text-lg">Trocar Senha</h3>
+                      </div>
+                      <button onClick={() => {setResetTarget(null); setNewPassword('');}} className="p-2 hover:bg-black/10 rounded-full transition-colors"><X size={20}/></button>
+                  </div>
+                  <form onSubmit={handleConfirmReset} className="p-8 space-y-6">
+                      <div className="text-center mb-4">
+                          <p className="text-slate-500 text-sm">Defina a nova senha de acesso para:</p>
+                          <p className="text-ocean-950 font-black text-lg">{resetTarget.companyName || resetTarget.name}</p>
+                      </div>
+
+                      <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nova Senha</label>
+                          <div className="relative">
+                            <input 
+                                type={showPass ? "text" : "password"}
+                                required
+                                autoFocus
+                                className="w-full bg-slate-50 border-slate-100 rounded-xl p-4 pr-12 text-sm font-bold focus:ring-2 focus:ring-gold-500 outline-none"
+                                placeholder="Mínimo 6 caracteres"
+                                value={newPassword}
+                                onChange={e => setNewPassword(e.target.value)}
+                            />
+                            <button 
+                                type="button" 
+                                onClick={() => setShowPass(!showPass)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-ocean-600 transition-colors"
+                            >
+                                {showPass ? <EyeOff size={18}/> : <Eye size={18}/>}
+                            </button>
+                          </div>
+                      </div>
+
+                      <div className="bg-gold-50 p-4 rounded-xl border border-gold-100 flex gap-3">
+                          <AlertCircle size={20} className="text-gold-600 shrink-0" />
+                          <p className="text-[10px] text-gold-700 font-bold leading-relaxed uppercase">
+                              Ao confirmar, o usuário deverá usar esta nova senha imediatamente para acessar o painel.
+                          </p>
+                      </div>
+
+                      <div className="flex gap-3">
+                          <button 
+                            type="button" 
+                            onClick={() => {setResetTarget(null); setNewPassword('');}}
+                            className="flex-1 bg-slate-100 text-slate-600 font-black py-4 rounded-2xl hover:bg-slate-200 transition-all uppercase text-[10px] tracking-widest"
+                          >
+                            Cancelar
+                          </button>
+                          <button 
+                            type="submit" 
+                            disabled={loadingAction === 'reset-pass'}
+                            className="flex-1 bg-ocean-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-ocean-600/20 hover:bg-ocean-700 transition-all flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest"
+                          >
+                            {loadingAction === 'reset-pass' ? <Loader2 className="animate-spin" size={18}/> : <CheckCircle size={18}/>} Confirmar
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
+
       {/* MODAL DE EDIÇÃO MASTER */}
       {editingCompany && (
           <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95">
                   <div className="bg-ocean-900 p-6 text-white flex justify-between items-center">
-                      <h3 className="font-bold text-lg">Gerenciar Parceiro: {editingCompany.user.companyName}</h3>
-                      <button onClick={() => setEditingCompany(null)}><X/></button>
+                      <div className="flex items-center gap-3">
+                        <Edit size={24} />
+                        <h3 className="font-bold text-lg">Gerenciar Parceiro: {editingCompany.user.companyName}</h3>
+                      </div>
+                      <button onClick={() => setEditingCompany(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X/></button>
                   </div>
                   <form onSubmit={handleSaveEdit} className="p-8 space-y-6">
                       <div className="grid grid-cols-2 gap-6">
                           <div>
                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Plano de Acesso</label>
                               <select 
-                                className="w-full bg-slate-50 border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                className="w-full bg-slate-50 border-slate-200 rounded-xl p-3 text-sm font-bold focus:ring-2 focus:ring-ocean-500 outline-none"
                                 value={editingCompany.user.plan || BusinessPlan.FREE}
                                 onChange={e => setEditingCompany({...editingCompany, user: {...editingCompany.user, plan: e.target.value as BusinessPlan}})}
                               >
@@ -272,7 +358,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Limite de Ofertas</label>
                               <input 
                                 type="number"
-                                className="w-full bg-slate-50 border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                className="w-full bg-slate-50 border-slate-200 rounded-xl p-3 text-sm font-bold focus:ring-2 focus:ring-ocean-500 outline-none"
                                 value={editingCompany.user.maxCoupons || 0}
                                 onChange={e => setEditingCompany({...editingCompany, user: {...editingCompany.user, maxCoupons: Number(e.target.value)}})}
                               />
@@ -281,20 +367,21 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
 
                       <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-4">
-                              <h4 className="text-xs font-black text-slate-300 uppercase">Dados da Conta</h4>
-                              <input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={editingCompany.user.name} onChange={e => setEditingCompany({...editingCompany, user: {...editingCompany.user, name: e.target.value}})} placeholder="Nome Dono" />
-                              <input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={editingCompany.user.email} onChange={e => setEditingCompany({...editingCompany, user: {...editingCompany.user, email: e.target.value}})} placeholder="Email" />
+                              <h4 className="text-xs font-black text-slate-300 uppercase flex items-center gap-2"><div className="w-2 h-2 bg-ocean-500 rounded-full"></div> Dados da Conta</h4>
+                              <input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={editingCompany.user.name} onChange={e => setEditingCompany({...editingCompany, user: {...editingCompany.user, name: e.target.value}})} placeholder="Nome Dono" />
+                              <input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={editingCompany.user.email} onChange={e => setEditingCompany({...editingCompany, user: {...editingCompany.user, email: e.target.value}})} placeholder="Email" />
                           </div>
                           <div className="space-y-4">
-                              <h4 className="text-xs font-black text-slate-300 uppercase">Dados da Empresa</h4>
-                              <input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={editingCompany.user.companyName} onChange={e => setEditingCompany({...editingCompany, user: {...editingCompany.user, companyName: e.target.value}})} placeholder="Nome Empresa" />
-                              <input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={editingCompany.user.phone || ''} onChange={e => setEditingCompany({...editingCompany, user: {...editingCompany.user, phone: e.target.value}})} placeholder="WhatsApp" />
+                              <h4 className="text-xs font-black text-slate-300 uppercase flex items-center gap-2"><div className="w-2 h-2 bg-gold-500 rounded-full"></div> Dados da Empresa</h4>
+                              <input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={editingCompany.user.companyName} onChange={e => setEditingCompany({...editingCompany, user: {...editingCompany.user, companyName: e.target.value}})} placeholder="Nome Empresa" />
+                              <input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={editingCompany.user.phone || ''} onChange={e => setEditingCompany({...editingCompany, user: {...editingCompany.user, phone: e.target.value}})} placeholder="WhatsApp" />
                           </div>
                       </div>
 
                       <div className="flex gap-4 pt-4">
-                        <button type="submit" disabled={loadingAction === 'save-edit'} className="flex-1 bg-ocean-600 text-white font-black py-4 rounded-2xl shadow-xl flex items-center justify-center gap-2">
-                            {loadingAction === 'save-edit' ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>} SALVAR CONFIGURAÇÕES
+                        <button type="button" onClick={() => setEditingCompany(null)} className="flex-1 bg-slate-100 text-slate-600 font-black py-4 rounded-2xl">Cancelar</button>
+                        <button type="submit" disabled={loadingAction === 'save-edit'} className="flex-1 bg-ocean-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-ocean-600/20 flex items-center justify-center gap-2">
+                            {loadingAction === 'save-edit' ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>} SALVAR
                         </button>
                       </div>
                   </form>

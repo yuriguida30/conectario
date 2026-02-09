@@ -17,8 +17,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-    <!-- Tailwind via CDN para simplicidade no deploy rápido -->
-    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio,line-clamp"></script>
+    <!-- Tailwind via CDN -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography,aspect-ratio"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -30,11 +30,11 @@
                 200: '#bae6fd',
                 300: '#7dd3fc',
                 400: '#38bdf8',
-                500: '#0ea5e9', // Cintilante start
-                600: '#0284c7', // Cintilante end
+                500: '#0ea5e9',
+                600: '#0284c7',
                 700: '#0369a1',
                 800: '#075985',
-                900: '#0c4a6e', // Deep Blue Text
+                900: '#0c4a6e',
                 950: '#082f49',
               },
               gold: {
@@ -45,20 +45,6 @@
             },
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
-            },
-            animation: {
-              'fade-in': 'fadeIn 0.5s ease-out',
-              'slide-up': 'slideUp 0.5s ease-out',
-            },
-            keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              slideUp: {
-                '0%': { transform: 'translateY(20px)', opacity: '0' },
-                '100%': { transform: 'translateY(0)', opacity: '1' },
-              }
             }
           },
         },
@@ -68,27 +54,14 @@
       html, body {
         height: 100%;
         overflow-x: hidden;
-        background-color: #f8fafc; /* slate-50 */
+        background-color: #f8fafc;
         -webkit-tap-highlight-color: transparent;
       }
-      .hide-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .hide-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-      /* Smooth scrolling for anchors */
-      html {
-        scroll-behavior: smooth;
-      }
-      /* Safe area padding for iPhones with notches */
-      .pb-safe {
-        padding-bottom: env(safe-area-inset-bottom);
-      }
-      /* Fix Leaflet Z-Index issues with Tailwind modals */
+      .hide-scrollbar::-webkit-scrollbar { display: none; }
+      .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      html { scroll-behavior: smooth; }
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
       .leaflet-pane { z-index: 10 !important; }
-      .leaflet-top, .leaflet-bottom { z-index: 20 !important; }
     </style>
 <script type="importmap">
 {
@@ -108,7 +81,6 @@
 </head>
   <body class="bg-slate-50 text-ocean-950 font-sans antialiased pb-safe">
     <div id="root"></div>
-    <!-- Entry point para o Vite -->
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

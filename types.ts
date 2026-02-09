@@ -62,10 +62,6 @@ export interface BusinessProfile {
   lat?: number;
   lng?: number;
   views?: number;
-  // --- CAMPOS IA & REIVINDICAÇÃO ---
-  isClaimed: boolean;
-  isImported?: boolean;
-  claimedBy?: string; 
   socialClicks?: {
       whatsapp?: number;
       instagram?: number;
@@ -73,18 +69,6 @@ export interface BusinessProfile {
       phone?: number;
       map?: number;
   };
-}
-
-export interface BusinessClaimRequest {
-    id: string;
-    businessId: string;
-    businessName: string;
-    requesterName: string;
-    requesterEmail: string;
-    requesterPhone: string;
-    documentProofUrl?: string;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED';
-    date: string;
 }
 
 export interface CompanyRequest {
@@ -156,13 +140,6 @@ export interface AppAmenity {
   icon?: string;
 }
 
-export interface FeaturedConfig {
-    title: string;
-    subtitle: string;
-    imageUrl: string;
-    buttonText: string;
-}
-
 export interface AppConfig {
     appName: string;
     appNameHighlight: string;
@@ -204,48 +181,56 @@ export interface Review {
   date: string;
 }
 
-export type TableStatus = 'AVAILABLE' | 'OCCUPIED' | 'BILLING';
-
-export interface TableItem {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  addedAt: string;
-}
-
-export interface Table {
-  id: string;
-  number: number;
-  status: TableStatus;
-  items: TableItem[];
-  total: number;
-  openedAt?: string;
-}
-
-export interface Collection {
-  id: string;
-  title: string;
-  description: string;
-  coverImage: string;
-  businessIds: string[];
-  featured?: boolean;
-}
-
+// Added missing BlogPost interface
 export interface BlogPost {
   id: string;
   title: string;
   excerpt: string;
   content: string;
   imageUrl: string;
-  category: 'Roteiro' | 'Dica' | 'Notícia' | 'Curiosidade';
+  category: string;
   date: string;
   author: string;
   authorId?: string;
 }
 
+// Added missing Collection interface
+export interface Collection {
+  id: string;
+  title: string;
+  description: string;
+  coverImage: string;
+  businessIds: string[];
+}
+
+// Added missing FeaturedConfig interface
+export interface FeaturedConfig {
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  buttonText: string;
+  link?: string;
+}
+
 export const PROTECTED_CATEGORIES = ['Gastronomia', 'Hospedagem', 'Comércio', 'Serviços'];
 export const DEFAULT_CATEGORIES = [...PROTECTED_CATEGORIES, 'Passeios', 'Entretenimento'];
+
+// Added AMENITIES_LABELS mapping
+export const AMENITIES_LABELS: { [key: string]: string } = {
+    wifi: 'Wi-Fi Grátis',
+    ac: 'Ar Condicionado',
+    parking: 'Estacionamento',
+    access: 'Acessibilidade',
+    kids: 'Espaço Kids',
+    pet: 'Pet Friendly',
+    pool: 'Piscina',
+    breakfast: 'Café da Manhã',
+    tv: 'Televisão',
+    bar: 'Bar no Local',
+    card: 'Aceita Cartão',
+    delivery: 'Faz Entrega'
+};
+
 export const DEFAULT_AMENITIES: AppAmenity[] = [
     { id: 'wifi', label: 'Wi-Fi Grátis' },
     { id: 'ac', label: 'Ar Condicionado' },
@@ -260,8 +245,3 @@ export const DEFAULT_AMENITIES: AppAmenity[] = [
     { id: 'card', label: 'Aceita Cartão' },
     { id: 'delivery', label: 'Faz Entrega' }
 ];
-
-export const AMENITIES_LABELS: Record<string, string> = DEFAULT_AMENITIES.reduce((acc, curr) => {
-    acc[curr.id] = curr.label;
-    return acc;
-}, {} as Record<string, string>);

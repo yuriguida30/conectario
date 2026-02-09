@@ -19,30 +19,12 @@ export const MOCK_USERS: User[] = [
     email: 'admin@conectario.com',
     role: UserRole.SUPER_ADMIN,
     avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200'
-  },
-  {
-    id: 'user1',
-    name: 'Cliente Teste',
-    email: 'cliente@email.com',
-    role: UserRole.CUSTOMER,
-    favorites: { coupons: [], businesses: [] }
-  },
-  {
-    id: 'comp1',
-    name: 'João do Barco',
-    email: 'empresa@email.com',
-    role: UserRole.COMPANY,
-    companyName: 'Arraial Vip Tour',
-    category: 'Passeios',
-    phone: '22999999999',
-    permissions: { canCreateCoupons: true, canManageBusiness: true },
-    plan: BusinessPlan.PREMIUM
   }
 ];
 
 export const MOCK_BUSINESSES: BusinessProfile[] = [
   {
-    id: 'andre_karamelo', 
+    id: 'andre_karamelo', // ID igual ao do usuário André
     name: 'Doceria Karamelo',
     category: 'Gastronomia',
     description: 'A mais doce e tradicional confeitaria da região. Bolos artesanais, doces finos e o melhor café do Rio.',
@@ -51,10 +33,13 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     address: 'Rua das Doceiras, 123, Rio de Janeiro - RJ',
     phone: '(21) 99999-9999',
     whatsapp: '5521999999999',
-    amenities: ['wifi', 'ac', 'kids'],
-    openingHours: { 'Seg-Sáb': '09:00 - 19:00' },
+    instagram: '@doceriakaramelo',
+    website: 'www.doceriakaramelo.com.br',
+    amenities: ['wifi', 'ac', 'kids', 'card'],
+    openingHours: { 'Seg-Sáb': '09:00 - 19:00', 'Dom': 'Fechado' },
     rating: 5.0,
-    reviewCount: 42,
+    reviewCount: 128,
+    views: 1450,
     isFeatured: true,
     isOpenNow: true,
     plan: BusinessPlan.PREMIUM,
@@ -67,28 +52,13 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
             ]
         }
     ]
-  },
-  {
-    id: 'comp1', 
-    name: 'Arraial Vip Tour',
-    category: 'Passeios',
-    description: 'Experiência única de navegação pelas águas cristalinas de Arraial do Cabo.',
-    coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=1200',
-    gallery: [],
-    address: 'Praia dos Anjos, Cais do Porto, Arraial do Cabo - RJ',
-    phone: '(22) 99999-9999',
-    // Added missing required properties 'amenities' and 'openingHours' to satisfy BusinessProfile interface
-    amenities: ['parking', 'access'],
-    openingHours: { 'Seg-Dom': '08:00 - 18:00' },
-    rating: 4.9,
-    isOpenNow: true
   }
 ];
 
 export const MOCK_COUPONS: Coupon[] = [
   {
     id: 'c_karamelo_1',
-    companyId: 'andre_karamelo',
+    companyId: 'andre_karamelo', // Vinculado ao ID do André
     companyName: 'Doceria Karamelo',
     companyLogo: 'https://ui-avatars.com/api/?name=DK&background=f59e0b&color=fff',
     title: 'Corte de 15% na Primeira Compra',
@@ -101,7 +71,27 @@ export const MOCK_COUPONS: Coupon[] = [
     expiryDate: '2024-12-31',
     code: 'KARAMELO15',
     active: true,
-    rating: 5.0
+    rating: 5.0,
+    currentRedemptions: 24,
+    maxRedemptions: 100
+  },
+  {
+    id: 'c_karamelo_2',
+    companyId: 'andre_karamelo',
+    companyName: 'Doceria Karamelo',
+    title: 'Combo Café + Fatia por R$ 25',
+    description: 'Escolha qualquer fatia de bolo simples + café expresso grande.',
+    originalPrice: 32.00,
+    discountedPrice: 25.00,
+    discountPercentage: 22,
+    imageUrl: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&q=80&w=800',
+    category: 'Gastronomia',
+    expiryDate: '2024-11-30',
+    code: 'CAFECOMBO',
+    active: true,
+    rating: 4.8,
+    currentRedemptions: 45,
+    maxRedemptions: 200
   }
 ];
 

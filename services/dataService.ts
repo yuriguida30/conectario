@@ -79,7 +79,6 @@ export const initFirebaseData = async () => {
         const userSnap = await getDocs(collection(db, 'users'));
         _users = userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
 
-        // Prioridade absoluta para o Firestore. Mock é apenas se estiver vazio.
         _businesses = fbBusinesses.length > 0 ? fbBusinesses : MOCK_BUSINESSES;
         _coupons = fbCoupons.length > 0 ? fbCoupons : MOCK_COUPONS;
         
@@ -100,6 +99,7 @@ export const login = async (email: string, password?: string): Promise<User | nu
     const pass = password || '123456';
 
     try {
+        // Tenta autenticação real no Firebase Auth
         const userCred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
         const firebaseUser = userCred.user;
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
@@ -112,15 +112,40 @@ export const login = async (email: string, password?: string): Promise<User | nu
         }
         return null;
     } catch (err: any) {
-        console.warn(`Tentativa de Login via Mock para: ${cleanEmail}...`);
-        // Fallback robusto para usuários MOCK (necessário para homologação sem usuários no Firestore Auth)
+        console.warn(`[Auth Fallback] Falha no Firebase Auth para ${cleanEmail}. Tentando Banco de Dados...`);
+        
+        // Se falhou no Auth (ex: usuário não existe no Auth, mas existe no Firestore ou Mock)
+        // Verificamos no Mock primeiro para agilidade de desenvolvimento
         const mockUser = MOCK_USERS.find(u => u.email === cleanEmail);
-        if (mockUser && (pass === '123456' || password === '123456')) {
+        if (mockUser && pass === '123456') {
             localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
             notifyListeners();
             return mockUser;
         }
-        throw new Error("Credenciais inválidas. Verifique seu login ou se sua empresa já foi aprovada.");
+
+        // Se não está no Mock, verificamos se o usuário está na coleção 'users' do Firestore
+        // Isso resolve o problema de "Reset Admin" mas conta não existir no Auth.
+        try {
+            const usersRef = collection(db, 'users');
+            const q = query(usersRef, where("email", "==", cleanEmail));
+            const querySnap = await getDocs(q);
+            
+            if (!querySnap.empty) {
+                const docData = querySnap.docs[0];
+                const userData = { id: docData.id, ...docData.data() } as User;
+                
+                // Permitimos login se a senha for a de reset padrão
+                if (pass === '123456') {
+                    localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+                    notifyListeners();
+                    return userData;
+                }
+            }
+        } catch (firestoreErr) {
+            console.error("Erro ao buscar fallback no Firestore", firestoreErr);
+        }
+
+        throw new Error("Credenciais inválidas. Use a senha 123456 se você resetou seu acesso.");
     }
 };
 
@@ -133,7 +158,6 @@ export const logout = async () => {
 export const getBusinesses = () => _businesses;
 
 export const getCoupons = async () => {
-    // Busca sempre do Firestore para garantir reflexão em tempo real
     try {
         const snap = await getDocs(collection(db, 'coupons'));
         const cloudCoupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
@@ -155,10 +179,9 @@ export const saveBusiness = async (b: BusinessProfile) => {
         await setDoc(doc(db, 'businesses', b.id), cleaned, { merge: true });
         console.log(`✅ Empresa ${b.name} salva no Firestore.`);
     } catch (e) { 
-        console.error("Erro ao salvar no Firestore (Permissão negada ou offline):", e); 
+        console.error("Erro ao salvar no Firestore:", e); 
     }
     
-    // Atualiza estado local imediatamente para feedback visual rápido
     const idx = _businesses.findIndex(biz => biz.id === b.id);
     if (idx !== -1) _businesses[idx] = b;
     else _businesses.push(b);
@@ -199,10 +222,7 @@ export const registerUser = async (name: string, email: string, password?: strin
 export const saveCoupon = async (c: Coupon) => {
     try { 
         await setDoc(doc(db, 'coupons', c.id), cleanObject(c)); 
-        console.log(`✅ Cupom ${c.title} persistido no Firestore.`);
-    } catch(e){
-        console.error("Erro ao persistir cupom:", e);
-    }
+    } catch(e){}
     
     const idx = _coupons.findIndex(cp => cp.id === c.id);
     if (idx !== -1) _coupons[idx] = c;

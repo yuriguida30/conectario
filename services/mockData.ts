@@ -3,6 +3,13 @@ import { Coupon, User, UserRole, BusinessProfile, BlogPost, BusinessPlan } from 
 
 export const MOCK_USERS: User[] = [
   {
+    id: 'admin_andre',
+    name: 'Andre Conecta',
+    email: 'andre@conectario.org',
+    role: UserRole.SUPER_ADMIN,
+    avatarUrl: 'https://ui-avatars.com/api/?name=Andre&background=0c4a6e&color=fff'
+  },
+  {
     id: 'admin1',
     name: 'Super Admin',
     email: 'admin@conectario.com',
@@ -52,7 +59,7 @@ export const MOCK_USERS: User[] = [
 
 export const MOCK_BUSINESSES: BusinessProfile[] = [
   {
-    id: 'comp1', // ID Sincronizado com o usuário de teste
+    id: 'comp1', 
     name: 'Arraial Vip Tour',
     category: 'Passeios',
     description: 'Experiência única de navegação pelas águas cristalinas de Arraial do Cabo. Passeios privativos e compartilhados com total segurança.',

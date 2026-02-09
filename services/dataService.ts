@@ -31,8 +31,6 @@ let _users: User[] = [];
 let _posts: BlogPost[] = [...MOCK_POSTS];
 let _categories: AppCategory[] = DEFAULT_CATEGORIES.map(name => ({ id: name.toLowerCase(), name }));
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
-
-// Fix: Define the missing _collections variable
 let _collections: Collection[] = [
     {
         id: 'col1',
@@ -70,7 +68,7 @@ const cleanObject = (obj: any) => {
 };
 
 export const initFirebaseData = async () => {
-    console.log("🔄 Inicializando dados do Banco...");
+    console.log("🔄 Sincronizando com o Banco de Dados Firestore...");
     try {
         const bizSnap = await getDocs(collection(db, 'businesses'));
         const fbBusinesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
@@ -81,14 +79,14 @@ export const initFirebaseData = async () => {
         const userSnap = await getDocs(collection(db, 'users'));
         _users = userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
 
-        // Mescla ou substitui Mock apenas se o FB estiver vazio
+        // Prioridade absoluta para o Firestore. Mock é apenas se estiver vazio.
         _businesses = fbBusinesses.length > 0 ? fbBusinesses : MOCK_BUSINESSES;
         _coupons = fbCoupons.length > 0 ? fbCoupons : MOCK_COUPONS;
         
         notifyListeners();
-        console.log("✅ Dados carregados com sucesso!");
+        console.log("✅ Reflexão de dados concluída!");
     } catch (error) {
-        console.warn("⚠️ Usando dados Mock (Firebase Offline ou Vazio)");
+        console.warn("⚠️ Firestore Offline ou Erro - Usando fallbacks locais.");
         _businesses = MOCK_BUSINESSES;
         _coupons = MOCK_COUPONS;
         notifyListeners();
@@ -114,15 +112,15 @@ export const login = async (email: string, password?: string): Promise<User | nu
         }
         return null;
     } catch (err: any) {
-        console.warn(`Fallback Login para ${cleanEmail}...`);
-        // Fallback para usuários MOCK para facilitar o desenvolvimento
+        console.warn(`Tentativa de Login via Mock para: ${cleanEmail}...`);
+        // Fallback robusto para usuários MOCK (necessário para homologação sem usuários no Firestore Auth)
         const mockUser = MOCK_USERS.find(u => u.email === cleanEmail);
-        if (mockUser && pass === '123456') {
+        if (mockUser && (pass === '123456' || password === '123456')) {
             localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
             notifyListeners();
             return mockUser;
         }
-        throw new Error("Credenciais inválidas.");
+        throw new Error("Credenciais inválidas. Verifique seu login ou se sua empresa já foi aprovada.");
     }
 };
 
@@ -135,6 +133,7 @@ export const logout = async () => {
 export const getBusinesses = () => _businesses;
 
 export const getCoupons = async () => {
+    // Busca sempre do Firestore para garantir reflexão em tempo real
     try {
         const snap = await getDocs(collection(db, 'coupons'));
         const cloudCoupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
@@ -142,10 +141,8 @@ export const getCoupons = async () => {
             _coupons = cloudCoupons;
             return cloudCoupons;
         }
-        return _coupons.length > 0 ? _coupons : MOCK_COUPONS;
-    } catch {
-        return _coupons.length > 0 ? _coupons : MOCK_COUPONS;
-    }
+    } catch {}
+    return _coupons.length > 0 ? _coupons : MOCK_COUPONS;
 };
 
 export const getBusinessById = (id: string) => {
@@ -155,9 +152,13 @@ export const getBusinessById = (id: string) => {
 export const saveBusiness = async (b: BusinessProfile) => {
     try {
         const cleaned = cleanObject(b);
-        await setDoc(doc(db, 'businesses', b.id), cleaned);
-    } catch (e) { console.error("Erro ao salvar no Firestore:", e); }
+        await setDoc(doc(db, 'businesses', b.id), cleaned, { merge: true });
+        console.log(`✅ Empresa ${b.name} salva no Firestore.`);
+    } catch (e) { 
+        console.error("Erro ao salvar no Firestore (Permissão negada ou offline):", e); 
+    }
     
+    // Atualiza estado local imediatamente para feedback visual rápido
     const idx = _businesses.findIndex(biz => biz.id === b.id);
     if (idx !== -1) _businesses[idx] = b;
     else _businesses.push(b);
@@ -196,10 +197,17 @@ export const registerUser = async (name: string, email: string, password?: strin
 };
 
 export const saveCoupon = async (c: Coupon) => {
-    try { await setDoc(doc(db, 'coupons', c.id), cleanObject(c)); } catch(e){}
+    try { 
+        await setDoc(doc(db, 'coupons', c.id), cleanObject(c)); 
+        console.log(`✅ Cupom ${c.title} persistido no Firestore.`);
+    } catch(e){
+        console.error("Erro ao persistir cupom:", e);
+    }
+    
     const idx = _coupons.findIndex(cp => cp.id === c.id);
     if (idx !== -1) _coupons[idx] = c;
     else _coupons.push(c);
+    
     notifyListeners();
 };
 
@@ -248,7 +256,7 @@ export const createCompanyRequest = async (r: any) => {
 };
 
 export const sendSupportMessage = async (msg: string) => { 
-    console.log("Support message sent:", msg); 
+    console.log("Suporte acionado:", msg); 
 };
 
 export const getCompanyRequests = async () => {
@@ -285,10 +293,10 @@ export const approveCompanyRequest = async (id: string) => {
                 id: userId,
                 name: req.companyName,
                 category: req.category,
-                description: req.description || 'Bem-vindo!',
-                coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
+                description: req.description || 'Bem-vindo ao nosso espaço!',
+                coverImage: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=1200',
                 gallery: [],
-                address: 'Rio de Janeiro, RJ',
+                address: 'Rio de Janeiro, Brasil',
                 phone: req.phone,
                 whatsapp: req.whatsapp || req.phone,
                 amenities: [],
@@ -310,7 +318,8 @@ export const getBlogPosts = () => _posts;
 export const getLocations = () => [
     { id: 'sepetiba', name: 'Sepetiba', active: true },
     { id: 'centro', name: 'Centro', active: true },
-    { id: 'zona-sul', name: 'Zona Sul', active: true }
+    { id: 'zona-sul', name: 'Zona Sul', active: true },
+    { id: 'arraial', name: 'Arraial do Cabo', active: true }
 ];
 
 export const toggleFavorite = async (type: string, id: string) => {
@@ -340,7 +349,6 @@ export const incrementBusinessView = async (id: string) => {
     } catch(e) {}
 };
 
-// Fix: Now uses the defined _collections variable
 export const getCollections = () => _collections;
 export const getFeaturedConfig = () => null;
 export const identifyNeighborhood = (lat: number, lng: number) => "Rio de Janeiro";
@@ -355,5 +363,4 @@ export const calculateDistance = (la1: number, lo1: number, la2: number, lo2: nu
     return R * c;
 };
 
-// Fix: Now uses the defined _collections variable
 export const getCollectionById = (id: string) => _collections.find(c => c.id === id) || null;

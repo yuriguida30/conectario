@@ -32,6 +32,16 @@ const SESSION_KEY = 'cr_session_v4';
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
+let _collections: Collection[] = [
+    {
+        id: 'col1',
+        title: 'Os Melhores Cafés',
+        description: 'Uma seleção dos cafés mais charmosos do Rio.',
+        coverImage: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&q=80&w=800',
+        businessIds: ['local_1765502020338']
+    }
+];
+
 let _categories: AppCategory[] = DEFAULT_CATEGORIES.map(name => ({ id: name.toLowerCase(), name }));
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
 
@@ -104,7 +114,6 @@ export const loginWithGoogle = async (): Promise<User | null> => {
                 id: firebaseUser.uid,
                 name: firebaseUser.displayName || 'Usuário Google',
                 email: firebaseUser.email || '',
-                avatarUrl: firebaseUser.photoURL || undefined,
                 role: UserRole.CUSTOMER,
                 favorites: { coupons: [], businesses: [] },
                 history: [],
@@ -190,6 +199,9 @@ export const deleteCoupon = async (id: string) => {
     }
 };
 
+/**
+ * SISTEMA DE RASTREAMENTO DE AÇÕES (CONVERSÕES)
+ */
 export const trackAction = async (businessId: string, action: 'menu' | 'social' | 'map' | 'share' | 'phone' | 'visit_direct' | 'visit_search') => {
     try {
         const fieldMap: any = {
@@ -295,8 +307,8 @@ export const getLocations = () => [{ id: 'sepetiba', name: 'Sepetiba', active: t
 export const getAmenities = () => DEFAULT_AMENITIES;
 export const getBlogPosts = () => MOCK_POSTS;
 export const getBlogPostById = (id: string) => MOCK_POSTS.find(p => p.id === id);
-export const getCollections = () => [];
-export const getCollectionById = (id: string) => getCollections().find((c: Collection) => c.id === id);
+export const getCollections = (): Collection[] => _collections;
+export const getCollectionById = (id: string) => _collections.find(c => c.id === id);
 export const getFeaturedConfig = () => null;
 
 export const identifyNeighborhood = (lat?: number, lng?: number) => {

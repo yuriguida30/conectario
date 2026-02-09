@@ -20,7 +20,7 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
     const col = getCollectionById(collectionId);
     if (col) {
         setCollection(col);
-        const loadedBusinesses = col.businessIds
+        const loadedBusinesses = (col.businessIds || [])
             .map((id: string) => getBusinessById(id))
             .filter((b: BusinessProfile | undefined): b is BusinessProfile => b !== undefined);
         setBusinesses(loadedBusinesses);
@@ -37,10 +37,12 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
       setFavorites(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  if (!collection) return <div className="p-10 text-center flex flex-col items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-8 w-8 border-4 border-ocean-600 border-t-transparent mb-4"></div>
-    <p className="text-slate-500 font-medium">Carregando coleção...</p>
-  </div>;
+  if (!collection) return (
+    <div className="p-10 text-center flex flex-col items-center justify-center min-h-screen bg-slate-50">
+      <div className="animate-spin rounded-full h-8 w-8 border-4 border-ocean-600 border-t-transparent mb-4"></div>
+      <p className="text-slate-500 font-medium">Carregando coleção...</p>
+    </div>
+  );
 
   return (
     <div className="bg-slate-50 min-h-screen pb-24">

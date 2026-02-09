@@ -17,7 +17,8 @@ import {
     createUserWithEmailAndPassword,
     onAuthStateChanged,
     GoogleAuthProvider,
-    signInWithPopup
+    signInWithPopup,
+    sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { 
@@ -91,11 +92,9 @@ export const initFirebaseData = () => {
     // Sincronizar Empresas
     onSnapshot(collection(db, 'businesses'), (snapshot) => {
         const fbBusinesses = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
-        // Só usa MOCK se o banco estiver REALMENTE vazio e for a primeira carga
         if (fbBusinesses.length > 0) {
             _businesses = fbBusinesses;
         } else if (snapshot.metadata.fromCache === false) {
-            // Se o servidor respondeu e está vazio, refletimos o vazio (ou mantemos mock se preferir)
             _businesses = fbBusinesses; 
         }
         notifyListeners();
@@ -124,10 +123,8 @@ export const initFirebaseData = () => {
 initFirebaseData();
 
 export const login = async (email: string, pass: string): Promise<User | null> => {
-    // FALLBACK MOCK: Se o usuário é do Mock, não tentamos Firebase para evitar Erro 400
     const mockUser = MOCK_USERS.find(u => u.email === email);
     if (mockUser) {
-        console.log("🔑 Login via Mock Data (Desenvolvimento)");
         localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
         notifyListeners();
         return mockUser;
@@ -151,7 +148,6 @@ export const login = async (email: string, pass: string): Promise<User | null> =
     return null;
 };
 
-// Fix: Added missing export loginWithGoogle used in Login.tsx
 export const loginWithGoogle = async (): Promise<User | null> => {
     const provider = new GoogleAuthProvider();
     try {
@@ -188,6 +184,15 @@ export const logout = async () => {
     await auth.signOut();
     localStorage.removeItem(SESSION_KEY);
     notifyListeners();
+};
+
+export const resetUserPassword = async (email: string) => {
+    try {
+        await sendPasswordResetEmail(auth, email);
+    } catch (e: any) {
+        console.error("Erro ao enviar reset de senha:", e);
+        throw new Error(e.message || "Não foi possível enviar o e-mail de redefinição.");
+    }
 };
 
 export const getBusinesses = () => _businesses;
@@ -292,7 +297,12 @@ export const getAdminStats = async () => {
         totalBusinesses: _businesses.length,
         totalEconomy,
         totalLeads,
-        chartData: [],
+        chartData: [
+            { name: 'Gastronomia', value: _businesses.filter(b => b.category === 'Gastronomia').length },
+            { name: 'Hospedagem', value: _businesses.filter(b => b.category === 'Hospedagem').length },
+            { name: 'Passeios', value: _businesses.filter(b => b.category === 'Passeios').length },
+            { name: 'Comércio', value: _businesses.filter(b => b.category === 'Comércio').length }
+        ],
         totalCoupons: _coupons.length
     };
 };
@@ -318,7 +328,6 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
     return R * c;
 };
 
-// Fix: Added missing export identifyNeighborhood used in Home.tsx
 export const identifyNeighborhood = (lat: number, lng: number): string => {
     const sepetibaLat = -22.9689;
     const sepetibaLng = -43.6967;

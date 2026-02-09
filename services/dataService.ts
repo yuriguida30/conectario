@@ -36,7 +36,6 @@ let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
 // Monitora mudanças na autenticação do Firebase para manter sincronizado
 onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
-        // Se houver um usuário no Firebase Auth, garantimos que os dados locais reflitam o Firestore
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
         if (userDoc.exists()) {
             const userData = { id: userDoc.id, ...userDoc.data() } as User;
@@ -45,7 +44,6 @@ onAuthStateChanged(auth, async (firebaseUser) => {
     }
 });
 
-// Helper para remover campos undefined que quebram o Firestore
 const cleanObject = (obj: any) => {
     const newObj = { ...obj };
     Object.keys(newObj).forEach(key => {
@@ -106,11 +104,8 @@ export const login = async (email: string, password?: string): Promise<User | nu
     const pass = password || '123456';
 
     try {
-        // Tenta autenticar REALMENTE no Firebase
         const userCred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
         const firebaseUser = userCred.user;
-
-        // Busca os dados complementares no Firestore
         const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
         
         if (userDoc.exists()) {
@@ -119,7 +114,6 @@ export const login = async (email: string, password?: string): Promise<User | nu
             notifyListeners();
             return userData;
         } else {
-            // Caso o usuário exista no Auth mas não no Firestore (raro, mas pode acontecer)
             const fallbackUser: User = {
                 id: firebaseUser.uid,
                 name: firebaseUser.displayName || 'Usuário',
@@ -130,13 +124,16 @@ export const login = async (email: string, password?: string): Promise<User | nu
             return fallbackUser;
         }
     } catch (err: any) {
-        console.error("Erro no Login Firebase Auth:", err.code);
-        // Fallback para o admin master se o Firebase Auth falhar (apenas para facilitar seu primeiro acesso)
-        if (cleanEmail === 'admin@conectario.com' && pass === '123456') {
-            const admin = _users.find(u => u.role === UserRole.SUPER_ADMIN) || MOCK_USERS[0];
-            localStorage.setItem(SESSION_KEY, JSON.stringify(admin));
-            return admin;
+        console.warn("Firebase Auth falhou, tentando fallback mock...", err.code);
+        
+        // Fallback para usuários MOCK para facilitar o teste sem precisar criar no console do Firebase
+        const mockUser = MOCK_USERS.find(u => u.email === cleanEmail);
+        if (mockUser && pass === '123456') {
+            localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
+            notifyListeners();
+            return mockUser;
         }
+        
         throw new Error(err.message);
     }
 };
@@ -149,13 +146,11 @@ export const logout = async () => {
 
 export const registerUser = async (name: string, email: string, password?: string): Promise<User> => {
     const pass = password || '123456';
-    
-    // Cria usuário no Firebase Authentication
     const userCred = await createUserWithEmailAndPassword(auth, email.toLowerCase(), pass);
     const firebaseUser = userCred.user;
 
     const newUser: User = {
-        id: firebaseUser.uid, // Usamos o UID do Firebase Auth para consistência
+        id: firebaseUser.uid,
         name,
         email: email.toLowerCase(),
         role: UserRole.CUSTOMER,
@@ -197,15 +192,11 @@ export const deleteCoupon = async (id: string) => {
 
 export const updateUser = async (u: User) => {
     const loggedUser = getCurrentUser();
-    // Só atualiza o localStorage se estivermos editando o PRÓPRIO perfil
     if (loggedUser && loggedUser.id === u.id) {
         localStorage.setItem(SESSION_KEY, JSON.stringify(u));
     }
-    
     const cleaned = cleanObject(u);
-    // Usamos setDoc para garantir que o documento seja criado se não existir
     await setDoc(doc(db, 'users', u.id), cleaned, { merge: true });
-    
     const idx = _users.findIndex(user => user.id === u.id);
     if (idx !== -1) _users[idx] = { ..._users[idx], ...u };
     notifyListeners();
@@ -278,7 +269,8 @@ export const approveCompanyRequest = async (id: string) => {
             openingHours: { 'Seg-Sex': '09:00 - 18:00' },
             rating: 5.0,
             views: 0,
-            isOpenNow: true
+            isOpenNow: true,
+            menu: []
         };
         await setDoc(doc(db, 'businesses', userId), cleanObject(newBiz));
         

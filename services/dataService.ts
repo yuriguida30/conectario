@@ -10,11 +10,16 @@ import {
     where, 
     increment 
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword,
+    onAuthStateChanged
+} from 'firebase/auth';
+import { auth, db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, 
     CompanyRequest, AppCategory, DEFAULT_CATEGORIES, 
-    DEFAULT_AMENITIES, AppConfig, Collection
+    DEFAULT_AMENITIES, AppConfig, Collection, BusinessPlan
 } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
@@ -28,11 +33,23 @@ let _collections: Collection[] = [];
 let _categories: AppCategory[] = DEFAULT_CATEGORIES.map(name => ({ id: name.toLowerCase(), name }));
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
 
+// Monitora mudanças na autenticação do Firebase para manter sincronizado
+onAuthStateChanged(auth, async (firebaseUser) => {
+    if (firebaseUser) {
+        // Se houver um usuário no Firebase Auth, garantimos que os dados locais reflitam o Firestore
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+            const userData = { id: userDoc.id, ...userDoc.data() } as User;
+            localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+        }
+    }
+});
+
 // Helper para remover campos undefined que quebram o Firestore
 const cleanObject = (obj: any) => {
     const newObj = { ...obj };
     Object.keys(newObj).forEach(key => {
-        if (newObj[key] === undefined) {
+        if (newObj[key] === undefined || newObj[key] === null) {
             delete newObj[key];
         }
     });
@@ -86,35 +103,59 @@ export const getCurrentUser = (): User | null => {
 
 export const login = async (email: string, password?: string): Promise<User | null> => {
     const cleanEmail = email.toLowerCase().trim();
-    
-    if (cleanEmail === 'admin@conectario.com' && password === '123456') {
-        const admin = _users.find(u => u.role === UserRole.SUPER_ADMIN) || MOCK_USERS[0];
-        localStorage.setItem(SESSION_KEY, JSON.stringify(admin));
-        return admin;
-    }
+    const pass = password || '123456';
 
-    const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
-    const snap = await getDocs(q);
-    
-    if (!snap.empty) {
-        const userData = { id: snap.docs[0].id, ...snap.docs[0].data() } as User;
-        if (password === '123456') {
+    try {
+        // Tenta autenticar REALMENTE no Firebase
+        const userCred = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+        const firebaseUser = userCred.user;
+
+        // Busca os dados complementares no Firestore
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        
+        if (userDoc.exists()) {
+            const userData = { id: userDoc.id, ...userDoc.data() } as User;
             localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
             notifyListeners();
             return userData;
+        } else {
+            // Caso o usuário exista no Auth mas não no Firestore (raro, mas pode acontecer)
+            const fallbackUser: User = {
+                id: firebaseUser.uid,
+                name: firebaseUser.displayName || 'Usuário',
+                email: cleanEmail,
+                role: UserRole.CUSTOMER
+            };
+            await updateUser(fallbackUser);
+            return fallbackUser;
         }
+    } catch (err: any) {
+        console.error("Erro no Login Firebase Auth:", err.code);
+        // Fallback para o admin master se o Firebase Auth falhar (apenas para facilitar seu primeiro acesso)
+        if (cleanEmail === 'admin@conectario.com' && pass === '123456') {
+            const admin = _users.find(u => u.role === UserRole.SUPER_ADMIN) || MOCK_USERS[0];
+            localStorage.setItem(SESSION_KEY, JSON.stringify(admin));
+            return admin;
+        }
+        throw new Error(err.message);
     }
-    return null;
 };
 
 export const logout = async () => {
+    await auth.signOut();
     localStorage.removeItem(SESSION_KEY);
     notifyListeners();
 };
 
 export const registerUser = async (name: string, email: string, password?: string): Promise<User> => {
+    const pass = password || '123456';
+    
+    // Cria usuário no Firebase Authentication
+    const userCred = await createUserWithEmailAndPassword(auth, email.toLowerCase(), pass);
+    const firebaseUser = userCred.user;
+
     const newUser: User = {
-        id: Math.random().toString(36).substring(2, 9),
+        id: firebaseUser.uid, // Usamos o UID do Firebase Auth para consistência
         name,
         email: email.toLowerCase(),
         role: UserRole.CUSTOMER,
@@ -156,16 +197,17 @@ export const deleteCoupon = async (id: string) => {
 
 export const updateUser = async (u: User) => {
     const loggedUser = getCurrentUser();
-    // CRÍTICO: Só atualiza o localStorage se estivermos editando o PRÓPRIO perfil
+    // Só atualiza o localStorage se estivermos editando o PRÓPRIO perfil
     if (loggedUser && loggedUser.id === u.id) {
         localStorage.setItem(SESSION_KEY, JSON.stringify(u));
     }
     
     const cleaned = cleanObject(u);
-    await setDoc(doc(db, 'users', u.id), cleaned);
+    // Usamos setDoc para garantir que o documento seja criado se não existir
+    await setDoc(doc(db, 'users', u.id), cleaned, { merge: true });
     
     const idx = _users.findIndex(user => user.id === u.id);
-    if (idx !== -1) _users[idx] = u;
+    if (idx !== -1) _users[idx] = { ..._users[idx], ...u };
     notifyListeners();
 };
 
@@ -210,7 +252,7 @@ export const approveCompanyRequest = async (id: string) => {
         const req = reqSnap.data() as CompanyRequest;
         await updateDoc(reqRef, { status: 'APPROVED' });
         
-        const userId = `user_${id}`;
+        const userId = `company_${id}`;
         const newUser: User = {
             id: userId,
             name: req.ownerName,

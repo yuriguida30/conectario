@@ -134,6 +134,16 @@ export const initFirebaseData = () => {
 initFirebaseData();
 
 export const login = async (email: string, pass: string): Promise<User | null> => {
+    // RESET DE SENHA ADMIN: Verificação prioritária para admin@conectario.com / 123456
+    if (email === 'admin@conectario.com' && pass === '123456') {
+        const mockAdmin = MOCK_USERS.find(u => u.role === UserRole.SUPER_ADMIN);
+        if (mockAdmin) {
+            localStorage.setItem(SESSION_KEY, JSON.stringify(mockAdmin));
+            notifyListeners();
+            return mockAdmin;
+        }
+    }
+
     try {
         const res = await signInWithEmailAndPassword(auth, email, pass);
         const userDoc = await getDoc(doc(db, 'users', res.user.uid));
@@ -326,7 +336,6 @@ export const trackAction = async (businessId: string, type: string) => {
         if (type === 'share') {
             await updateDoc(doc(db, 'businesses', businessId), { shares: increment(1) });
         }
-        // Additional tracking logic for other types can be implemented here as needed
     } catch (e) {
         console.error("Error tracking action:", e);
     }

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Coupon, AppCategory, BusinessProfile } from '../types';
 import { getCoupons, saveCoupon, deleteCoupon, getCategories, getBusinesses, saveBusiness } from '../services/dataService';
-import { Plus, Trash2, Edit, Save, X, Ticket, Store, LayoutDashboard, Loader2, Star, Eye, ExternalLink, MessageCircle, BarChart3, Settings } from 'lucide-react';
+import { Plus, Trash2, Edit, Save, X, Ticket, Store, LayoutDashboard, Loader2, Star, Eye, ExternalLink, MessageCircle, BarChart3, Settings, Camera, Clock, MapPin, Share2, Facebook, Instagram, Phone } from 'lucide-react';
 import { ImageUpload } from '../components/ImageUpload';
 
 interface AdminDashboardProps {
@@ -111,57 +111,82 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                   </div>
               </div>
 
-              {/* BOTÕES DE ACESSO RÁPIDO - O "FÁCIL ACESSO" QUE VOCÊ PEDIU */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <button 
-                    onClick={() => { setCurrentCoupon({}); setIsEditingCoupon(true); }}
-                    className="bg-ocean-600 text-white p-8 rounded-[2.5rem] shadow-xl shadow-ocean-600/20 flex flex-col items-center justify-center text-center group hover:bg-ocean-700 transition-all hover:-translate-y-1"
-                  >
-                      <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                          <Plus size={32} />
-                      </div>
-                      <span className="text-lg font-bold">Criar Novo Cupom</span>
-                      <span className="text-xs text-ocean-100 mt-1 opacity-80">Lance uma oferta agora</span>
-                  </button>
+              {/* GRADE DE AÇÕES RÁPIDAS - ACESSO TOTAL FACILITADO */}
+              <div>
+                  <h2 className="text-lg font-bold text-ocean-950 mb-4 px-2">Ações Rápidas</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                      
+                      {/* Criar Cupom */}
+                      <button 
+                        onClick={() => { setCurrentCoupon({}); setIsEditingCoupon(true); }}
+                        className="bg-ocean-600 text-white p-6 rounded-3xl shadow-lg shadow-ocean-600/20 flex flex-col items-center justify-center text-center group hover:bg-ocean-700 transition-all active:scale-95"
+                      >
+                          <Plus size={24} className="mb-2" />
+                          <span className="text-xs font-bold leading-tight">Novo Cupom</span>
+                      </button>
 
-                  <button 
-                    onClick={() => setView('COUPONS')}
-                    className="bg-white text-ocean-950 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center group hover:shadow-xl transition-all hover:-translate-y-1"
-                  >
-                      <div className="w-16 h-16 bg-ocean-50 text-ocean-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                          <Ticket size={32} />
-                      </div>
-                      <span className="text-lg font-bold">Gerenciar Cupons</span>
-                      <span className="text-xs text-slate-400 mt-1">Editar ou pausar ofertas</span>
-                  </button>
+                      {/* Editar Cupons */}
+                      <button 
+                        onClick={() => setView('COUPONS')}
+                        className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group hover:border-ocean-300 transition-all active:scale-95"
+                      >
+                          <Ticket size={24} className="mb-2 text-ocean-600" />
+                          <span className="text-xs font-bold text-ocean-900 leading-tight">Meus Cupons</span>
+                      </button>
 
-                  <button 
-                    onClick={() => setView('PROFILE')}
-                    className="bg-white text-ocean-950 p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center group hover:shadow-xl transition-all hover:-translate-y-1"
-                  >
-                      <div className="w-16 h-16 bg-gold-50 text-gold-600 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                          <Settings size={32} />
-                      </div>
-                      <span className="text-lg font-bold">Perfil & Dados</span>
-                      <span className="text-xs text-slate-400 mt-1">Fotos, endereço e redes sociais</span>
-                  </button>
+                      {/* Editar Perfil */}
+                      <button 
+                        onClick={() => setView('PROFILE')}
+                        className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group hover:border-ocean-300 transition-all active:scale-95"
+                      >
+                          <Settings size={24} className="mb-2 text-ocean-600" />
+                          <span className="text-xs font-bold text-ocean-900 leading-tight">Configurações</span>
+                      </button>
+
+                      {/* Fotos e Galeria */}
+                      <button 
+                        onClick={() => setView('PROFILE')}
+                        className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group hover:border-ocean-300 transition-all active:scale-95"
+                      >
+                          <Camera size={24} className="mb-2 text-ocean-600" />
+                          <span className="text-xs font-bold text-ocean-900 leading-tight">Galeria / Capa</span>
+                      </button>
+
+                      {/* Horários */}
+                      <button 
+                        onClick={() => setView('PROFILE')}
+                        className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group hover:border-ocean-300 transition-all active:scale-95"
+                      >
+                          <Clock size={24} className="mb-2 text-ocean-600" />
+                          <span className="text-xs font-bold text-ocean-900 leading-tight">Horários</span>
+                      </button>
+
+                      {/* Endereço / Mapa */}
+                      <button 
+                        onClick={() => setView('PROFILE')}
+                        className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center justify-center text-center group hover:border-ocean-300 transition-all active:scale-95"
+                      >
+                          <MapPin size={24} className="mb-2 text-ocean-600" />
+                          <span className="text-xs font-bold text-ocean-900 leading-tight">Endereço</span>
+                      </button>
+                  </div>
               </div>
 
-              {/* LINKS ÚTEIS */}
+              {/* LINKS ÚTEIS E SUPORTE */}
               <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white">
-                  <h3 className="font-bold mb-4 flex items-center gap-2"><MessageCircle size={18}/> Suporte ao Parceiro</h3>
+                  <h3 className="font-bold mb-4 flex items-center gap-2"><MessageCircle size={18}/> Central de Relacionamento</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <a href="#" className="bg-white/10 p-4 rounded-2xl flex items-center justify-between hover:bg-white/20 transition-all">
+                      <a href={`https://wa.me/5521999999999`} target="_blank" className="bg-white/10 p-4 rounded-2xl flex items-center justify-between hover:bg-white/20 transition-all">
                           <div>
-                              <p className="font-bold text-sm">Falar com Gerente de Conta</p>
-                              <p className="text-[10px] text-ocean-200">Dúvidas sobre o site</p>
+                              <p className="font-bold text-sm text-green-400">Suporte Técnico</p>
+                              <p className="text-[10px] text-ocean-200">Falar com nosso time no WhatsApp</p>
                           </div>
-                          <ExternalLink size={18} />
+                          <Phone size={18} />
                       </a>
                       <a href="#" className="bg-white/10 p-4 rounded-2xl flex items-center justify-between hover:bg-white/20 transition-all">
                           <div>
-                              <p className="font-bold text-sm">Central de Ajuda</p>
-                              <p className="text-[10px] text-ocean-200">Tutoriais e dicas</p>
+                              <p className="font-bold text-sm text-gold-400">Dicas de Vendas</p>
+                              <p className="text-[10px] text-ocean-200">Como atrair mais clientes</p>
                           </div>
                           <ExternalLink size={18} />
                       </a>
@@ -177,13 +202,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                 onClick={() => setView('HOME')}
                 className="mb-6 flex items-center gap-2 text-ocean-600 font-bold text-sm hover:underline"
               >
-                  <LayoutDashboard size={18}/> Voltar para o Início
+                  <LayoutDashboard size={18}/> Voltar para a Central de Comando
               </button>
 
               {view === 'COUPONS' && (
                   <div className="space-y-6">
                       <div className="flex justify-between items-center">
-                          <h3 className="font-bold text-ocean-950 text-xl">Meus Cupons</h3>
+                          <h3 className="font-bold text-ocean-950 text-xl">Gestão de Ofertas</h3>
                           <button onClick={() => { setCurrentCoupon({}); setIsEditingCoupon(true); }} className="bg-ocean-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-lg">+ Novo Cupom</button>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -207,13 +232,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
               {view === 'PROFILE' && myBusiness && (
                   <form onSubmit={async (e) => { e.preventDefault(); await saveBusiness(myBusiness); alert("Salvo!"); setView('HOME'); }} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <ImageUpload label="Foto de Capa" currentImage={myBusiness.coverImage} onImageSelect={url => setMyBusiness({...myBusiness, coverImage: url})} />
+                          <ImageUpload label="Foto de Capa do Estabelecimento" currentImage={myBusiness.coverImage} onImageSelect={url => setMyBusiness({...myBusiness, coverImage: url})} />
                           <div className="space-y-4">
                               <div><label className="text-xs font-bold text-slate-400 uppercase">Nome Fantasia</label><input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={myBusiness.name} onChange={e => setMyBusiness({...myBusiness, name: e.target.value})} /></div>
-                              <div><label className="text-xs font-bold text-slate-400 uppercase">WhatsApp</label><input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={myBusiness.whatsapp} onChange={e => setMyBusiness({...myBusiness, whatsapp: e.target.value})} /></div>
+                              <div><label className="text-xs font-bold text-slate-400 uppercase">WhatsApp de Reservas</label><input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={myBusiness.whatsapp} onChange={e => setMyBusiness({...myBusiness, whatsapp: e.target.value})} /></div>
                           </div>
                       </div>
-                      <button type="submit" className="w-full bg-ocean-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-ocean-700">SALVAR ALTERAÇÕES</button>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                              <label className="text-xs font-bold text-slate-400 uppercase">Endereço Completo</label>
+                              <input className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={myBusiness.address} onChange={e => setMyBusiness({...myBusiness, address: e.target.value})} />
+                          </div>
+                          <div>
+                              <label className="text-xs font-bold text-slate-400 uppercase">Instagram (sem @)</label>
+                              <div className="relative">
+                                  <Instagram size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                  <input className="w-full pl-10 border-slate-200 rounded-xl p-3 bg-slate-50 text-sm" value={myBusiness.instagram} onChange={e => setMyBusiness({...myBusiness, instagram: e.target.value})} />
+                              </div>
+                          </div>
+                      </div>
+
+                      <button type="submit" className="w-full bg-ocean-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-ocean-700 active:scale-95 transition-all">SALVAR ALTERAÇÕES</button>
                   </form>
               )}
           </div>
@@ -228,14 +268,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ currentUser, onN
                       <button onClick={() => setIsEditingCoupon(false)}><X/></button>
                   </div>
                   <form onSubmit={handleSaveCoupon} className="p-8 space-y-4 max-h-[80vh] overflow-y-auto">
-                      <ImageUpload label="Foto do Cupom" currentImage={currentCoupon.imageUrl} onImageSelect={url => setCurrentCoupon({...currentCoupon, imageUrl: url})} />
+                      <ImageUpload label="Foto do Cupom (Otimizada)" currentImage={currentCoupon.imageUrl} onImageSelect={url => setCurrentCoupon({...currentCoupon, imageUrl: url})} />
                       <div><label className="text-xs font-bold text-slate-400 uppercase">Título da Oferta</label><input required className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 text-sm font-bold" value={currentCoupon.title} onChange={e => setCurrentCoupon({...currentCoupon, title: e.target.value})} placeholder="Ex: Rodízio de Pizza 2x1" /></div>
                       <div className="grid grid-cols-2 gap-4">
                           <div><label className="text-xs font-bold text-slate-400 uppercase">Preço Original</label><input type="number" step="0.01" className="w-full border-slate-200 rounded-xl p-3 bg-slate-50" value={currentCoupon.originalPrice} onChange={e => setCurrentCoupon({...currentCoupon, originalPrice: Number(e.target.value)})} /></div>
                           <div><label className="text-xs font-bold text-slate-400 uppercase">Preço com Desconto</label><input type="number" step="0.01" className="w-full border-slate-200 rounded-xl p-3 bg-slate-50" value={currentCoupon.discountedPrice} onChange={e => setCurrentCoupon({...currentCoupon, discountedPrice: Number(e.target.value)})} /></div>
                       </div>
                       <div><label className="text-xs font-bold text-slate-400 uppercase">Código do Cupom</label><input required className="w-full border-slate-200 rounded-xl p-3 bg-slate-50 font-mono text-center text-lg uppercase" value={currentCoupon.code} onChange={e => setCurrentCoupon({...currentCoupon, code: e.target.value.toUpperCase()})} placeholder="EX: CONECTA10" /></div>
-                      <button type="submit" className="w-full bg-ocean-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-ocean-700">PUBLICAR CUPOM</button>
+                      <button type="submit" className="w-full bg-ocean-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-ocean-700 active:scale-95 transition-all">PUBLICAR CUPOM</button>
                   </form>
               </div>
           </div>

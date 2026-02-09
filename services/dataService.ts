@@ -16,7 +16,7 @@ import { db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, 
     CompanyRequest, AppCategory, AppLocation, AppAmenity, 
-    DEFAULT_CATEGORIES, DEFAULT_AMENITIES, AppConfig 
+    DEFAULT_CATEGORIES, DEFAULT_AMENITIES, AppConfig, Collection
 } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
@@ -27,6 +27,7 @@ let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
 let _posts: BlogPost[] = [...MOCK_POSTS];
+let _collections: Collection[] = [];
 let _categories: AppCategory[] = DEFAULT_CATEGORIES.map(name => ({ id: name.toLowerCase(), name }));
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
 
@@ -186,8 +187,8 @@ export const redeemCoupon = async (userId: string, coupon: Coupon) => {
         history: [...(user.history || []), historyItem]
     });
 
-    // Atualiza contagem do cupom
-    const couponRef = doc(doc(db, 'coupons', coupon.id));
+    // Atualiza contagem do cupom - FIXED: Removed extra doc() call
+    const couponRef = doc(db, 'coupons', coupon.id);
     await updateDoc(couponRef, {
         currentRedemptions: increment(1)
     });
@@ -277,7 +278,7 @@ export const incrementBusinessView = async (id: string) => {
     const bizRef = doc(db, 'businesses', id);
     await updateDoc(bizRef, { views: increment(1) });
 };
-export const getCollections = () => [];
+export const getCollections = () => _collections;
 export const getFeaturedConfig = () => null;
 export const identifyNeighborhood = (lat: number, lng: number) => "Sepetiba, Rio de Janeiro";
 export const calculateDistance = (la1: number, lo1: number, la2: number, lo2: number) => 0;
@@ -285,4 +286,4 @@ export const sendSupportMessage = async (m: any) => {};
 export const fetchReviewsForBusiness = async (id: string) => [];
 export const addBusinessReview = async (bid: string, r: any) => {};
 export const incrementSocialClick = async (bid: string, t: string) => {};
-export const getCollectionById = (id: string) => null;
+export const getCollectionById = (id: string) => _collections.find(c => c.id === id) || null;

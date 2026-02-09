@@ -11,7 +11,7 @@ interface CollectionDetailProps {
 }
 
 export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId, onNavigate }) => {
-  const [collection, setCollection] = useState<Collection | undefined>(undefined);
+  const [collection, setCollection] = useState<Collection | null>(null);
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
   const user = getCurrentUser();
   const [favorites, setFavorites] = useState<string[]>(user?.favorites?.businesses || []);
@@ -20,10 +20,10 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
     const col = getCollectionById(collectionId);
     setCollection(col);
     
-    if (col) {
+    if (col && col.businessIds) {
         const loadedBusinesses = col.businessIds
             .map(id => getBusinessById(id))
-            .filter((b) => b !== undefined) as BusinessProfile[];
+            .filter((b): b is BusinessProfile => b !== undefined);
         setBusinesses(loadedBusinesses);
     }
   }, [collectionId]);
@@ -38,7 +38,10 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
       setFavorites(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  if (!collection) return <div className="p-10 text-center">Carregando...</div>;
+  if (!collection) return <div className="p-10 text-center flex flex-col items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-8 w-8 border-4 border-ocean-600 border-t-transparent mb-4"></div>
+    <p className="text-slate-500 font-medium">Carregando coleção...</p>
+  </div>;
 
   return (
     <div className="bg-slate-50 min-h-screen pb-24">
@@ -109,6 +112,11 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
                     );
                 })}
             </div>
+            {businesses.length === 0 && (
+                <div className="text-center py-20 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                    <p className="text-slate-400">Nenhum lugar cadastrado nesta coleção ainda.</p>
+                </div>
+            )}
         </div>
     </div>
   );

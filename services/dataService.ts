@@ -101,42 +101,68 @@ export const initFirebaseData = async () => {
 initFirebaseData();
 
 /**
- * LOGIN HÍBRIDO DEFINITIVO
- * Prioriza senhas alteradas pelo Admin no Firestore.
+ * LOGIN HÍBRIDO DEFINITIVO V3
+ * Prioriza bypass via Firestore para permitir controle total do Admin.
  */
 export const login = async (email: string, password?: string): Promise<User | null> => {
     const cleanEmail = email.toLowerCase().trim();
     const inputPass = password || '123456';
     
-    // 1. BUSCA O USUÁRIO NO FIRESTORE PRIMEIRO (Para checar bypass de senha)
+    // 1. CHECAGEM DE MASTER ADMIN (Segurança de Acesso)
+    if (cleanEmail === 'admin@conectario.com') {
+        const adminUser = MOCK_USERS.find(u => u.email === 'admin@conectario.com')!;
+        // Busca se o admin mudou sua própria senha no banco
+        const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+            const data = snap.docs[0].data() as any;
+            if (data.passwordOverride && inputPass === data.passwordOverride) {
+                localStorage.setItem(SESSION_KEY, JSON.stringify({ ...adminUser, ...data, id: snap.docs[0].id }));
+                notifyListeners();
+                return adminUser;
+            }
+        }
+        // Senha padrão se não houver override
+        if (inputPass === '123456') {
+            localStorage.setItem(SESSION_KEY, JSON.stringify(adminUser));
+            notifyListeners();
+            return adminUser;
+        }
+    }
+
+    // 2. BUSCA GERAL NO FIRESTORE (Empresas e Clientes)
     const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
     const querySnapshot = await getDocs(q);
     
-    let targetUser: User | null = null;
-
     if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
-        targetUser = { id: userDoc.id, ...userDoc.data() } as User;
-        
-        // CHECAGEM DE BYPASS (A senha que o Admin definiu)
         const userData = userDoc.data() as any;
+        const targetUser = { id: userDoc.id, ...userData } as User;
+        
+        // Verifica se o Admin definiu uma senha manual para este usuário
         if (userData.passwordOverride && inputPass === userData.passwordOverride) {
-            console.log("Login realizado via Bypass de Administrador.");
+            localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
+            notifyListeners();
+            return targetUser;
+        }
+
+        // Se for um usuário Mock que já foi salvo no Firestore, aceita a senha padrão 123456
+        if (MOCK_USERS.some(u => u.email.toLowerCase() === cleanEmail) && inputPass === '123456') {
             localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
             notifyListeners();
             return targetUser;
         }
     } else {
-        // Fallback para usuários MOCK (que ainda não estão no Firestore)
-        targetUser = MOCK_USERS.find(u => u.email.toLowerCase() === cleanEmail) || null;
-        if (targetUser && inputPass === '123456') {
-            localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
+        // 3. FALLBACK PARA MOCK USERS AINDA NÃO SALVOS (André, etc)
+        const mockUser = MOCK_USERS.find(u => u.email.toLowerCase() === cleanEmail);
+        if (mockUser && inputPass === '123456') {
+            localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
             notifyListeners();
-            return targetUser;
+            return mockUser;
         }
     }
 
-    // 2. SE NÃO HOUVER BYPASS, TENTA O FIREBASE AUTH NORMAL
+    // 4. TENTA FIREBASE AUTH (Para usuários que se cadastraram sozinhos)
     try {
         const userCred = await signInWithEmailAndPassword(auth, cleanEmail, inputPass);
         const firebaseUser = userCred.user;
@@ -148,11 +174,11 @@ export const login = async (email: string, password?: string): Promise<User | nu
             return userData;
         }
     } catch (err: any) {
-        // Se chegamos aqui, as credenciais realmente estão erradas tanto no bypass quanto no Auth
-        throw new Error("Credenciais inválidas. Verifique o email e a senha.");
+        // Se falhou tudo, as credenciais estão erradas
+        throw new Error("Credenciais inválidas. Verifique seu email e senha.");
     }
     
-    throw new Error("Usuário não encontrado.");
+    throw new Error("Credenciais inválidas.");
 };
 
 export const logout = async () => {
@@ -204,16 +230,16 @@ export const updateUser = async (u: User) => {
 
 /**
  * ATUALIZAÇÃO DE SENHA PELO ADMIN (SALVA NO BANCO)
+ * Essa função garante que qualquer alteração seja soberana sobre o Auth.
  */
 export const updateUserPassword = async (userId: string, newPass: string) => {
     try {
-        // Gravamos o override diretamente no Firestore para ser acessível em qualquer lugar
         await setDoc(doc(db, 'users', userId), { 
             passwordOverride: newPass 
         }, { merge: true });
         
-        console.log(`Senha de override gravada para o usuário ${userId}`);
-        await initFirebaseData(); // Atualiza lista local
+        console.log(`Senha de override gravada com sucesso no Firestore para ${userId}`);
+        await initFirebaseData(); 
     } catch(e) {
         console.error("Erro ao gravar override de senha:", e);
         throw e;

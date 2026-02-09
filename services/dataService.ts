@@ -32,19 +32,8 @@ const SESSION_KEY = 'cr_session_v4';
 let _businesses: BusinessProfile[] = [];
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
-let _posts: BlogPost[] = [...MOCK_POSTS];
 let _categories: AppCategory[] = DEFAULT_CATEGORIES.map(name => ({ id: name.toLowerCase(), name }));
 let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
-
-let _collections: Collection[] = [
-    {
-        id: 'col1',
-        title: 'Os Melhores Cafés',
-        description: 'Uma seleção dos cafés mais charmosos do Rio.',
-        coverImage: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&q=80&w=800',
-        businessIds: ['local_1765502020338']
-    }
-];
 
 const notifyListeners = () => {
     window.dispatchEvent(new Event('dataUpdated'));
@@ -80,10 +69,8 @@ export const initFirebaseData = async () => {
     try {
         const bizSnap = await getDocs(collection(db, 'businesses'));
         const fbBusinesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
-        
         const coupSnap = await getDocs(collection(db, 'coupons'));
         const fbCoupons = coupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
-        
         const userSnap = await getDocs(collection(db, 'users'));
         _users = userSnap.docs.map(d => ({ id: d.id, ...d.data() } as User));
 
@@ -133,38 +120,17 @@ export const loginWithGoogle = async (): Promise<User | null> => {
     }
 };
 
-export const login = async (email: string, password?: string): Promise<User | null> => {
-    const cleanEmail = email.toLowerCase().trim();
-    const inputPass = password || '123456';
-    const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0];
-        const userData = userDoc.data() as any;
-        const targetUser = { id: userDoc.id, ...userData } as User;
-        
-        if (userData.passwordOverride && inputPass === userData.passwordOverride) {
-            localStorage.setItem(SESSION_KEY, JSON.stringify(targetUser));
-            notifyListeners();
-            return targetUser;
-        }
+// Added login implementation
+export const login = async (email: string, pass: string): Promise<User | null> => {
+    const res = await signInWithEmailAndPassword(auth, email, pass);
+    const userDoc = await getDoc(doc(db, 'users', res.user.uid));
+    if (userDoc.exists()) {
+        const userData = { id: userDoc.id, ...userDoc.data() } as User;
+        localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+        notifyListeners();
+        return userData;
     }
-
-    try {
-        const userCred = await signInWithEmailAndPassword(auth, cleanEmail, inputPass);
-        const firebaseUser = userCred.user;
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-            const userData = { id: userDoc.id, ...userDoc.data() } as User;
-            localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
-            notifyListeners();
-            return userData;
-        }
-    } catch (err: any) {
-        throw new Error("Credenciais inválidas.");
-    }
-    throw new Error("Usuário não encontrado.");
+    return null;
 };
 
 export const logout = async () => {
@@ -194,10 +160,15 @@ export const getCurrentUser = (): User | null => {
     return stored ? JSON.parse(stored) : null;
 };
 
+// Added updateUser implementation
+export const updateUser = async (user: User) => {
+    await setDoc(doc(db, 'users', user.id), cleanObject(user), { merge: true });
+    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    notifyListeners();
+};
+
 export const getCategories = () => _categories;
 export const getAllUsers = () => _users;
-export const getBlogPosts = () => _posts;
-export const getBlogPostById = (id: string) => _posts.find(p => p.id === id);
 
 export const saveCoupon = async (c: Coupon) => {
     try { 
@@ -221,143 +192,91 @@ export const deleteCoupon = async (id: string) => {
     }
 };
 
-export const updateUser = async (u: User) => {
-    try { 
-        await setDoc(doc(db, 'users', u.id), cleanObject(u), { merge: true }); 
-        localStorage.setItem(SESSION_KEY, JSON.stringify(u));
-        notifyListeners();
-    } catch(e){
-        console.error("Erro ao atualizar usuário:", e);
-    }
-};
-
-export const redeemCoupon = async (userId: string, coupon: Coupon): Promise<void> => {
-    const user = getCurrentUser();
-    if (!user) throw new Error("Usuário não logado.");
-
-    const economy = Math.max(0, coupon.originalPrice - coupon.discountedPrice);
-    const historyItem = { 
-        date: new Date().toISOString(), 
-        amount: economy, 
-        couponTitle: coupon.title, 
-        couponId: coupon.id 
-    };
-
-    const updatedUser: User = {
-        ...user,
-        history: [...(user.history || []), historyItem],
-        savedAmount: (user.savedAmount || 0) + economy
-    };
-
-    await updateUser(updatedUser);
-    
-    try {
-        await updateDoc(doc(db, 'coupons', coupon.id), { 
-            currentRedemptions: increment(1) 
-        });
-    } catch(e) {}
-};
-
-export const getAmenities = () => DEFAULT_AMENITIES;
-export const getAppConfig = () => _appConfig;
-export const getLocations = () => [
-    { id: 'sepetiba', name: 'Sepetiba', active: true },
-    { id: 'centro', name: 'Centro', active: true }
-];
-
-export const getCollections = () => _collections;
-export const getCollectionById = (id: string) => _collections.find(c => c.id === id);
-export const getFeaturedConfig = (): FeaturedConfig => ({
-    title: "Destaque do Rio",
-    subtitle: "Aproveite o melhor da Cidade Maravilhosa com descontos exclusivos.",
-    imageUrl: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=1600",
-    buttonText: "Explorar Agora"
-});
-
-export const calculateDistance = (la1: number, lo1: number, la2: number, lo2: number) => 0;
-
-// Fix: added identifyNeighborhood to services/dataService.ts
-export const identifyNeighborhood = (lat: number, lng: number): string => {
-    if (lat < -22.95 && lng < -43.65) return "Sepetiba, RJ";
-    return "Rio de Janeiro";
-};
-
-export const toggleFavorite = async (type: string, id: string) => {
-    const user = getCurrentUser();
-    if (!user) return;
-    const favs = user.favorites || { coupons: [], businesses: [] };
-    if (type === 'coupon') {
-        const idx = favs.coupons.indexOf(id);
-        if (idx === -1) favs.coupons.push(id);
-        else favs.coupons.splice(idx, 1);
-    } else {
-        const idx = favs.businesses.indexOf(id);
-        if (idx === -1) favs.businesses.push(id);
-        else favs.businesses.splice(idx, 1);
-    }
-    user.favorites = favs;
-    await updateUser(user);
-};
-
-export const incrementBusinessView = async (id: string) => {
-    try { await updateDoc(doc(db, 'businesses', id), { views: increment(1) }); } catch(e) {}
-};
-
-export const registerUser = async (name: string, email: string, pass: string): Promise<User> => {
-    const userCred = await createUserWithEmailAndPassword(auth, email, pass);
-    const newUser: User = {
-        id: userCred.user.uid,
-        name,
-        email,
-        role: UserRole.CUSTOMER,
-        favorites: { coupons: [], businesses: [] },
-        history: [],
-        savedAmount: 0
-    };
-    await setDoc(doc(db, 'users', newUser.id), cleanObject(newUser));
-    localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
-    notifyListeners();
-    return newUser;
-};
-
-// Fix: added sendSupportMessage to services/dataService.ts
-export const sendSupportMessage = async (msg: string) => {
-    console.log("Suporte Mensagem:", msg);
-};
-
-export const createCompanyRequest = async (form: any) => {
-    try {
-        const id = `req_${Date.now()}`;
-        await setDoc(doc(db, 'requests', id), { ...form, id, status: 'PENDING', requestDate: new Date().toISOString() });
-    } catch (e) {
-        console.error("Erro ao criar solicitação:", e);
-    }
-};
-
-// Fix: added approveCompanyRequest to services/dataService.ts
-export const approveCompanyRequest = async (requestId: string) => {
-    try {
-        await updateDoc(doc(db, 'requests', requestId), { status: 'APPROVED' });
-        notifyListeners();
-    } catch (e) {
-        console.error("Erro ao aprovar solicitação:", e);
-    }
-};
-
-export const getCompanyRequests = async () => {
-    const snap = await getDocs(collection(db, 'requests'));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
-};
-
 /**
- * AGREGADORES DE DADOS PARA DASHBOARDS INTELIGENTES
+ * SISTEMA DE RASTREAMENTO DE AÇÕES (CONVERSÕES)
  */
+export const trackAction = async (businessId: string, action: 'menu' | 'social' | 'map' | 'share' | 'phone' | 'visit_direct' | 'visit_search') => {
+    try {
+        const fieldMap: any = {
+            menu: 'menuViews',
+            social: 'socialClicks',
+            map: 'mapClicks',
+            share: 'shares',
+            phone: 'phoneClicks',
+            visit_direct: 'directVisits',
+            visit_search: 'searchVisits'
+        };
+        const field = fieldMap[action];
+        if (field) {
+            await updateDoc(doc(db, 'businesses', businessId), { [field]: increment(1), totalConversions: increment(1) });
+        }
+    } catch (e) {
+        // Silencioso para não travar a UI
+    }
+};
+
+export const getBusinessStats = async (businessId: string) => {
+    const bizSnap = await getDoc(doc(db, 'businesses', businessId));
+    const data: any = bizSnap.exists() ? bizSnap.data() : { 
+        views: 0, 
+        menuViews: 0, 
+        socialClicks: 0, 
+        mapClicks: 0, 
+        shares: 0, 
+        phoneClicks: 0,
+        directVisits: 0,
+        searchVisits: 0,
+        totalConversions: 0 
+    };
+    
+    const coupons = (await getCoupons()).filter(c => c.companyId === businessId);
+    const totalCouponUsage = coupons.reduce((acc, c) => acc + (c.currentRedemptions || 0), 0);
+
+    // Dados para o Gráfico de Área (Conversões por dia - Simulado)
+    const conversionTrend = [
+        { day: 'Seg', valor: Math.floor(Math.random() * 20) },
+        { day: 'Ter', valor: Math.floor(Math.random() * 25) },
+        { day: 'Qua', valor: Math.floor(Math.random() * 15) },
+        { day: 'Qui', valor: Math.floor(Math.random() * 30) },
+        { day: 'Sex', valor: Math.floor(Math.random() * 45) },
+        { day: 'Sáb', valor: Math.floor(Math.random() * 60) },
+        { day: 'Dom', valor: Math.floor(Math.random() * 40) },
+    ];
+
+    // Dados para o Gráfico de Pizza (Origem do Tráfego)
+    const trafficSource = [
+        { name: 'Direto/Guia', value: data.directVisits || 10 },
+        { name: 'Pesquisa', value: data.searchVisits || 5 },
+    ];
+
+    // Dados para o Gráfico de Barras (Heatmap de Cliques)
+    const actionHeatmap = [
+        { name: 'Redes', cliques: data.socialClicks || 0 },
+        { name: 'Mapa', cliques: data.mapClicks || 0 },
+        { name: 'Cardápio', cliques: data.menuViews || 0 },
+        { name: 'Tel', cliques: data.phoneClicks || 0 },
+        { name: 'Cupons', cliques: totalCouponUsage || 0 },
+    ];
+
+    return {
+        views: data.views || 0,
+        totalConversions: (data.totalConversions || 0) + totalCouponUsage,
+        shares: data.shares || 0,
+        conversionTrend,
+        trafficSource,
+        actionHeatmap,
+        activeCoupons: coupons.length
+    };
+};
+
 export const getAdminStats = async () => {
     const users = getAllUsers();
     const biz = getBusinesses();
     const coupons = await getCoupons();
     
     const totalEconomy = users.reduce((acc, u) => acc + (u.savedAmount || 0), 0);
+    const totalLeads = biz.reduce((acc, b: any) => acc + (b.totalConversions || 0), 0);
+
     const categoriesCount = biz.reduce((acc: any, b) => {
         acc[b.category] = (acc[b.category] || 0) + 1;
         return acc;
@@ -372,34 +291,149 @@ export const getAdminStats = async () => {
         totalUsers: users.length,
         totalBusinesses: biz.length,
         totalEconomy,
-        totalCoupons: coupons.length,
-        chartData
+        totalLeads,
+        chartData,
+        totalCoupons: coupons.length
     };
 };
 
-export const getBusinessStats = async (businessId: string) => {
-    const coupons = (await getCoupons()).filter(c => c.companyId === businessId);
-    const biz = getBusinessById(businessId);
-    
-    const totalRedemptions = coupons.reduce((acc, c) => acc + (c.currentRedemptions || 0), 0);
-    const totalEconomyGenerated = coupons.reduce((acc, c) => acc + ((c.originalPrice - c.discountedPrice) * (c.currentRedemptions || 0)), 0);
-    
-    // Simulação de dados semanais para o gráfico
-    const weeklyData = [
-        { day: 'Seg', resgates: Math.floor(totalRedemptions * 0.1) },
-        { day: 'Ter', resgates: Math.floor(totalRedemptions * 0.12) },
-        { day: 'Qua', resgates: Math.floor(totalRedemptions * 0.15) },
-        { day: 'Qui', resgates: Math.floor(totalRedemptions * 0.18) },
-        { day: 'Sex', resgates: Math.floor(totalRedemptions * 0.2) },
-        { day: 'Sáb', resgates: Math.floor(totalRedemptions * 0.15) },
-        { day: 'Dom', resgates: Math.floor(totalRedemptions * 0.1) },
-    ];
+export const getAppConfig = () => _appConfig;
+export const getLocations = () => [{ id: 'sepetiba', name: 'Sepetiba', active: true }, { id: 'centro', name: 'Centro', active: true }];
+export const getAmenities = () => DEFAULT_AMENITIES;
 
-    return {
-        totalRedemptions,
-        totalEconomyGenerated,
-        views: biz?.views || 0,
-        activeCoupons: coupons.filter(c => c.active).length,
-        weeklyData
+// Changed to return mock data for blog section
+export const getBlogPosts = () => MOCK_POSTS;
+
+// Added getBlogPostById implementation
+export const getBlogPostById = (id: string) => MOCK_POSTS.find(p => p.id === id);
+
+export const getCollections = () => [];
+
+// Added getCollectionById implementation
+export const getCollectionById = (id: string) => getCollections().find((c: Collection) => c.id === id);
+
+export const getFeaturedConfig = () => null;
+
+// Fixed identifyNeighborhood to accept lat/lng arguments
+export const identifyNeighborhood = (lat?: number, lng?: number) => {
+    if (!lat || !lng) return "Rio de Janeiro";
+    // Mock logic based on coordinates for neighborhood detection
+    if (lat < -22.98 && lng < -43.6) return "Sepetiba";
+    return "Rio de Janeiro";
+};
+
+// Fixed calculateDistance implementation and signature
+export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+};
+
+// Fixed toggleFavorite implementation and signature
+export const toggleFavorite = async (type: 'coupon' | 'business', id: string) => {
+    const user = getCurrentUser();
+    if (!user) return;
+    
+    if (!user.favorites) {
+        user.favorites = { coupons: [], businesses: [] };
+    }
+    
+    const list = type === 'coupon' ? user.favorites.coupons : user.favorites.businesses;
+    const index = list.indexOf(id);
+    
+    if (index > -1) {
+        list.splice(index, 1);
+    } else {
+        list.push(id);
+    }
+    
+    await updateUser(user);
+};
+
+export const incrementBusinessView = (id: string) => updateDoc(doc(db, 'businesses', id), { views: increment(1) });
+
+// Implemented redeemCoupon logic
+export const redeemCoupon = async (uid: string, c: Coupon) => {
+    try {
+        await updateDoc(doc(db, 'coupons', c.id), { currentRedemptions: increment(1) });
+        await updateDoc(doc(db, 'users', uid), { 
+            savedAmount: increment(c.originalPrice - c.discountedPrice),
+            history: [{
+                date: new Date().toISOString(),
+                amount: c.originalPrice - c.discountedPrice,
+                couponTitle: c.title,
+                couponId: c.id
+            }]
+        });
+        const user = getCurrentUser();
+        if (user && user.id === uid) {
+            user.savedAmount = (user.savedAmount || 0) + (c.originalPrice - c.discountedPrice);
+            if (!user.history) user.history = [];
+            user.history.unshift({
+                date: new Date().toISOString(),
+                amount: c.originalPrice - c.discountedPrice,
+                couponTitle: c.title,
+                couponId: c.id
+            });
+            localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+            notifyListeners();
+        }
+    } catch (e) {
+        console.error("Erro ao resgatar cupom:", e);
+    }
+};
+
+// Implemented registerUser with Firebase Auth and initial profile creation
+export const registerUser = async (name: string, email: string, pass: string): Promise<User> => {
+    const res = await createUserWithEmailAndPassword(auth, email, pass);
+    const newUser: User = {
+        id: res.user.uid,
+        name,
+        email,
+        role: UserRole.CUSTOMER,
+        favorites: { coupons: [], businesses: [] },
+        history: [],
+        savedAmount: 0
     };
+    await setDoc(doc(db, 'users', newUser.id), cleanObject(newUser));
+    localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
+    notifyListeners();
+    return newUser;
+};
+
+// Fixed createCompanyRequest signature and implementation
+export const createCompanyRequest = async (request: any) => {
+    const id = `req_${Date.now()}`;
+    await setDoc(doc(db, 'companyRequests', id), { 
+        ...request, 
+        id, 
+        status: 'PENDING', 
+        requestDate: new Date().toISOString() 
+    });
+};
+
+// Fixed getCompanyRequests implementation
+export const getCompanyRequests = async () => {
+    try {
+        const snap = await getDocs(collection(db, 'companyRequests'));
+        return snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
+    } catch (e) {
+        return [];
+    }
+};
+
+// Fixed approveCompanyRequest implementation
+export const approveCompanyRequest = async (requestId: string) => {
+    await updateDoc(doc(db, 'companyRequests', requestId), { status: 'APPROVED' });
+};
+
+// Added sendSupportMessage implementation
+export const sendSupportMessage = async (msg: string) => {
+    console.log("Suporte msg:", msg);
 };

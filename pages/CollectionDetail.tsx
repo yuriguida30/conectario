@@ -22,8 +22,8 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
     
     if (col && col.businessIds) {
         const loadedBusinesses = col.businessIds
-            .map(id => getBusinessById(id))
-            .filter((b): b is BusinessProfile => b !== undefined);
+            .map((id: string) => getBusinessById(id))
+            .filter((b: BusinessProfile | undefined): b is BusinessProfile => b !== undefined);
         setBusinesses(loadedBusinesses);
     }
   }, [collectionId]);
@@ -47,7 +47,7 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
     <div className="bg-slate-50 min-h-screen pb-24">
         {/* Hero Header */}
         <div className="relative h-64 md:h-[40vh] w-full">
-            <img src={collection.coverImage} className="w-full h-full object-cover" />
+            <img src={collection.coverImage} className="w-full h-full object-cover" alt={collection.title} />
             <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
             
             <button 

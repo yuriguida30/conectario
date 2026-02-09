@@ -18,7 +18,8 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
 
   useEffect(() => {
     const col = getCollectionById(collectionId);
-    setCollection(col);
+    // Coalesce undefined to null to satisfy TypeScript state type Collection | null
+    setCollection(col || null);
     
     if (col && col.businessIds) {
         const loadedBusinesses = col.businessIds

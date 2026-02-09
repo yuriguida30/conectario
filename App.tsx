@@ -15,14 +15,12 @@ import { CollectionDetail } from './pages/CollectionDetail';
 import { Login } from './pages/Login';
 import { MapPage } from './pages/MapPage';
 import { SubscribePage } from './pages/Subscribe';
-import { getCurrentUser, logout, getAppConfig, initFirebaseData } from './services/dataService';
+import { getCurrentUser, logout, getAppConfig } from './services/dataService';
 import { User, UserRole } from './types';
 
-// Função auxiliar para analisar a URL atual e determinar a página
 const parseUrl = (): { page: string; params: any } => {
   const path = window.location.pathname;
   
-  // Rotas Dinâmicas (com ID)
   const businessMatch = path.match(/^\/business\/([^/]+)/);
   if (businessMatch) return { page: 'business-detail', params: { businessId: businessMatch[1] } };
 
@@ -32,7 +30,6 @@ const parseUrl = (): { page: string; params: any } => {
   const colMatch = path.match(/^\/collection\/([^/]+)/);
   if (colMatch) return { page: 'collection-detail', params: { collectionId: colMatch[1] } };
 
-  // Rotas Estáticas
   switch (path) {
     case '/guide': return { page: 'guide', params: null };
     case '/search': return { page: 'search', params: null };
@@ -71,19 +68,14 @@ const buildUrl = (page: string, params?: any): string => {
 export default function App() {
   const [page, setPage] = useState('home');
   const [pageParams, setPageParams] = useState<any>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // App Config Refresh Trigger
-  const [configVersion, setConfigVersion] = useState(0);
+  const [user, setUser] = useState<User | null>(getCurrentUser());
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // 1. Inicializa Estado base da URL
     const { page: initialPage, params: initialParams } = parseUrl();
     setPage(initialPage);
     setPageParams(initialParams);
 
-    // 2. Listener para o botão "Voltar" do navegador (popstate)
     const handlePopState = () => {
         const { page: newPage, params: newParams } = parseUrl();
         setPage(newPage);
@@ -92,43 +84,24 @@ export default function App() {
     };
     window.addEventListener('popstate', handlePopState);
 
-    // 3. Inicializa Dados e Usuário
-    const u = getCurrentUser();
-    setUser(u);
-    initFirebaseData(); 
-    
-    updateBranding();
-
-    window.addEventListener('appConfigUpdated', updateBranding);
-    
     const handleDataUpdate = () => {
         setUser(getCurrentUser()); 
     };
     window.addEventListener('dataUpdated', handleDataUpdate);
+    window.addEventListener('appConfigUpdated', updateBranding);
 
-    setLoading(false);
+    updateBranding();
 
     return () => {
         window.removeEventListener('popstate', handlePopState);
-        window.removeEventListener('appConfigUpdated', updateBranding);
         window.removeEventListener('dataUpdated', handleDataUpdate);
+        window.removeEventListener('appConfigUpdated', updateBranding);
     }
   }, []);
 
   const updateBranding = () => {
       const config = getAppConfig();
       document.title = `${config.appName} ${config.appNameHighlight}`;
-      
-      if (config.faviconUrl) {
-          let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-          if (!link) {
-              link = document.createElement('link');
-              link.rel = 'icon';
-              document.getElementsByTagName('head')[0].appendChild(link);
-          }
-          link.href = config.faviconUrl;
-      }
-      setConfigVersion(v => v + 1);
   };
 
   const handleNavigate = (newPage: string, params?: any) => {

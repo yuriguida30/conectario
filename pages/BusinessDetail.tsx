@@ -8,7 +8,7 @@ import {
   ChevronRight, X, List as ListIcon, Search
 } from 'lucide-react';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, BusinessPlan, MenuSection } from '../types';
-import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, createCompanyRequest } from '../services/dataService';
+import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 
@@ -20,29 +20,31 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
   const [isFav, setIsFav] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // Menu Overlay State
   const [showMenuOverlay, setShowMenuOverlay] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('');
 
-  useEffect(() => {
-    const loadData = async () => {
-        const busData = getBusinessById(businessId);
-        setBusiness(busData);
-        if (busData) {
-            incrementBusinessView(businessId);
-            const allCoupons = await getCoupons();
-            setCoupons(allCoupons.filter(c => c.companyId === businessId && c.active));
-            const user = getCurrentUser();
-            setCurrentUser(user);
-            if (user && user.favorites?.businesses.includes(businessId)) setIsFav(true);
-            
-            if (busData.menu && busData.menu.length > 0) {
-                setActiveCategory(busData.menu[0].title);
-            }
+  const refreshData = async () => {
+    const busData = getBusinessById(businessId);
+    setBusiness(busData);
+    if (busData) {
+        incrementBusinessView(businessId);
+        const allCoupons = await getCoupons();
+        setCoupons(allCoupons.filter(c => c.companyId === businessId && c.active));
+        const user = getCurrentUser();
+        setCurrentUser(user);
+        if (user && user.favorites?.businesses.includes(businessId)) setIsFav(true);
+        
+        if (busData.menu && busData.menu.length > 0 && !activeCategory) {
+            setActiveCategory(busData.menu[0].title);
         }
-        setLoading(false);
-    };
-    loadData();
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    refreshData();
+    window.addEventListener('dataUpdated', refreshData);
+    return () => window.removeEventListener('dataUpdated', refreshData);
   }, [businessId]);
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
@@ -52,6 +54,14 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
     setIsFav(!isFav);
   };
 
+  const handleRedeem = async (coupon: Coupon) => {
+    if (!currentUser) {
+        onNavigate('login');
+        return;
+    }
+    await redeemCoupon(currentUser.id, coupon);
+  };
+
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-ocean-500" size={40}/></div>;
   if (!business) return <div className="p-10 text-center">Empresa não encontrada.</div>;
 
@@ -59,8 +69,6 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
 
   return (
     <div className={`bg-white min-h-screen pb-32 ${showMenuOverlay ? 'overflow-hidden h-screen' : ''}`}>
-        
-        {/* HERO */}
         <div className="relative h-[35vh] w-full overflow-hidden bg-slate-900">
             <img src={business.coverImage} className="w-full h-full object-cover opacity-90" alt={business.name} />
             <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-black/20" />
@@ -75,7 +83,6 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             </div>
         </div>
 
-        {/* FLOATING BUTTON CARDÁPIO */}
         {isPremium && business.menu && business.menu.length > 0 && (
             <div className="fixed bottom-24 right-6 z-50">
                 <button 
@@ -87,7 +94,6 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             </div>
         )}
 
-        {/* CONTENT */}
         <div className="max-w-4xl mx-auto px-6 py-10 space-y-12">
             <div className="grid grid-cols-4 gap-4 bg-slate-50 p-4 rounded-[2rem] border border-slate-100">
                 <button onClick={() => window.open(`tel:${business.phone}`)} className="flex flex-col items-center gap-2"><div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-sm"><Phone size={24}/></div><span className="text-[9px] font-black uppercase text-slate-400">Ligar</span></button>
@@ -116,7 +122,6 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             )}
         </div>
 
-        {/* OVERLAY CARDÁPIO DIGITAL */}
         {showMenuOverlay && isPremium && (
             <div className="fixed inset-0 z-[100] bg-white animate-in slide-in-from-bottom duration-500 flex flex-col">
                 <div className="sticky top-0 bg-white z-20 border-b border-slate-100 px-6 pt-12 pb-6 flex flex-col gap-6">
@@ -163,7 +168,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             </div>
         )}
 
-        {selectedCoupon && <CouponModal coupon={selectedCoupon} onClose={() => setSelectedCoupon(null)} onRedeem={(c) => redeemCoupon(currentUser?.id || '', c)} isRedeemed={false} />}
+        {selectedCoupon && <CouponModal coupon={selectedCoupon} onClose={() => setSelectedCoupon(null)} onRedeem={handleRedeem} isRedeemed={false} />}
     </div>
   );
 };

@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search as SearchIcon, X, SlidersHorizontal, Frown, Loader2, Navigation } from 'lucide-react';
-import { Coupon, AppCategory } from '../types';
-import { getCoupons, getCategories, calculateDistance } from '../services/dataService';
+import { Coupon, AppCategory, User } from '../types';
+import { getCoupons, getCategories, calculateDistance, redeemCoupon, getCurrentUser } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 
@@ -18,8 +18,8 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
   const [categories, setCategories] = useState<AppCategory[]>([]);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   
-  // GPS Logic
   const [nearby, setNearby] = useState(false);
   const [locating, setLocating] = useState(false);
 
@@ -29,6 +29,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
       const activeData = data.filter(c => c.active);
       setCoupons(activeData);
       setCategories(cats);
+      setCurrentUser(getCurrentUser());
       setLoading(false);
   };
 
@@ -41,12 +42,10 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
   useEffect(() => {
     let result = [...coupons];
 
-    // Filter by Category
     if (selectedCategory !== 'Todos') {
       result = result.filter(c => c.category === selectedCategory);
     }
 
-    // Filter by Text - CRITICAL FIX: added null checks (|| '')
     if (query) {
       const lowerQuery = query.toLowerCase();
       result = result.filter(c => 
@@ -56,7 +55,6 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
       );
     }
 
-    // Filter by Proximity
     if (nearby) {
         const storedGps = sessionStorage.getItem('user_gps');
         if (storedGps) {
@@ -67,7 +65,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
             }));
             
             result = withDist
-                .filter(c => (c.distance || 9999) < 15) // 15km radius
+                .filter(c => (c.distance || 9999) < 15) 
                 .sort((a, b) => (a.distance || 9999) - (b.distance || 9999));
         }
     }
@@ -100,12 +98,18 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
       }
   };
 
+  const handleRedeem = async (coupon: Coupon) => {
+    if (!currentUser) {
+        onNavigate('login');
+        return;
+    }
+    await redeemCoupon(currentUser.id, coupon);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 pb-24">
-      
       <div className="sticky top-0 md:top-16 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] transition-all duration-300">
           <div className="max-w-7xl mx-auto px-4 py-4">
-            
             <div className="flex items-center gap-4 mb-4">
                 <div className="relative flex-1 group">
                     <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-ocean-600 transition-colors" size={20} />
@@ -156,7 +160,6 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-          
           <div className="flex justify-between items-end mb-6">
               <h2 className="text-xl font-bold text-ocean-950">
                   {loading ? 'Buscando ofertas...' : `${filteredCoupons.length} ${filteredCoupons.length === 1 ? 'oferta encontrada' : 'ofertas encontradas'}`}
@@ -215,7 +218,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
           <CouponModal 
             coupon={selectedCoupon} 
             onClose={() => setSelectedCoupon(null)} 
-            onRedeem={() => {}} 
+            onRedeem={handleRedeem} 
             isRedeemed={false}
           />
       )}

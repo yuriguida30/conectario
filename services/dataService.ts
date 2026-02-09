@@ -223,29 +223,19 @@ export const deleteCoupon = async (id: string) => {
 
 export const updateUser = async (u: User) => {
     try { 
-        // 1. Atualiza no Banco
         await setDoc(doc(db, 'users', u.id), cleanObject(u), { merge: true }); 
-        // 2. Atualiza na Sessão Local
         localStorage.setItem(SESSION_KEY, JSON.stringify(u));
-        // 3. Notifica interface
         notifyListeners();
     } catch(e){
         console.error("Erro ao atualizar usuário:", e);
     }
 };
 
-/**
- * REDENÇÃO COM PRECISÃO 100%
- * Só chamada no momento da validação final do cupom.
- */
-export const redeemCoupon = async (userId: string, coupon: Coupon) => {
+export const redeemCoupon = async (userId: string, coupon: Coupon): Promise<void> => {
     const user = getCurrentUser();
     if (!user) throw new Error("Usuário não logado.");
 
-    // Calcula a economia real (Diferença entre original e desconto)
     const economy = Math.max(0, coupon.originalPrice - coupon.discountedPrice);
-    
-    // Cria o registro histórico
     const historyItem = { 
         date: new Date().toISOString(), 
         amount: economy, 
@@ -253,24 +243,20 @@ export const redeemCoupon = async (userId: string, coupon: Coupon) => {
         couponId: coupon.id 
     };
 
-    // Atualiza objeto local
     const updatedUser: User = {
         ...user,
         history: [...(user.history || []), historyItem],
         savedAmount: (user.savedAmount || 0) + economy
     };
 
-    // Salva e Sincroniza
+    // Sincroniza carteira inteligente com Firestore
     await updateUser(updatedUser);
     
-    // Incrementa contador de uso no cupom no banco
     try {
         await updateDoc(doc(db, 'coupons', coupon.id), { 
             currentRedemptions: increment(1) 
         });
     } catch(e) {}
-
-    return updatedUser;
 };
 
 export const updateUserPassword = async (userId: string, newPass: string) => {

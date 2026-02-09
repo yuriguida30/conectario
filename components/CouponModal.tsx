@@ -17,7 +17,6 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
   const [isValidating, setIsValidating] = useState(false);
   const user = getCurrentUser();
 
-  // Check Eligibility on Mount
   useEffect(() => {
       if (!user) return;
       
@@ -34,14 +33,13 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
   }, [user, coupon, isRedeemed]);
 
   const handleGetCode = () => {
-      // Apenas mostra o código, sem contabilizar na carteira ainda
       setStep('code');
   };
 
   const handleValidateFinal = async () => {
+    if (!user) return setError("Faça login para validar.");
     setIsValidating(true);
     try {
-        // Agora sim: contabiliza a economia na Carteira Inteligente e atualiza o banco
         await onRedeem(coupon); 
         setStep('success');
     } catch (e: any) {
@@ -76,7 +74,6 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
             </div>
         ) : (
             <>
-                {/* Header Image */}
                 <div className="relative h-56 shrink-0">
                   <img src={coupon.imageUrl} className="w-full h-full object-cover" alt="Coupon" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -92,7 +89,6 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
                   </div>
                 </div>
 
-                {/* Content */}
                 <div className="p-6 overflow-y-auto flex-1">
                    {step === 'details' ? (
                      <>
@@ -128,8 +124,8 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
 
                        <div className="bg-slate-50 rounded-xl p-4 flex justify-between items-center border border-slate-100">
                            <div>
-                               <p className="text-slate-400 text-xs line-through">De R$ {coupon.originalPrice}</p>
-                               <p className="text-green-600 font-bold text-2xl">R$ {coupon.discountedPrice}</p>
+                               <p className="text-slate-400 text-xs line-through">De R$ {coupon.originalPrice.toFixed(2)}</p>
+                               <p className="text-green-600 font-bold text-2xl">R$ {coupon.discountedPrice.toFixed(2)}</p>
                            </div>
                            <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
                                -{coupon.discountPercentage}% OFF
@@ -159,7 +155,6 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
                    )}
                 </div>
 
-                {/* Footer Actions */}
                 <div className="p-4 border-t border-slate-100 bg-white">
                     {step === 'details' ? (
                         error ? (
@@ -187,7 +182,6 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
                 </div>
             </>
         )}
-
       </div>
     </div>
   );

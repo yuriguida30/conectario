@@ -81,35 +81,24 @@ const cleanObject = (obj: any) => {
 
 /**
  * Inicializa a conexão em tempo real.
- * Garante que o site reflita exatamente o que está no Firestore.
  */
 export const initFirebaseData = () => {
     if (_isInitialized) return;
     _isInitialized = true;
 
-    console.log("🌐 Conectando ao fluxo de dados em tempo real...");
-
     // Sincronizar Empresas
     onSnapshot(collection(db, 'businesses'), (snapshot) => {
         const fbBusinesses = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
-        if (fbBusinesses.length > 0) {
-            _businesses = fbBusinesses;
-        } else if (snapshot.metadata.fromCache === false) {
-            _businesses = fbBusinesses; 
-        }
+        if (fbBusinesses.length > 0) _businesses = fbBusinesses;
         notifyListeners();
-    }, (err) => console.error("Erro Empresas:", err));
+    });
 
     // Sincronizar Cupons
     onSnapshot(collection(db, 'coupons'), (snapshot) => {
         const fbCoupons = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
-        if (fbCoupons.length > 0) {
-            _coupons = fbCoupons;
-        } else if (snapshot.metadata.fromCache === false) {
-            _coupons = fbCoupons;
-        }
+        if (fbCoupons.length > 0) _coupons = fbCoupons;
         notifyListeners();
-    }, (err) => console.error("Erro Cupons:", err));
+    });
 
     // Sincronizar Usuários
     onSnapshot(collection(db, 'users'), (snapshot) => {
@@ -129,7 +118,6 @@ export const login = async (email: string, pass: string): Promise<User | null> =
         notifyListeners();
         return mockUser;
     }
-
     try {
         const res = await signInWithEmailAndPassword(auth, email, pass);
         const userDoc = await getDoc(doc(db, 'users', res.user.uid));
@@ -140,10 +128,7 @@ export const login = async (email: string, pass: string): Promise<User | null> =
             return userData;
         }
     } catch (e: any) {
-        if (e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
-            throw new Error("E-mail ou senha incorretos.");
-        }
-        throw e;
+        throw new Error("E-mail ou senha incorretos.");
     }
     return null;
 };
@@ -175,7 +160,6 @@ export const loginWithGoogle = async (): Promise<User | null> => {
             return newUser;
         }
     } catch (e: any) {
-        console.error("Google Login Error:", e);
         throw e;
     }
 };
@@ -186,12 +170,15 @@ export const logout = async () => {
     notifyListeners();
 };
 
+/**
+ * Função de Redefinição de Senha
+ */
 export const resetUserPassword = async (email: string) => {
     try {
         await sendPasswordResetEmail(auth, email);
     } catch (e: any) {
-        console.error("Erro ao enviar reset de senha:", e);
-        throw new Error(e.message || "Não foi possível enviar o e-mail de redefinição.");
+        console.error("Erro ao resetar senha:", e);
+        throw new Error(e.message || "Falha ao enviar e-mail de redefinição.");
     }
 };
 
@@ -200,11 +187,7 @@ export const getCoupons = async () => _coupons;
 export const getBusinessById = (id: string) => _businesses.find(b => b.id === id);
 
 export const saveBusiness = async (b: BusinessProfile) => {
-    try { 
-        await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); 
-    } catch (e) {
-        console.error("Erro ao salvar empresa:", e);
-    }
+    await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); 
 };
 
 export const getCurrentUser = (): User | null => {
@@ -222,30 +205,18 @@ export const getCategories = () => DEFAULT_CATEGORIES.map(name => ({ id: name.to
 export const getAllUsers = () => _users;
 
 export const saveCoupon = async (c: Coupon) => {
-    try { 
-        await setDoc(doc(db, 'coupons', c.id), cleanObject(c)); 
-    } catch(e) {
-        console.error("Erro ao salvar cupom:", e);
-    }
+    await setDoc(doc(db, 'coupons', c.id), cleanObject(c)); 
 };
 
 export const deleteCoupon = async (id: string) => {
-    try { 
-        await deleteDoc(doc(db, 'coupons', id)); 
-    } catch(e) {
-        console.error("Erro ao deletar cupom:", e);
-    }
+    await deleteDoc(doc(db, 'coupons', id)); 
 };
 
 export const trackAction = async (businessId: string, action: string) => {
     try {
         const fieldMap: any = {
-            menu: 'menuViews',
-            social: 'socialClicks',
-            map: 'mapClicks',
-            share: 'shares',
-            phone: 'phoneClicks',
-            visit_direct: 'directVisits',
+            menu: 'menuViews', social: 'socialClicks', map: 'mapClicks',
+            share: 'shares', phone: 'phoneClicks', visit_direct: 'directVisits',
             visit_search: 'searchVisits'
         };
         const field = fieldMap[action];
@@ -259,51 +230,27 @@ export const trackAction = async (businessId: string, action: string) => {
 };
 
 export const getBusinessStats = async (businessId: string) => {
-    const bizSnap = await getDoc(doc(db, 'businesses', businessId));
-    const data: any = bizSnap.exists() ? bizSnap.data() : {};
-    
     const coupons = _coupons.filter(c => c.companyId === businessId);
     const totalCouponUsage = coupons.reduce((acc, c) => acc + (c.currentRedemptions || 0), 0);
-
     return {
-        views: data.views || 0,
-        totalConversions: (data.totalConversions || 0) + totalCouponUsage,
-        shares: data.shares || 0,
-        conversionTrend: [
-            { day: 'Seg', valor: 10 }, { day: 'Ter', valor: 15 }, { day: 'Qua', valor: 8 },
-            { day: 'Qui', valor: 20 }, { day: 'Sex', valor: 35 }, { day: 'Sáb', valor: 50 }, { day: 'Dom', valor: 30 },
-        ],
-        trafficSource: [
-            { name: 'Direto/Guia', value: data.directVisits || 10 },
-            { name: 'Pesquisas', value: data.searchVisits || 5 },
-        ],
-        actionHeatmap: [
-            { name: 'Redes Sociais', cliques: data.socialClicks || 0 },
-            { name: 'Mapa/GPS', cliques: data.mapClicks || 0 },
-            { name: 'Ver Cardápio', cliques: data.menuViews || 0 },
-            { name: 'Cliques Telefone', cliques: data.phoneClicks || 0 },
-            { name: 'Cupons Usados', cliques: totalCouponUsage || 0 },
-        ],
+        views: 0, totalConversions: totalCouponUsage, shares: 0,
+        conversionTrend: [], trafficSource: [], actionHeatmap: [],
         activeCoupons: coupons.length
     };
 };
 
 export const getAdminStats = async () => {
     const totalEconomy = _users.reduce((acc, u) => acc + (u.savedAmount || 0), 0);
-    const totalLeads = _businesses.reduce((acc, b: any) => acc + (b.totalConversions || 0), 0);
-
     return {
         totalUsers: _users.length,
         totalBusinesses: _businesses.length,
         totalEconomy,
-        totalLeads,
+        totalCoupons: _coupons.length,
         chartData: [
             { name: 'Gastronomia', value: _businesses.filter(b => b.category === 'Gastronomia').length },
             { name: 'Hospedagem', value: _businesses.filter(b => b.category === 'Hospedagem').length },
-            { name: 'Passeios', value: _businesses.filter(b => b.category === 'Passeios').length },
-            { name: 'Comércio', value: _businesses.filter(b => b.category === 'Comércio').length }
-        ],
-        totalCoupons: _coupons.length
+            { name: 'Passeios', value: _businesses.filter(b => b.category === 'Passeios').length }
+        ]
     };
 };
 
@@ -320,20 +267,13 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
 };
 
 export const identifyNeighborhood = (lat: number, lng: number): string => {
-    const sepetibaLat = -22.9689;
-    const sepetibaLng = -43.6967;
-    const dist = calculateDistance(lat, lng, sepetibaLat, sepetibaLng);
-    if (dist < 10) return "Sepetiba";
-    return "Rio de Janeiro";
+    const dist = calculateDistance(lat, lng, -22.9689, -43.6967);
+    return dist < 10 ? "Sepetiba" : "Rio de Janeiro";
 };
 
 export const toggleFavorite = async (type: 'coupon' | 'business', id: string) => {
@@ -350,31 +290,16 @@ export const toggleFavorite = async (type: 'coupon' | 'business', id: string) =>
 export const incrementBusinessView = (id: string) => updateDoc(doc(db, 'businesses', id), { views: increment(1) });
 
 export const redeemCoupon = async (uid: string, c: Coupon) => {
-    try {
-        await updateDoc(doc(db, 'coupons', c.id), { currentRedemptions: increment(1) });
-        await updateDoc(doc(db, 'users', uid), { 
-            savedAmount: increment(c.originalPrice - c.discountedPrice),
-            history: [{
-                date: new Date().toISOString(),
-                amount: c.originalPrice - c.discountedPrice,
-                couponTitle: c.title,
-                couponId: c.id
-            }]
-        });
-    } catch (e) {}
+    await updateDoc(doc(db, 'coupons', c.id), { currentRedemptions: increment(1) });
+    await updateDoc(doc(db, 'users', uid), { 
+        savedAmount: increment(c.originalPrice - c.discountedPrice),
+        history: [{ date: new Date().toISOString(), amount: c.originalPrice - c.discountedPrice, couponTitle: c.title, couponId: c.id }]
+    });
 };
 
 export const registerUser = async (name: string, email: string, pass: string): Promise<User> => {
     const res = await createUserWithEmailAndPassword(auth, email, pass);
-    const newUser: User = {
-        id: res.user.uid,
-        name,
-        email,
-        role: UserRole.CUSTOMER,
-        favorites: { coupons: [], businesses: [] },
-        history: [],
-        savedAmount: 0
-    };
+    const newUser: User = { id: res.user.uid, name, email, role: UserRole.CUSTOMER, favorites: { coupons: [], businesses: [] }, history: [], savedAmount: 0 };
     await setDoc(doc(db, 'users', newUser.id), cleanObject(newUser));
     localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
     notifyListeners();
@@ -383,21 +308,12 @@ export const registerUser = async (name: string, email: string, pass: string): P
 
 export const createCompanyRequest = async (request: any) => {
     const id = `req_${Date.now()}`;
-    await setDoc(doc(db, 'companyRequests', id), { 
-        ...request, 
-        id, 
-        status: 'PENDING', 
-        requestDate: new Date().toISOString() 
-    });
+    await setDoc(doc(db, 'companyRequests', id), { ...request, id, status: 'PENDING', requestDate: new Date().toISOString() });
 };
 
 export const getCompanyRequests = async () => {
-    try {
-        const snap = await getDocs(collection(db, 'companyRequests'));
-        return snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
-    } catch (e) {
-        return [];
-    }
+    const snap = await getDocs(collection(db, 'companyRequests'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
 };
 
 export const approveCompanyRequest = async (requestId: string) => {

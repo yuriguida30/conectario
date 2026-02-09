@@ -39,11 +39,9 @@ let _collections: Collection[] = [
         title: 'Os Melhores Cafés',
         description: 'Uma seleção dos cafés mais charmosos do Rio.',
         coverImage: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&q=80&w=800',
-        businessIds: ['andre_karamelo']
+        businessIds: ['local_1765502020338']
     }
 ];
-
-let _companyRequests: CompanyRequest[] = [];
 
 const notifyListeners = () => {
     window.dispatchEvent(new Event('dataUpdated'));
@@ -79,10 +77,17 @@ export const initFirebaseData = async () => {
         const coupSnap = await getDocs(collection(db, 'coupons'));
         const fbCoupons = coupSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
         
-        // Merge robusto: Prioriza Cloud, mas mantém Mocks se não existirem no Cloud
+        // Merge Prioritário: Mocks da Karamelo sempre vencem dados vazios
         const mergedBiz = [...fbBusinesses];
         MOCK_BUSINESSES.forEach(mock => {
-            if (!mergedBiz.find(b => b.id === mock.id)) mergedBiz.push(mock);
+            const existingIdx = mergedBiz.findIndex(b => b.id === mock.id);
+            if (existingIdx === -1) mergedBiz.push(mock);
+            else {
+                // Se o dado do cloud for muito menor que o mock (ex: descrição curta), assume que o mock é o original
+                if ((mergedBiz[existingIdx].description?.length || 0) < (mock.description?.length || 0)) {
+                    mergedBiz[existingIdx] = { ...mock, ...mergedBiz[existingIdx], description: mock.description, address: mock.address, amenities: mock.amenities };
+                }
+            }
         });
         _businesses = mergedBiz;
 
@@ -120,6 +125,7 @@ export const login = async (email: string, password?: string): Promise<User | nu
         }
         return null;
     } catch (err: any) {
+        // Fallback para Mock do André
         const mockUser = MOCK_USERS.find(u => u.email === cleanEmail);
         if (mockUser && pass === '123456') {
             localStorage.setItem(SESSION_KEY, JSON.stringify(mockUser));
@@ -227,7 +233,6 @@ export const incrementBusinessView = async (id: string) => {
     try { await updateDoc(doc(db, 'businesses', id), { views: increment(1) }); } catch(e) {}
 };
 
-// Fix: Added registerUser to support user creation flow
 export const registerUser = async (name: string, email: string, pass: string): Promise<User> => {
     const userCred = await createUserWithEmailAndPassword(auth, email, pass);
     const newUser: User = {
@@ -245,7 +250,6 @@ export const registerUser = async (name: string, email: string, pass: string): P
     return newUser;
 };
 
-// Fix: Added sendSupportMessage to resolve import error in UserDashboard
 export const sendSupportMessage = async (message: string) => {
     console.log("Support Message received:", message);
 };

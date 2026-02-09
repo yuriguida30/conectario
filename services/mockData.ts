@@ -1,9 +1,12 @@
 
 import { Coupon, User, UserRole, BusinessProfile, BlogPost, BusinessPlan } from '../types';
 
+// ID REAL DA DOCERIA DO PRINT
+const KARAMELO_ID = 'local_1765502020338';
+
 export const MOCK_USERS: User[] = [
   {
-    id: 'andre_karamelo',
+    id: KARAMELO_ID, // Agora o ID do usuário André é o mesmo da empresa para linkar direto
     name: 'André Karamelo',
     email: 'andre@conectario.org',
     role: UserRole.COMPANY,
@@ -24,19 +27,19 @@ export const MOCK_USERS: User[] = [
 
 export const MOCK_BUSINESSES: BusinessProfile[] = [
   {
-    id: 'andre_karamelo', // ID igual ao do usuário André
+    id: KARAMELO_ID,
     name: 'Doceria Karamelo',
     category: 'Gastronomia',
-    description: 'A mais doce e tradicional confeitaria da região. Bolos artesanais, doces finos e o melhor café do Rio.',
+    description: 'Karamelo Doceria, tradicional em Sepetiba, é reconhecida por seus doces artesanais preparados com ingredientes de qualidade, oferecendo tortas, mousses, copos especiais, sobremesas geladas e criações exclusivas que conquistam a região. Com ambiente acolhedor e atendimento atento, tornou-se referência em momentos doces. Recentemente, ampliou sua experiência gastronômica ao inaugurar um espaço dedicado a massas e comidas típicas da Itália, unindo confeitaria premium e culinária italiana em um único lugar.',
     coverImage: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&q=80&w=1200',
     gallery: [],
-    address: 'Rua das Doceiras, 123, Rio de Janeiro - RJ',
+    address: 'Estrada São Tarcísio 239, Sepetiba RJ',
     phone: '(21) 99999-9999',
     whatsapp: '5521999999999',
     instagram: '@doceriakaramelo',
     website: 'www.doceriakaramelo.com.br',
-    amenities: ['wifi', 'ac', 'kids', 'card'],
-    openingHours: { 'Seg-Sáb': '09:00 - 19:00', 'Dom': 'Fechado' },
+    amenities: ['wifi', 'ac', 'kids', 'access', 'pet', 'delivery', 'card', 'tv'],
+    openingHours: { 'Ter-Sáb': '11:00 - 20:00', 'Dom': '11:00 - 18:00' },
     rating: 5.0,
     reviewCount: 128,
     views: 1450,
@@ -45,10 +48,16 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     plan: BusinessPlan.PREMIUM,
     menu: [
         {
-            title: "Bolos e Tortas",
+            title: "Destaques da Confeitaria",
             items: [
-                { id: "k1", name: "Red Velvet Especial", description: "Fatia generosa com recheio de cream cheese.", price: 18.50 },
-                { id: "k2", name: "Torta de Limão Siciliano", description: "Massa crocante e merengue maçaricado.", price: 15.00 }
+                { id: "k1", name: "Red Velvet Premium", description: "Fatia generosa com nosso recheio secreto de cream cheese.", price: 18.50 },
+                { id: "k2", name: "Copo da Felicidade", description: "Camadas de brigadeiro gourmet, morango e brownie.", price: 22.00 }
+            ]
+        },
+        {
+            title: "Culinária Italiana",
+            items: [
+                { id: "k3", name: "Fettuccine à Carbonara", description: "Massa fresca produzida na casa com molho clássico.", price: 42.00 }
             ]
         }
     ]
@@ -58,7 +67,7 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
 export const MOCK_COUPONS: Coupon[] = [
   {
     id: 'c_karamelo_1',
-    companyId: 'andre_karamelo', // Vinculado ao ID do André
+    companyId: KARAMELO_ID,
     companyName: 'Doceria Karamelo',
     companyLogo: 'https://ui-avatars.com/api/?name=DK&background=f59e0b&color=fff',
     title: 'Corte de 15% na Primeira Compra',
@@ -77,7 +86,7 @@ export const MOCK_COUPONS: Coupon[] = [
   },
   {
     id: 'c_karamelo_2',
-    companyId: 'andre_karamelo',
+    companyId: KARAMELO_ID,
     companyName: 'Doceria Karamelo',
     title: 'Combo Café + Fatia por R$ 25',
     description: 'Escolha qualquer fatia de bolo simples + café expresso grande.',
@@ -98,9 +107,9 @@ export const MOCK_COUPONS: Coupon[] = [
 export const MOCK_POSTS: BlogPost[] = [
   {
     id: 'p1',
-    title: 'Roteiro Gastronômico: Onde comer doces no Rio',
-    excerpt: 'Visitamos as melhores docerias e selecionamos a nossa favorita.',
-    content: 'O Rio de Janeiro é famoso por suas confeitarias históricas...',
+    title: 'Roteiro Gastronômico: O melhor de Sepetiba',
+    excerpt: 'Descobrimos os segredos doces e salgados da região.',
+    content: 'O Rio de Janeiro é famoso por suas confeitarias, e Sepetiba guarda uma das maiores joias...',
     imageUrl: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&q=80&w=800',
     category: 'Gastronomia',
     date: '15/05/2024',

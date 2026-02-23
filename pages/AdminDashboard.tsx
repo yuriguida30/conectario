@@ -7,8 +7,7 @@ import {
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
-  Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle,
-  AlertTriangle
+  Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -47,25 +46,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     if (biz) {
         setMyBusiness(biz);
         setEditBusiness(biz);
-    } else {
-        // Inicializar para nova empresa
-        setEditBusiness({
-            id: currentUser.id,
-            name: currentUser.companyName || currentUser.name,
-            category: currentUser.category || 'Gastronomia',
-            description: '',
-            coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200',
-            gallery: [],
-            address: '',
-            phone: currentUser.phone || '',
-            amenities: [],
-            openingHours: {},
-            rating: 5,
-            views: 0,
-            shares: 0,
-            isClaimed: true,
-            plan: currentUser.plan || BusinessPlan.FREE
-        });
     }
     const s = await getBusinessStats(currentUser.id);
     setStats(s);
@@ -81,16 +61,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!myBusiness) return;
     setIsSaving(true);
     try {
-        const businessData = { 
-            ...(myBusiness || {}), 
-            ...editBusiness,
-            id: currentUser.id // Garantir que o ID seja o do usuário
-        } as BusinessProfile;
-        
-        await saveBusiness(businessData);
-        alert(myBusiness ? "Alterações salvas com sucesso!" : "Perfil da empresa criado com sucesso!");
+        await saveBusiness({ ...myBusiness, ...editBusiness } as BusinessProfile);
+        alert("Alterações salvas com sucesso!");
         setView('HOME');
         refreshData();
     } catch (error) {
@@ -149,8 +124,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
           <div className="flex flex-wrap gap-3 justify-center">
               <button 
                 onClick={() => setView('MENU')} 
-                disabled={!myBusiness}
-                className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${!myBusiness ? 'opacity-50 cursor-not-allowed' : ''} ${view === 'MENU' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+                className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'MENU' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
               >
                 <Utensils size={18} /> CARDÁPIO
               </button>
@@ -158,38 +132,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                 onClick={() => setView(view === 'PROFILE' ? 'HOME' : 'PROFILE')} 
                 className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'PROFILE' ? 'bg-slate-200 text-slate-700' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
               >
-                <Settings size={18} /> {view === 'PROFILE' ? 'VOLTAR' : (myBusiness ? 'CONFIGURAR PERFIL' : 'CRIAR PERFIL')}
+                <Settings size={18} /> {view === 'PROFILE' ? 'VOLTAR' : 'CONFIGURAR PERFIL'}
               </button>
-              <button 
-                onClick={() => setView('CREATE_COUPON')} 
-                disabled={!myBusiness}
-                className={`bg-ocean-600 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-ocean-600/20 active:scale-95 transition-all ${!myBusiness ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
+              <button onClick={() => setView('CREATE_COUPON')} className="bg-ocean-600 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-ocean-600/20 active:scale-95 transition-all">
                 + NOVO CUPOM
               </button>
               <button onClick={onLogout} className="px-6 py-4 bg-red-50 text-red-500 rounded-2xl font-black text-xs">SAIR</button>
           </div>
       </div>
-
-      {!myBusiness && view !== 'PROFILE' && (
-          <div className="bg-orange-50 border-2 border-orange-200 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
-              <div className="flex items-center gap-6">
-                  <div className="bg-orange-100 p-4 rounded-2xl text-orange-600">
-                      <AlertTriangle size={32} />
-                  </div>
-                  <div>
-                      <h3 className="text-xl font-black text-orange-950">Atenção: Perfil Pendente</h3>
-                      <p className="text-sm text-orange-800 font-medium">Você ainda não configurou as informações da sua empresa. Isso é necessário para aparecer no guia e criar cupons.</p>
-                  </div>
-              </div>
-              <button 
-                onClick={() => setView('PROFILE')}
-                className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black text-sm shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-all whitespace-nowrap"
-              >
-                  CRIAR PERFIL AGORA
-              </button>
-          </div>
-      )}
 
       {view === 'HOME' && stats && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -311,7 +261,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                     <ChevronLeft size={16} /> Voltar ao Painel
                   </button>
                   <button form="profile-form" type="submit" disabled={isSaving} className="bg-green-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 hover:bg-green-700 transition-all">
-                      {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />} {myBusiness ? 'SALVAR CONFIGURAÇÕES' : 'CRIAR PERFIL DA EMPRESA'}
+                      {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />} SALVAR CONFIGURAÇÕES
                   </button>
               </div>
 

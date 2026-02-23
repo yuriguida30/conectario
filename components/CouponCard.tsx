@@ -83,28 +83,33 @@ export const CouponCard: React.FC<CouponCardProps> = ({ coupon, onGetCoupon, isR
       </div>
       
       {/* Content Section */}
-      <div className="p-4 flex flex-col flex-1 justify-between bg-white relative z-10">
+      <div className="p-5 flex flex-col flex-1 justify-between bg-white relative z-10">
           <div>
-            <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-bold text-slate-400 truncate max-w-[80%]">{coupon.companyName}</span>
-                {coupon.active && !isSoldOut && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>}
+            <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-ocean-500" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider truncate max-w-[120px]">{coupon.companyName}</span>
+                </div>
+                {coupon.active && !isSoldOut && <span className="flex items-center gap-1 text-[9px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">ATIVO</span>}
             </div>
-            <h4 className="font-bold text-ocean-950 text-base leading-tight mb-2 line-clamp-2 group-hover:text-ocean-600 transition-colors">{coupon.title}</h4>
-            <p className="text-sm text-slate-500 line-clamp-2 leading-relaxed">{coupon.description}</p>
+            <h4 className="font-black text-ocean-950 text-lg leading-[1.2] mb-2 line-clamp-2 group-hover:text-ocean-600 transition-colors tracking-tight">{coupon.title}</h4>
+            <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed font-medium">{coupon.description}</p>
           </div>
           
-          <div className="mt-4 pt-3 border-t border-slate-50">
-              <div className="flex items-center justify-between mb-2">
+          <div className="mt-5 pt-4 border-t border-slate-50">
+              <div className="flex items-end justify-between mb-3">
                   <div className="flex flex-col">
-                      <span className="text-[10px] text-slate-400 line-through">R$ {coupon.originalPrice.toFixed(2)}</span>
+                      <span className="text-[10px] text-slate-400 line-through font-bold mb-0.5">DE R$ {coupon.originalPrice.toFixed(2)}</span>
                       <div className="flex items-baseline gap-1">
-                        <span className="text-xs font-medium text-ocean-900">R$</span>
-                        <span className="text-lg font-bold text-green-600">{coupon.discountedPrice.toFixed(2)}</span>
+                        <span className="text-sm font-black text-ocean-900">POR R$</span>
+                        <span className="text-2xl font-black text-green-600 tracking-tighter">{coupon.discountedPrice.toFixed(2)}</span>
                       </div>
                   </div>
-                  <span className="text-xs bg-green-50 text-green-700 font-bold px-2.5 py-1 rounded-lg border border-green-100 group-hover:bg-green-100 transition-colors">
-                      -{coupon.discountPercentage}%
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                      <span className="text-[10px] font-black text-green-700 bg-green-100 px-2 py-1 rounded-lg border border-green-200 shadow-sm">
+                          -{coupon.discountPercentage}% OFF
+                      </span>
+                  </div>
               </div>
 
               {/* Scarcity Bar */}

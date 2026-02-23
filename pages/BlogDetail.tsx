@@ -39,7 +39,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ postId, onNavigate }) =>
           url: window.location.href
       };
       if (navigator.share) {
-          try { await navigator.share(shareData); } catch (err) {}
+          try { await navigator.share(shareData); } catch (err) { /* ignore */ }
       } else {
           navigator.clipboard.writeText(window.location.href);
           alert("Link copiado!");
@@ -199,6 +199,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ postId, onNavigate }) =>
                                 <a 
                                     href={`https://instagram.com/${author.instagram.replace('@','')}`} 
                                     target="_blank"
+                                    rel="noreferrer"
                                     className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-lg shadow-pink-500/20 hover:shadow-pink-500/40 hover:-translate-y-0.5 transition-all"
                                 >
                                     <Instagram size={18} /> Instagram
@@ -208,6 +209,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ postId, onNavigate }) =>
                                 <a 
                                     href={author.website.startsWith('http') ? author.website : `https://${author.website}`} 
                                     target="_blank"
+                                    rel="noreferrer"
                                     className="flex-1 flex items-center justify-center gap-2 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-bold shadow-lg shadow-slate-800/20 hover:bg-slate-900 hover:-translate-y-0.5 transition-all"
                                 >
                                     <Globe size={18} /> Website

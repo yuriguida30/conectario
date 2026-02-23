@@ -35,8 +35,8 @@ let _coupons: Coupon[] = MOCK_COUPONS;
 let _users: User[] = MOCK_USERS;
 let _isInitialized = false;
 
-let _collections: Collection[] = [];
-let _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
+const _collections: Collection[] = [];
+const _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
 
 const notifyListeners = () => {
     window.dispatchEvent(new Event('dataUpdated'));

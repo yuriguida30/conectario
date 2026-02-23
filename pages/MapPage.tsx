@@ -18,26 +18,29 @@ export const MapPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for cached GPS
-    const storedGps = sessionStorage.getItem('user_gps');
-    if (storedGps) {
-        setUserLocation(JSON.parse(storedGps));
-    } else {
-        // Try getting it fresh if not stored
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                setUserLocation(loc);
-                sessionStorage.setItem('user_gps', JSON.stringify(loc));
-            },
-            () => console.log('GPS denied')
-        );
-    }
+    const fetchData = async () => {
+        // Check for cached GPS
+        const storedGps = sessionStorage.getItem('user_gps');
+        if (storedGps) {
+            setUserLocation(JSON.parse(storedGps));
+        } else {
+            // Try getting it fresh if not stored
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    setUserLocation(loc);
+                    sessionStorage.setItem('user_gps', JSON.stringify(loc));
+                },
+                () => console.log('GPS denied')
+            );
+        }
 
-    getCoupons().then(data => {
+        const data = await getCoupons();
         setCoupons(data.filter(c => c.active));
         setLoading(false);
-    });
+    };
+
+    fetchData();
   }, []);
 
   // Simple projection function: Maps Lat/Lng to % of the container

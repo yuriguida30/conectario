@@ -43,14 +43,13 @@ export const NavBar: React.FC<NavBarProps> = ({ currentUser, onNavigate, current
       };
   }, []);
   
-  const handleNavigateToSearch = () => {
+  const handleNavigateToSearch = async () => {
       onNavigate('search');
       // Reset notification badge
-      getCoupons().then(all => {
-          const activeCount = all.filter(c => c.active).length;
-          localStorage.setItem('last_seen_coupon_count', activeCount.toString());
-          setNewCouponsCount(0);
-      });
+      const all = await getCoupons();
+      const activeCount = all.filter(c => c.active).length;
+      localStorage.setItem('last_seen_coupon_count', activeCount.toString());
+      setNewCouponsCount(0);
   };
 
   const navItemClass = (page: string) => {

@@ -79,6 +79,7 @@ export interface BusinessProfile {
 
 export interface CompanyRequest {
   id: string;
+  userId?: string;
   companyName: string;
   ownerName: string;
   email: string;

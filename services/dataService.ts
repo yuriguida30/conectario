@@ -312,8 +312,15 @@ export const registerUser = async (name: string, email: string, pass: string): P
 };
 
 export const createCompanyRequest = async (request: any) => {
+    const user = getCurrentUser();
     const id = `req_${Date.now()}`;
-    await setDoc(doc(db, 'companyRequests', id), { ...request, id, status: 'PENDING', requestDate: new Date().toISOString() });
+    await setDoc(doc(db, 'companyRequests', id), { 
+        ...request, 
+        id, 
+        userId: user?.id,
+        status: 'PENDING', 
+        requestDate: new Date().toISOString() 
+    });
 };
 
 export const getCompanyRequests = async () => {
@@ -322,5 +329,24 @@ export const getCompanyRequests = async () => {
 };
 
 export const approveCompanyRequest = async (requestId: string) => {
+    const reqDoc = await getDoc(doc(db, 'companyRequests', requestId));
+    if (!reqDoc.exists()) return;
+    
+    const request = reqDoc.data() as CompanyRequest;
     await updateDoc(doc(db, 'companyRequests', requestId), { status: 'APPROVED' });
+    
+    if (request.userId) {
+        const userDoc = await getDoc(doc(db, 'users', request.userId));
+        if (userDoc.exists()) {
+            const user = { id: userDoc.id, ...userDoc.data() } as User;
+            const updatedUser = {
+                ...user,
+                permissions: {
+                    ...(user.permissions || { canCreateCoupons: false, canManageBusiness: false }),
+                    canCreateBusiness: true
+                }
+            };
+            await updateUser(updatedUser);
+        }
+    }
 };

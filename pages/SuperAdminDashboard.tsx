@@ -31,10 +31,6 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editFormData, setEditFormData] = useState({ name: '', email: '' });
 
-  // Modal de Promoção para Empresa
-  const [promotingUser, setPromotingUser] = useState<User | null>(null);
-  const [promoData, setPromoData] = useState({ name: '', category: 'Gastronomia' });
-
   const loadData = async () => {
     setLoadingData(true);
     try {
@@ -123,44 +119,24 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
       }
   };
 
-  const handlePromoteToCompany = async () => {
-      if (!promotingUser) return;
-      if (!promoData.name.trim()) return alert("Por favor, insira o nome da empresa.");
+  const handleGrantBusinessPermission = async (user: User) => {
+      if (!window.confirm(`Deseja dar permissão para ${user.name} criar uma empresa?`)) return;
       
-      setActionLoading(promotingUser.id);
+      setActionLoading(user.id);
       try {
-          const updatedUser = { ...promotingUser, role: UserRole.COMPANY };
+          const updatedUser = { 
+              ...user, 
+              permissions: { 
+                  ...(user.permissions || { canCreateCoupons: false, canManageBusiness: false }),
+                  canCreateBusiness: true 
+              } 
+          };
           await updateUser(updatedUser);
-          
-          // Criar perfil básico de empresa se não existir
-          const existingBiz = businesses.find(b => b.id === promotingUser.id);
-          if (!existingBiz) {
-              const newBiz: BusinessProfile = {
-                  id: promotingUser.id,
-                  name: promoData.name,
-                  category: promoData.category,
-                  description: 'Nova empresa cadastrada via painel administrativo.',
-                  coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200',
-                  gallery: [],
-                  address: '',
-                  phone: promotingUser.phone || '',
-                  amenities: [],
-                  openingHours: {},
-                  rating: 5,
-                  views: 0,
-                  shares: 0,
-                  isClaimed: true,
-                  plan: BusinessPlan.FREE
-              };
-              await saveBusiness(newBiz);
-          }
-          
-          alert(`${promotingUser.name} agora é gestor da empresa "${promoData.name}"!`);
-          setPromotingUser(null);
+          alert(`Permissão concedida para ${user.name}! O usuário agora verá um aviso em seu painel para criar a empresa.`);
           await loadData();
       } catch (e) {
-          console.error("Erro ao promover:", e);
-          alert("Erro ao promover usuário.");
+          console.error("Erro ao conceder permissão:", e);
+          alert("Erro ao conceder permissão.");
       } finally {
           setActionLoading(null);
       }
@@ -300,15 +276,12 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                       <td className="px-6 py-5">
                                           <div className="flex justify-center items-center gap-2">
                                               <button 
-                                                onClick={() => {
-                                                    setPromotingUser(u);
-                                                    setPromoData({ name: u.companyName || u.name, category: u.category || 'Gastronomia' });
-                                                }}
-                                                disabled={actionLoading === u.id || u.role === UserRole.COMPANY || u.role === UserRole.SUPER_ADMIN}
-                                                className={`p-3 rounded-xl transition-all shadow-sm border border-slate-100 ${u.role === UserRole.COMPANY ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-white text-ocean-600 hover:bg-ocean-600 hover:text-white'}`}
-                                                title="Promover a Empresa"
+                                                onClick={() => handleGrantBusinessPermission(u)}
+                                                disabled={actionLoading === u.id || u.role === UserRole.COMPANY || u.role === UserRole.SUPER_ADMIN || u.permissions?.canCreateBusiness}
+                                                className={`p-3 rounded-xl transition-all shadow-sm border border-slate-100 ${u.role === UserRole.COMPANY || u.permissions?.canCreateBusiness ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-white text-ocean-600 hover:bg-ocean-600 hover:text-white'}`}
+                                                title={u.permissions?.canCreateBusiness ? "Permissão já concedida" : "Dar permissão para criar empresa"}
                                               >
-                                                  {actionLoading === u.id ? <Loader2 className="animate-spin" size={18}/> : <Store size={18} />}
+                                                  {actionLoading === u.id ? <Loader2 className="animate-spin" size={18}/> : <Shield size={18} />}
                                               </button>
                                               <button 
                                                 onClick={() => handleOpenEdit(u)}
@@ -436,68 +409,6 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
               )}
           </div>
       </div>
-
-      {/* Modal de Promoção para Empresa */}
-      {promotingUser && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-              <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-                  <div className="p-8 space-y-6">
-                      <div className="flex justify-between items-center">
-                          <h3 className="text-2xl font-black text-ocean-950">Promover Usuário</h3>
-                          <button onClick={() => setPromotingUser(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                              <X size={24} className="text-slate-400" />
-                          </button>
-                      </div>
-                      
-                      <div className="bg-ocean-50 p-4 rounded-2xl border border-ocean-100">
-                          <p className="text-xs font-bold text-ocean-700 uppercase tracking-wider mb-1">Usuário Selecionado</p>
-                          <p className="font-black text-ocean-950">{promotingUser.name}</p>
-                          <p className="text-xs text-ocean-600">{promotingUser.email}</p>
-                      </div>
-
-                      <div className="space-y-4">
-                          <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nome da Empresa / Anúncio</label>
-                              <input 
-                                  className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-ocean-950 outline-none focus:ring-2 focus:ring-ocean-500 transition-all"
-                                  placeholder="Ex: Restaurante do Yuri"
-                                  value={promoData.name}
-                                  onChange={e => setPromoData({...promoData, name: e.target.value})}
-                              />
-                          </div>
-                          
-                          <div>
-                              <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Categoria</label>
-                              <select 
-                                  className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-ocean-950 outline-none"
-                                  value={promoData.category}
-                                  onChange={e => setPromoData({...promoData, category: e.target.value})}
-                              >
-                                  {categories.map((cat: any) => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
-                              </select>
-                          </div>
-                      </div>
-
-                      <div className="pt-4 flex gap-3">
-                          <button 
-                              onClick={() => setPromotingUser(null)}
-                              className="flex-1 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 transition-colors"
-                          >
-                              Cancelar
-                          </button>
-                          <button 
-                              onClick={handlePromoteToCompany}
-                              disabled={actionLoading === promotingUser.id}
-                              className="flex-[2] bg-ocean-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-ocean-600/20 hover:bg-ocean-700 transition-all flex items-center justify-center gap-2"
-                          >
-                              {actionLoading === promotingUser.id ? <Loader2 className="animate-spin" size={20} /> : <CheckCircle2 size={20} />}
-                              CONFIRMAR PROMOÇÃO
-                          </button>
-                      </div>
-                  </div>
-              </div>
-          </div>
-      )}
 
       {/* MODAL DE EDIÇÃO DE USUÁRIO */}
       {editingUser && (

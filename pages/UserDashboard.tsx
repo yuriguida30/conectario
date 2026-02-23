@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, SavingsRecord, Coupon, BusinessProfile, UserRole } from '../types';
-import { Tag, LogOut, ChevronRight, HelpCircle, Trophy, TrendingUp, Wallet, Star, Heart, Store, Ticket, Send, Camera, Loader2, ShieldCheck, Zap } from 'lucide-react';
+import { Tag, LogOut, ChevronRight, HelpCircle, Trophy, TrendingUp, Wallet, Star, Heart, Store, Ticket, Send, Camera, Loader2, ShieldCheck, Zap, Bell } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 // Fix: Removed non-existent export 'sendSupportMessage' from dataService
 import { getCoupons, getBusinesses, getBusinessById, updateUser } from '../services/dataService';
@@ -88,9 +88,30 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
       </div>
 
       {/* DASHBOARD ACCESS BUTTONS - ACESSO RÁPIDO */}
-      {(currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.COMPANY) && (
-          <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {currentUser.role === UserRole.SUPER_ADMIN && (
+      {(currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.COMPANY || currentUser.permissions?.canCreateBusiness) && (
+          <div className="mb-8 flex flex-col gap-4">
+              {currentUser.permissions?.canCreateBusiness && currentUser.role !== UserRole.COMPANY && (
+                  <div className="bg-orange-50 border-2 border-orange-200 p-6 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top duration-500">
+                      <div className="flex items-center gap-4">
+                          <div className="bg-orange-100 p-3 rounded-2xl text-orange-600">
+                              <Bell size={24} className="animate-bounce" />
+                          </div>
+                          <div>
+                              <h3 className="font-black text-orange-950">Atenção!</h3>
+                              <p className="text-sm text-orange-800 font-medium">Você recebeu permissão para criar sua empresa. Clique no botão ao lado para começar.</p>
+                          </div>
+                      </div>
+                      <button 
+                          onClick={() => onNavigate('create-business')}
+                          className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black text-sm shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-all whitespace-nowrap active:scale-95"
+                      >
+                          CRIAR MINHA EMPRESA
+                      </button>
+                  </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {currentUser.role === UserRole.SUPER_ADMIN && (
                   <button 
                     onClick={() => onNavigate('super-admin-dashboard')}
                     className="bg-ocean-950 text-white p-6 rounded-[2rem] flex items-center justify-between group hover:bg-black transition-all"
@@ -121,6 +142,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                   </button>
               )}
           </div>
+        </div>
       )}
 
       {/* TABS & REST OF CONTENT */}

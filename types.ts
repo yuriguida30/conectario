@@ -15,6 +15,7 @@ export interface UserPermissions {
   canCreateCoupons: boolean;
   canManageBusiness: boolean;
   canManageBlog?: boolean;
+  canCreateBusiness?: boolean;
 }
 
 export interface User {

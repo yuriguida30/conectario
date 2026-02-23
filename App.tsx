@@ -15,6 +15,7 @@ import { CollectionDetail } from './pages/CollectionDetail';
 import { Login } from './pages/Login';
 import { MapPage } from './pages/MapPage';
 import { SubscribePage } from './pages/Subscribe';
+import { CreateBusiness } from './pages/CreateBusiness';
 import { getCurrentUser, logout, getAppConfig } from './services/dataService';
 import { User, UserRole } from './types';
 
@@ -41,6 +42,7 @@ const parseUrl = (): { page: string; params: any } => {
     case '/user-dashboard': return { page: 'user-dashboard', params: null };
     case '/admin-dashboard': return { page: 'admin-dashboard', params: null };
     case '/super-admin-dashboard': return { page: 'super-admin-dashboard', params: null };
+    case '/create-business': return { page: 'create-business', params: null };
     default: return { page: 'home', params: null };
   }
 };
@@ -58,6 +60,7 @@ const buildUrl = (page: string, params?: any): string => {
     case 'user-dashboard': return '/user-dashboard';
     case 'admin-dashboard': return '/admin-dashboard';
     case 'super-admin-dashboard': return '/super-admin-dashboard';
+    case 'create-business': return '/create-business';
     case 'business-detail': return `/business/${params?.businessId}`;
     case 'blog-detail': return `/blog/${params?.postId}`;
     case 'collection-detail': return `/collection/${params?.collectionId}`;
@@ -159,6 +162,8 @@ export default function App() {
         return user && user.role === UserRole.COMPANY ? <AdminDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} />;
       case 'super-admin-dashboard':
         return user && user.role === UserRole.SUPER_ADMIN ? <SuperAdminDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} />;
+      case 'create-business':
+        return user && user.permissions?.canCreateBusiness ? <CreateBusiness currentUser={user} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} />;
       case 'login':
         return <Login onLogin={handleLoginSuccess} />;
       case 'map': 

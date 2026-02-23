@@ -105,7 +105,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                           onClick={() => onNavigate('create-business')}
                           className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black text-sm shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-all whitespace-nowrap active:scale-95"
                       >
-                          CRIAR MINHA EMPRESA
+                          PUBLICAR MINHA EMPRESA
                       </button>
                   </div>
               )}

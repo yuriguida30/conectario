@@ -395,7 +395,13 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                               <div className="flex gap-2 w-full md:w-auto">
                                   {req.status === 'PENDING' && (
                                       <button 
-                                        onClick={async () => { setActionLoading(req.id); await approveCompanyRequest(req.id); await loadData(); setActionLoading(null); }}
+                                        onClick={async () => { 
+                                            setActionLoading(req.id); 
+                                            await approveCompanyRequest(req.id); 
+                                            alert(`Solicitação de "${req.companyName}" aprovada! O usuário recebeu permissão para publicar a empresa no seu próprio painel.`);
+                                            await loadData(); 
+                                            setActionLoading(null); 
+                                        }}
                                         className="bg-ocean-600 text-white px-8 py-4 rounded-2xl font-black text-xs shadow-lg flex items-center gap-2"
                                       >
                                           {actionLoading === req.id ? <Loader2 className="animate-spin" size={16}/> : <CheckCircle size={16} />} Aprovar

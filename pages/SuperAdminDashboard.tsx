@@ -269,9 +269,16 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                           </div>
                                       </td>
                                       <td className="px-6 py-5">
-                                          <span className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase ${u.role === UserRole.SUPER_ADMIN ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
-                                            {u.role}
-                                          </span>
+                                          <div className="flex flex-col gap-1">
+                                            <span className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase w-fit ${u.role === UserRole.SUPER_ADMIN ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
+                                              {u.role}
+                                            </span>
+                                            {u.permissions?.canCreateBusiness && u.role !== UserRole.COMPANY && (
+                                                <span className="text-[9px] font-black text-orange-600 bg-orange-50 px-2 py-1 rounded-md w-fit flex items-center gap-1">
+                                                    <Shield size={10} /> PERMISSÃO LIBERADA
+                                                </span>
+                                            )}
+                                          </div>
                                       </td>
                                       <td className="px-6 py-5">
                                           <div className="flex justify-center items-center gap-2">

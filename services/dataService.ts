@@ -169,7 +169,13 @@ export const getCurrentUser = (): User | null => {
 
 export const updateUser = async (user: User) => {
     await setDoc(doc(db, 'users', user.id), cleanObject(user), { merge: true });
-    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    
+    // Only update localStorage if we are updating the currently logged-in user
+    const current = getCurrentUser();
+    if (current && current.id === user.id) {
+        localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    }
+    
     notifyListeners();
 };
 

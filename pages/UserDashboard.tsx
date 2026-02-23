@@ -91,21 +91,22 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
       {(currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.COMPANY || currentUser.permissions?.canCreateBusiness) && (
           <div className="mb-8 flex flex-col gap-4">
               {currentUser.permissions?.canCreateBusiness && currentUser.role !== UserRole.COMPANY && (
-                  <div className="bg-orange-50 border-2 border-orange-200 p-6 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-4 animate-in slide-in-from-top duration-500">
-                      <div className="flex items-center gap-4">
-                          <div className="bg-orange-100 p-3 rounded-2xl text-orange-600">
-                              <Bell size={24} className="animate-bounce" />
+                  <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-8 rounded-[2.5rem] flex flex-col md:flex-row items-center justify-between gap-6 animate-in slide-in-from-top duration-700 shadow-2xl shadow-orange-500/30 border-4 border-white/20">
+                      <div className="flex items-center gap-6">
+                          <div className="bg-white/20 p-4 rounded-3xl text-white backdrop-blur-md">
+                              <Bell size={32} className="animate-bounce" />
                           </div>
-                          <div>
-                              <h3 className="font-black text-orange-950">Atenção!</h3>
-                              <p className="text-sm text-orange-800 font-medium">Você recebeu permissão para criar sua empresa. Clique no botão ao lado para começar.</p>
+                          <div className="text-white">
+                              <h3 className="text-2xl font-black uppercase tracking-tight">Atenção Lojista!</h3>
+                              <p className="text-sm font-bold opacity-90">Sua permissão foi aprovada. Agora você pode publicar sua empresa no nosso guia.</p>
                           </div>
                       </div>
                       <button 
                           onClick={() => onNavigate('create-business')}
-                          className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black text-sm shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-all whitespace-nowrap active:scale-95"
+                          className="bg-white text-orange-600 px-10 py-5 rounded-2xl font-black text-sm shadow-xl hover:bg-orange-50 transition-all whitespace-nowrap active:scale-95 flex items-center gap-2 group"
                       >
                           PUBLICAR MINHA EMPRESA
+                          <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                       </button>
                   </div>
               )}
@@ -146,19 +147,31 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
       )}
 
       {/* TABS & REST OF CONTENT */}
-      <div className="flex p-1 bg-slate-200/50 rounded-xl mb-6">
-          <button onClick={() => setActiveTab('overview')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'overview' ? 'bg-white shadow-sm text-ocean-600' : 'text-slate-500'}`}>Visão Geral</button>
-          <button onClick={() => setActiveTab('favorites')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'favorites' ? 'bg-white shadow-sm text-ocean-600' : 'text-slate-500'}`}><Heart size={14}/> Favoritos</button>
-      </div>
-
-      {activeTab === 'overview' && (
-          <div className="animate-in fade-in space-y-8">
-              <div className="bg-[#1e293b] rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
-                  <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Passaporte de Economia</p>
-                  <h2 className="text-5xl font-bold mb-2 tracking-tight">R$ {savedAmount.toFixed(2)}</h2>
-                  <p className="text-sm text-slate-300">Total economizado na rede Conecta Rio.</p>
-              </div>
+      {currentUser.role === UserRole.COMPANY ? (
+          <div className="text-center py-10">
+              <h2 className="text-xl font-bold text-ocean-950">Gerencie sua Empresa</h2>
+              <p className="text-slate-500 mb-4">Acesse o painel de controle para gerenciar seus cupons e informações.</p>
+              <button onClick={() => onNavigate('admin-dashboard')} className="bg-ocean-600 text-white px-6 py-3 rounded-xl font-bold">
+                  Acessar Painel da Empresa
+              </button>
           </div>
+      ) : (
+        <>
+          <div className="flex p-1 bg-slate-200/50 rounded-xl mb-6">
+              <button onClick={() => setActiveTab('overview')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'overview' ? 'bg-white shadow-sm text-ocean-600' : 'text-slate-500'}`}>Visão Geral</button>
+              <button onClick={() => setActiveTab('favorites')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeTab === 'favorites' ? 'bg-white shadow-sm text-ocean-600' : 'text-slate-500'}`}><Heart size={14}/> Favoritos</button>
+          </div>
+
+          {activeTab === 'overview' && (
+              <div className="animate-in fade-in space-y-8">
+                  <div className="bg-[#1e293b] rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
+                      <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-1">Passaporte de Economia</p>
+                      <h2 className="text-5xl font-bold mb-2 tracking-tight">R$ {savedAmount.toFixed(2)}</h2>
+                      <p className="text-sm text-slate-300">Total economizado na rede Conecta Rio.</p>
+                  </div>
+              </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -7,7 +7,7 @@ import {
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
-  Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock
+  Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -33,7 +33,10 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     discountedPrice: 0,
     category: currentUser.category || 'Gastronomia',
     active: true,
-    expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    rules: [],
+    maxRedemptions: 100,
+    limitPerUser: 1
   });
 
   const refreshData = async () => {
@@ -263,8 +266,9 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               </div>
 
               <form id="profile-form" onSubmit={handleUpdateProfile} className="space-y-12">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                      <div className="space-y-8">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                      {/* COLUNA ESQUERDA: VISUAL */}
+                      <div className="lg:col-span-1 space-y-8">
                           <ImageUpload 
                             label="Imagem de Capa (Ideal: 1200x600px)" 
                             currentImage={editBusiness.coverImage} 
@@ -273,9 +277,9 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
                           <div className="space-y-4">
                               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Galeria de Fotos</label>
-                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                              <div className="grid grid-cols-2 gap-4">
                                   {editBusiness.gallery?.map((img, idx) => (
-                                      <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group shadow-sm">
+                                      <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group shadow-sm border border-slate-100">
                                           <img src={img} className="w-full h-full object-cover" />
                                           <button 
                                               type="button"
@@ -284,9 +288,9 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                                   newGallery.splice(idx, 1);
                                                   setEditBusiness({...editBusiness, gallery: newGallery});
                                               }}
-                                              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                              className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                                           >
-                                              <X size={14} />
+                                              <X size={12} />
                                           </button>
                                       </div>
                                   ))}
@@ -301,44 +305,63 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                       }} 
                                   />
                               </div>
-                          </div>
-                          
-                          <div className="space-y-4">
-                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Localização Exata no Mapa</label>
-                              <div className="h-72">
-                                <LocationPicker 
-                                    initialLat={editBusiness.lat} 
-                                    initialLng={editBusiness.lng} 
-                                    onLocationSelect={(lat, lng) => setEditBusiness({...editBusiness, lat, lng})} 
-                                />
-                              </div>
-                              <input 
-                                required 
-                                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold" 
-                                placeholder="Endereço Completo para o GPS" 
-                                value={editBusiness.address} 
-                                onChange={e => setEditBusiness({...editBusiness, address: e.target.value})} 
-                              />
+                              <p className="text-[10px] text-slate-400 font-medium">Adicione fotos do ambiente, produtos ou serviços para atrair mais clientes.</p>
                           </div>
                       </div>
 
-                      <div className="space-y-6">
-                          <div>
-                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Nome da Empresa</label>
-                              <input required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-lg" value={editBusiness.name} onChange={e => setEditBusiness({...editBusiness, name: e.target.value})} />
+                      {/* COLUNA CENTRAL: INFO BÁSICA & CONTATO */}
+                      <div className="lg:col-span-2 space-y-10">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div className="col-span-full">
+                                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Nome da Empresa</label>
+                                  <input required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-lg focus:ring-2 focus:ring-ocean-500 outline-none transition-all" value={editBusiness.name} onChange={e => setEditBusiness({...editBusiness, name: e.target.value})} />
+                              </div>
+
+                              <div>
+                                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Categoria Principal</label>
+                                  <select 
+                                    className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
+                                    value={editBusiness.category}
+                                    onChange={e => setEditBusiness({...editBusiness, category: e.target.value})}
+                                  >
+                                      {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+                                  </select>
+                              </div>
+
+                              <div>
+                                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Subcategoria (Opcional)</label>
+                                  <input className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none" placeholder="Ex: Pizzaria, Hotel Boutique..." value={editBusiness.subcategory} onChange={e => setEditBusiness({...editBusiness, subcategory: e.target.value})} />
+                              </div>
+
+                              <div className="col-span-full">
+                                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Descrição / História</label>
+                                  <textarea className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 leading-relaxed text-sm outline-none" rows={4} placeholder="Conte um pouco sobre o seu negócio..." value={editBusiness.description} onChange={e => setEditBusiness({...editBusiness, description: e.target.value})} />
+                              </div>
                           </div>
 
-                          <div>
-                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Descrição / História da Empresa</label>
-                              <textarea className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 leading-relaxed" rows={4} value={editBusiness.description} onChange={e => setEditBusiness({...editBusiness, description: e.target.value})} />
-                          </div>
-
-                          <div className="space-y-4 pt-6 border-t border-slate-100">
-                              <h3 className="font-black text-ocean-950 text-sm flex items-center gap-2">
-                                <Globe size={18} className="text-ocean-600" /> Links de Conversão (Opcionais)
+                          <div className="pt-8 border-t border-slate-100">
+                              <h3 className="font-black text-ocean-950 text-sm flex items-center gap-2 mb-6">
+                                <Phone size={18} className="text-ocean-600" /> Contato & Redes Sociais
                               </h3>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Telefone Fixo</label>
+                                      <input className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="(21) 0000-0000" value={editBusiness.phone} onChange={e => setEditBusiness({...editBusiness, phone: e.target.value})} />
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">WhatsApp (Link Direto)</label>
+                                      <div className="relative">
+                                          <MessageCircle size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-green-500" />
+                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="21999999999" value={editBusiness.whatsapp} onChange={e => setEditBusiness({...editBusiness, whatsapp: e.target.value})} />
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Instagram (Usuário)</label>
+                                      <div className="relative">
+                                          <Instagram size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-500" />
+                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="@suaempresa" value={editBusiness.instagram} onChange={e => setEditBusiness({...editBusiness, instagram: e.target.value})} />
+                                      </div>
+                                  </div>
                                   <div>
                                       <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Site Oficial</label>
                                       <div className="relative">
@@ -347,12 +370,90 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                       </div>
                                   </div>
                                   <div>
-                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Link de Delivery</label>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Link de Delivery (iFood, etc)</label>
                                       <div className="relative">
                                           <ShoppingCart size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" />
-                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="Link iFood/App" value={editBusiness.deliveryUrl} onChange={e => setEditBusiness({...editBusiness, deliveryUrl: e.target.value})} />
+                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="Link do cardápio/delivery" value={editBusiness.deliveryUrl} onChange={e => setEditBusiness({...editBusiness, deliveryUrl: e.target.value})} />
                                       </div>
                                   </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Link de Reserva</label>
+                                      <div className="relative">
+                                          <CalendarDays size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-500" />
+                                          <input className="w-full bg-slate-50 pl-12 pr-4 py-4 rounded-xl border border-slate-100 text-sm font-bold" placeholder="Link para agendamento" value={editBusiness.bookingUrl} onChange={e => setEditBusiness({...editBusiness, bookingUrl: e.target.value})} />
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div className="pt-8 border-t border-slate-100">
+                              <h3 className="font-black text-ocean-950 text-sm flex items-center gap-2 mb-6">
+                                <MapPin size={18} className="text-ocean-600" /> Localização & GPS
+                              </h3>
+                              <div className="space-y-4">
+                                  <div className="h-80 rounded-3xl overflow-hidden border border-slate-100 shadow-inner">
+                                    <LocationPicker 
+                                        initialLat={editBusiness.lat} 
+                                        initialLng={editBusiness.lng} 
+                                        onLocationSelect={(lat, lng) => setEditBusiness({...editBusiness, lat, lng})} 
+                                    />
+                                  </div>
+                                  <input 
+                                    required 
+                                    className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm" 
+                                    placeholder="Endereço Completo (Rua, Número, Bairro, Cidade)" 
+                                    value={editBusiness.address} 
+                                    onChange={e => setEditBusiness({...editBusiness, address: e.target.value})} 
+                                  />
+                              </div>
+                          </div>
+
+                          <div className="pt-8 border-t border-slate-100">
+                              <h3 className="font-black text-ocean-950 text-sm flex items-center gap-2 mb-6">
+                                <Clock size={18} className="text-ocean-600" /> Horário de Funcionamento
+                              </h3>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map(day => (
+                                      <div key={day} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                          <span className="text-[10px] font-black text-slate-400 uppercase w-16">{day}</span>
+                                          <input 
+                                            className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                                            placeholder="Ex: 09:00 - 18:00 ou Fechado"
+                                            value={editBusiness.openingHours?.[day] || ''}
+                                            onChange={e => {
+                                                const newHours = { ...(editBusiness.openingHours || {}) };
+                                                newHours[day] = e.target.value;
+                                                setEditBusiness({ ...editBusiness, openingHours: newHours });
+                                            }}
+                                          />
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+
+                          <div className="pt-8 border-t border-slate-100">
+                              <h3 className="font-black text-ocean-950 text-sm flex items-center gap-2 mb-6">
+                                <Check size={18} className="text-ocean-600" /> Comodidades & Diferenciais
+                              </h3>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                  {DEFAULT_AMENITIES.map(am => {
+                                      const isSelected = (editBusiness.amenities || []).includes(am.id);
+                                      return (
+                                          <button 
+                                            key={am.id}
+                                            type="button"
+                                            onClick={() => {
+                                                const current = [...(editBusiness.amenities || [])];
+                                                const next = isSelected ? current.filter(x => x !== am.id) : [...current, am.id];
+                                                setEditBusiness({...editBusiness, amenities: next});
+                                            }}
+                                            className={`flex items-center gap-3 p-4 rounded-2xl border transition-all text-left ${isSelected ? 'bg-ocean-600 border-ocean-600 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100'}`}
+                                          >
+                                              <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : 'bg-slate-300'}`} />
+                                              <span className="text-xs font-bold">{am.label}</span>
+                                          </button>
+                                      );
+                                  })}
                               </div>
                           </div>
                       </div>
@@ -446,25 +547,98 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
       )}
 
       {view === 'CREATE_COUPON' && (
-          <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6">
-              <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase mb-8">
-                <ChevronLeft size={16} /> Voltar ao Painel
-              </button>
-              <form onSubmit={async (e) => { e.preventDefault(); setIsSaving(true); await saveCoupon({...newCoupon, id: `c_${Date.now()}`, companyId: currentUser.id, companyName: renderName()} as Coupon); setView('HOME'); refreshData(); setIsSaving(false); }} className="space-y-8">
-                  <h2 className="text-3xl font-black text-ocean-950">Lançar Nova Oferta</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                      <ImageUpload label="Foto da Oferta" onImageSelect={img => setNewCoupon({...newCoupon, imageUrl: img})} />
-                      <div className="space-y-4">
-                          <input required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold" placeholder="Título" value={newCoupon.title} onChange={e => setNewCoupon({...newCoupon, title: e.target.value})} />
-                          <textarea className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100" rows={3} placeholder="Descrição" value={newCoupon.description} onChange={e => setNewCoupon({...newCoupon, description: e.target.value})} />
-                          <div className="grid grid-cols-2 gap-4">
-                              <input type="number" className="w-full bg-slate-50 p-4 rounded-xl border" placeholder="Preço original" value={newCoupon.originalPrice} onChange={e => setNewCoupon({...newCoupon, originalPrice: Number(e.target.value)})} />
-                              <input type="number" className="w-full bg-slate-50 p-4 rounded-xl border text-green-600 font-bold" placeholder="Preço com desconto" value={newCoupon.discountedPrice} onChange={e => setNewCoupon({...newCoupon, discountedPrice: Number(e.target.value)})} />
+          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-10">
+              <div className="flex justify-between items-center">
+                  <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                    <ChevronLeft size={16} /> Voltar ao Painel
+                  </button>
+                  <h2 className="text-3xl font-black text-ocean-950 hidden md:block">Lançar Nova Oferta</h2>
+              </div>
+
+              <form onSubmit={async (e) => { 
+                  e.preventDefault(); 
+                  if (!newCoupon.imageUrl) return alert("Por favor, adicione uma imagem para a oferta.");
+                  setIsSaving(true); 
+                  const couponData = {
+                      ...newCoupon, 
+                      id: `c_${Date.now()}`, 
+                      companyId: currentUser.id, 
+                      companyName: renderName(),
+                      companyLogo: myBusiness?.coverImage,
+                      discountPercentage: Math.round(((newCoupon.originalPrice! - newCoupon.discountedPrice!) / newCoupon.originalPrice!) * 100),
+                      code: `CR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+                      active: true
+                  } as Coupon;
+                  await saveCoupon(couponData); 
+                  setView('HOME'); 
+                  refreshData(); 
+                  setIsSaving(false); 
+              }} className="space-y-12">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                      <div className="space-y-8">
+                          <ImageUpload label="Foto da Oferta (Chamativa)" onImageSelect={img => setNewCoupon({...newCoupon, imageUrl: img})} />
+                          
+                          <div className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 space-y-6">
+                              <h3 className="text-sm font-black text-ocean-950 uppercase tracking-widest flex items-center gap-2">
+                                  <DollarSign size={18} className="text-green-600" /> Valores & Desconto
+                              </h3>
+                              <div className="grid grid-cols-2 gap-6">
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Preço Original</label>
+                                      <div className="relative">
+                                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">R$</span>
+                                          <input type="number" required className="w-full bg-white pl-12 pr-4 py-4 rounded-xl border border-slate-200 font-bold" placeholder="0.00" value={newCoupon.originalPrice} onChange={e => setNewCoupon({...newCoupon, originalPrice: Number(e.target.value)})} />
+                                      </div>
+                                  </div>
+                                  <div>
+                                      <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Preço com Desconto</label>
+                                      <div className="relative">
+                                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-green-600">R$</span>
+                                          <input type="number" required className="w-full bg-white pl-12 pr-4 py-4 rounded-xl border border-green-200 text-green-600 font-black" placeholder="0.00" value={newCoupon.discountedPrice} onChange={e => setNewCoupon({...newCoupon, discountedPrice: Number(e.target.value)})} />
+                                      </div>
+                                  </div>
+                              </div>
+                              {newCoupon.originalPrice! > 0 && newCoupon.discountedPrice! > 0 && (
+                                  <div className="bg-green-100 text-green-700 p-4 rounded-xl text-center font-black text-xs uppercase tracking-widest">
+                                      Economia de {Math.round(((newCoupon.originalPrice! - newCoupon.discountedPrice!) / newCoupon.originalPrice!) * 100)}% para o cliente
+                                  </div>
+                              )}
+                          </div>
+                      </div>
+
+                      <div className="space-y-8">
+                          <div className="space-y-4">
+                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Informações da Oferta</label>
+                              <input required className="w-full bg-slate-50 p-5 rounded-2xl border border-slate-100 font-black text-lg focus:ring-2 focus:ring-ocean-500 outline-none" placeholder="Título da Oferta (Ex: 50% de Desconto no Rodízio)" value={newCoupon.title} onChange={e => setNewCoupon({...newCoupon, title: e.target.value})} />
+                              <textarea required className="w-full bg-slate-50 p-5 rounded-2xl border border-slate-100 text-sm leading-relaxed outline-none" rows={3} placeholder="Descreva o que está incluído nesta oferta..." value={newCoupon.description} onChange={e => setNewCoupon({...newCoupon, description: e.target.value})} />
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Data de Expiração</label>
+                                  <input type="date" required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm" value={newCoupon.expiryDate} onChange={e => setNewCoupon({...newCoupon, expiryDate: e.target.value})} />
+                              </div>
+                              <div>
+                                  <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Limite de Resgates</label>
+                                  <input type="number" className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm" value={newCoupon.maxRedemptions} onChange={e => setNewCoupon({...newCoupon, maxRedemptions: Number(e.target.value)})} />
+                              </div>
+                          </div>
+
+                          <div className="space-y-4">
+                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Regras & Condições</label>
+                              <textarea 
+                                className="w-full bg-slate-50 p-5 rounded-2xl border border-slate-100 text-xs leading-relaxed outline-none" 
+                                rows={4} 
+                                placeholder="Uma regra por linha. Ex:&#10;Válido apenas de segunda a quinta&#10;Não cumulativo com outras promoções&#10;Necessário reserva prévia" 
+                                value={newCoupon.rules?.join('\n')} 
+                                onChange={e => setNewCoupon({...newCoupon, rules: e.target.value.split('\n').filter(r => r.trim() !== '')})} 
+                              />
                           </div>
                       </div>
                   </div>
-                  <button type="submit" disabled={isSaving} className="w-full bg-ocean-600 text-white font-black py-6 rounded-2xl shadow-xl flex items-center justify-center gap-3">
-                      {isSaving ? <Loader2 className="animate-spin" /> : <Save size={24} />} PUBLICAR NO GUIA
+
+                  <button type="submit" disabled={isSaving} className="w-full bg-ocean-600 text-white font-black py-8 rounded-[2rem] shadow-2xl shadow-ocean-600/30 flex items-center justify-center gap-4 text-xl hover:bg-ocean-700 active:scale-[0.98] transition-all">
+                      {isSaving ? <Loader2 className="animate-spin" size={28} /> : <CheckCircle2 size={28} />} PUBLICAR OFERTA NO RIO
                   </button>
               </form>
           </div>

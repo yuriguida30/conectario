@@ -144,6 +144,22 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                 <p className="text-slate-600 leading-relaxed text-sm">{business.description}</p>
             </div>
 
+            {/* GALERIA DE FOTOS */}
+            {business.gallery && business.gallery.length > 0 && (
+                <div className="space-y-4">
+                    <h3 className="text-xl font-black text-ocean-950">Galeria de Fotos</h3>
+                    <div className="overflow-x-auto hide-scrollbar -mx-6 px-6">
+                        <div className="flex gap-4 pb-2">
+                            {business.gallery.map((img, idx) => (
+                                <div key={idx} className="w-72 h-48 flex-shrink-0 rounded-2xl overflow-hidden shadow-md border border-slate-100">
+                                    <img src={img} className="w-full h-full object-cover" alt={`${business.name} gallery ${idx}`} />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* COMODIDADES VISUAIS */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 {business.amenities?.map(am => (

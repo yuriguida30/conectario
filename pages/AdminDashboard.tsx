@@ -4,7 +4,7 @@ import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem
 import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, saveBusiness, getBusinessStats, getCategories } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
-  Settings, ChevronLeft, Save, Trash2,
+  Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock
@@ -270,6 +270,38 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                             currentImage={editBusiness.coverImage} 
                             onImageSelect={img => setEditBusiness({...editBusiness, coverImage: img})} 
                           />
+
+                          <div className="space-y-4">
+                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Galeria de Fotos</label>
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                  {editBusiness.gallery?.map((img, idx) => (
+                                      <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group shadow-sm">
+                                          <img src={img} className="w-full h-full object-cover" />
+                                          <button 
+                                              type="button"
+                                              onClick={() => {
+                                                  const newGallery = [...(editBusiness.gallery || [])];
+                                                  newGallery.splice(idx, 1);
+                                                  setEditBusiness({...editBusiness, gallery: newGallery});
+                                              }}
+                                              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                          >
+                                              <X size={14} />
+                                          </button>
+                                      </div>
+                                  ))}
+                                  <ImageUpload 
+                                      allowMultiple 
+                                      className="aspect-square"
+                                      onBatchSelect={imgs => {
+                                          setEditBusiness({
+                                              ...editBusiness, 
+                                              gallery: [...(editBusiness.gallery || []), ...imgs]
+                                          });
+                                      }} 
+                                  />
+                              </div>
+                          </div>
                           
                           <div className="space-y-4">
                               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">Localização Exata no Mapa</label>

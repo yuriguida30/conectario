@@ -118,6 +118,50 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
       }
   };
 
+  const handlePromoteToCompany = async (user: User) => {
+      if (user.role === UserRole.COMPANY) return alert("Este usuário já é uma empresa.");
+      if (user.role === UserRole.SUPER_ADMIN) return alert("Não é possível alterar o cargo de um Super Admin.");
+      
+      if (!window.confirm(`Deseja promover "${user.name}" a Empresa? Isso permitirá que ele crie anúncios e acesse o painel de parceiro.`)) return;
+      
+      setActionLoading(user.id);
+      try {
+          const updatedUser = { ...user, role: UserRole.COMPANY };
+          await updateUser(updatedUser);
+          
+          // Criar perfil básico de empresa se não existir
+          const existingBiz = businesses.find(b => b.id === user.id);
+          if (!existingBiz) {
+              const newBiz: BusinessProfile = {
+                  id: user.id,
+                  name: user.companyName || user.name,
+                  category: user.category || 'Gastronomia',
+                  description: 'Nova empresa cadastrada via painel administrativo.',
+                  coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200',
+                  gallery: [],
+                  address: '',
+                  phone: user.phone || '',
+                  amenities: [],
+                  openingHours: {},
+                  rating: 5,
+                  views: 0,
+                  shares: 0,
+                  isClaimed: true,
+                  plan: BusinessPlan.FREE
+              };
+              await saveBusiness(newBiz);
+          }
+          
+          alert(`${user.name} agora é uma Empresa parceira!`);
+          await loadData();
+      } catch (e) {
+          console.error("Erro ao promover:", e);
+          alert("Erro ao promover usuário.");
+      } finally {
+          setActionLoading(null);
+      }
+  };
+
   const safeSearch = (searchTerm || '').toLowerCase();
 
   const filteredUsers = (allUsers || []).filter(u => {
@@ -251,6 +295,14 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                       </td>
                                       <td className="px-6 py-5">
                                           <div className="flex justify-center items-center gap-2">
+                                              <button 
+                                                onClick={() => handlePromoteToCompany(u)}
+                                                disabled={actionLoading === u.id || u.role === UserRole.COMPANY || u.role === UserRole.SUPER_ADMIN}
+                                                className={`p-3 rounded-xl transition-all shadow-sm border border-slate-100 ${u.role === UserRole.COMPANY ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-white text-ocean-600 hover:bg-ocean-600 hover:text-white'}`}
+                                                title="Promover a Empresa"
+                                              >
+                                                  {actionLoading === u.id ? <Loader2 className="animate-spin" size={18}/> : <Store size={18} />}
+                                              </button>
                                               <button 
                                                 onClick={() => handleOpenEdit(u)}
                                                 className="p-3 bg-white text-slate-400 rounded-xl hover:bg-ocean-600 hover:text-white transition-all shadow-sm border border-slate-100"

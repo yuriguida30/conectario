@@ -6,7 +6,7 @@ import {
   Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays
 } from 'lucide-react';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, BusinessPlan } from '../types';
-import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction } from '../services/dataService';
+import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 
@@ -18,6 +18,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
   const [isFav, setIsFav] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showMenuOverlay, setShowMenuOverlay] = useState(false);
+  const [isOpen, setIsOpen] = useState<boolean | null>(null);
 
   useEffect(() => {
     const refreshData = async () => {
@@ -25,6 +26,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
         setBusiness(busData);
         if (busData) {
             incrementBusinessView(businessId);
+            setIsOpen(checkIfOpen(busData.openingHours));
             const isFromSearch = document.referrer.includes('/search') || document.referrer.includes('?q=');
             trackAction(businessId, isFromSearch ? 'visit_search' : 'visit_direct');
 
@@ -86,7 +88,15 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             <div className="absolute bottom-6 left-6 z-10">
                 <span className="bg-ocean-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase mb-2 inline-block tracking-wider shadow-lg">{business.category}</span>
                 <h1 className="text-4xl font-black text-ocean-950 mb-1 drop-shadow-sm">{business.name}</h1>
-                <p className="text-sm text-slate-500 font-bold flex items-center gap-1"><MapPin size={14} className="text-ocean-500"/> {business.address}</p>
+                <div className="flex items-center gap-4">
+                    <p className="text-sm text-slate-500 font-bold flex items-center gap-1"><MapPin size={14} className="text-ocean-500"/> {business.address}</p>
+                    {isOpen !== null && (
+                        <div className={`flex items-center gap-2 text-xs font-bold px-3 py-1 rounded-full ${isOpen ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            <div className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-500' : 'bg-red-500'}`} />
+                            {isOpen ? 'Aberto Agora' : 'Fechado'}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
 

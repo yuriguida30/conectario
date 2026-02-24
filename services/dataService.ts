@@ -356,3 +356,35 @@ export const approveCompanyRequest = async (requestId: string) => {
         }
     }
 };
+
+export const checkIfOpen = (openingHours: { [key: string]: string }): boolean => {
+    if (!openingHours) return false;
+
+    const now = new Date();
+    const dayOfWeek = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][now.getDay()];
+    const hoursString = openingHours[dayOfWeek];
+
+    if (!hoursString || hoursString.toLowerCase().includes('fechado')) {
+        return false;
+    }
+    
+    if (hoursString.toLowerCase().includes('24 horas')) {
+        return true;
+    }
+
+    const match = hoursString.match(/(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})/);
+    
+    if (!match) return false; 
+
+    const [, startHour, startMinute, endHour, endMinute] = match.map(Number);
+    
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const startMinutes = startHour * 60 + startMinute;
+    const endMinutes = endHour * 60 + endMinute;
+
+    if (endMinutes < startMinutes) { // Handles overnight hours like 22:00 - 02:00
+        return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+    }
+
+    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+};

@@ -345,13 +345,18 @@ export const registerUser = async (name: string, email: string, pass: string): P
 export const createCompanyRequest = async (request: any) => {
     const user = getCurrentUser();
     const id = `req_${Date.now()}`;
-    await setDoc(doc(db, 'companyRequests', id), { 
-        ...request, 
-        id, 
-        userId: user?.id,
-        status: 'PENDING', 
-        requestDate: new Date().toISOString() 
-    });
+    const data: any = {
+        ...request,
+        id,
+        status: 'PENDING',
+        requestDate: new Date().toISOString()
+    };
+
+    if (user) {
+        data.userId = user.id;
+    }
+
+    await setDoc(doc(db, 'companyRequests', id), data);
 };
 
 export const getCompanyRequests = () => {

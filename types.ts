@@ -117,6 +117,7 @@ export interface Coupon {
   discountPercentage: number;
   imageUrl: string;
   category: string;
+  subcategory?: string;
   expiryDate: string;
   code: string;
   active: boolean;

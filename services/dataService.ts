@@ -33,6 +33,7 @@ const SESSION_KEY = 'cr_session_v4';
 let _businesses: BusinessProfile[] = MOCK_BUSINESSES;
 let _coupons: Coupon[] = MOCK_COUPONS;
 let _users: User[] = MOCK_USERS;
+let _categories: AppCategory[] = [];
 let _isInitialized = false;
 
 const _collections: Collection[] = [];
@@ -86,6 +87,20 @@ export const initFirebaseData = () => {
     onSnapshot(collection(db, 'users'), (snapshot) => {
         _users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
         notifyListeners();
+    });
+
+    onSnapshot(collection(db, 'app_categories'), async (snapshot) => {
+        if (snapshot.empty) {
+            // One-time setup: if no categories, create them from default
+            for (const catName of DEFAULT_CATEGORIES) {
+                const catId = catName.toLowerCase().replace(/ç/g, 'c').replace(/ã/g, 'a');
+                const newCat: AppCategory = { id: catId, name: catName, subcategories: [] };
+                await setDoc(doc(db, 'app_categories', catId), newCat);
+            }
+        } else {
+            _categories = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppCategory));
+            notifyListeners();
+        }
     });
 };
 
@@ -179,8 +194,12 @@ export const updateUser = async (user: User) => {
     notifyListeners();
 };
 
-export const getCategories = () => DEFAULT_CATEGORIES.map(name => ({ id: name.toLowerCase(), name }));
+export const getCategories = () => _categories;
 export const getAllUsers = () => _users;
+
+export const saveCategory = async (category: AppCategory) => {
+    await setDoc(doc(db, 'app_categories', category.id), cleanObject(category), { merge: true });
+};
 
 export const saveCoupon = async (c: Coupon) => {
     await setDoc(doc(db, 'coupons', c.id), cleanObject(c)); 
@@ -332,6 +351,10 @@ export const createCompanyRequest = async (request: any) => {
 export const getCompanyRequests = async () => {
     const snap = await getDocs(collection(db, 'companyRequests'));
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
+};
+
+export const rejectCompanyRequest = async (requestId: string) => {
+    await updateDoc(doc(db, 'companyRequests', requestId), { status: 'REJECTED' });
 };
 
 export const approveCompanyRequest = async (requestId: string) => {

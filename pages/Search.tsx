@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search as SearchIcon, X, SlidersHorizontal, Frown, Loader2, Navigation } from 'lucide-react';
 import { Coupon, AppCategory, User } from '../types';
-import { getCoupons, getCategories, calculateDistance, redeemCoupon, getCurrentUser } from '../services/dataService';
+import { getCoupons, getCategories, calculateDistance, redeemCoupon, getCurrentUser, getBusinesses } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 
@@ -13,6 +13,7 @@ interface SearchPageProps {
 export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('Todos');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [filteredCoupons, setFilteredCoupons] = useState<Coupon[]>([]);
   const [categories, setCategories] = useState<AppCategory[]>([]);
@@ -24,9 +25,13 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
   const [locating, setLocating] = useState(false);
 
   const fetch = async () => {
-      const data = await getCoupons();
+      const businesses = getBusinesses();
+      const couponData = (await getCoupons()).map(c => {
+          const biz = businesses.find(b => b.id === c.companyId);
+          return { ...c, subcategory: biz?.subcategory };
+      });
       const cats = getCategories();
-      const activeData = data.filter(c => c.active);
+      const activeData = couponData.filter(c => c.active);
       setCoupons(activeData);
       setCategories(cats);
       setCurrentUser(getCurrentUser());
@@ -44,6 +49,9 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
 
     if (selectedCategory !== 'Todos') {
       result = result.filter(c => c.category === selectedCategory);
+      if (selectedSubcategory !== 'Todos') {
+        result = result.filter(c => c.subcategory === selectedSubcategory);
+      }
     }
 
     if (query) {
@@ -149,13 +157,33 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
                 {categories.map(cat => (
                     <button 
                         key={cat.id}
-                        onClick={() => setSelectedCategory(cat.name)}
+                        onClick={() => { setSelectedCategory(cat.name); setSelectedSubcategory('Todos'); }}
                         className={`px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${selectedCategory === cat.name ? 'bg-ocean-600 border-ocean-600 text-white shadow-md shadow-ocean-600/20' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}
                     >
                         {cat.name}
                     </button>
                 ))}
             </div>
+
+            {selectedCategory !== 'Todos' && (categories.find(c => c.name === selectedCategory)?.subcategories?.length ?? 0) > 0 && (
+                <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1 -mx-4 px-4 md:mx-0 md:px-0 mt-3">
+                    <button 
+                        onClick={() => setSelectedSubcategory('Todos')}
+                        className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${selectedSubcategory === 'Todos' ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-500'}`}
+                    >
+                        Todas
+                    </button>
+                    {categories.find(c => c.name === selectedCategory)?.subcategories?.map((sub: string) => (
+                        <button 
+                            key={sub}
+                            onClick={() => setSelectedSubcategory(sub)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${selectedSubcategory === sub ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-500'}`}
+                        >
+                            {sub}
+                        </button>
+                    ))}
+                </div>
+            )}
           </div>
       </div>
 

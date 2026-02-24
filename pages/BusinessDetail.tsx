@@ -154,6 +154,18 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                 <p className="text-slate-600 leading-relaxed text-sm">{business.description}</p>
             </div>
 
+            <div className="space-y-4">
+                <h3 className="text-xl font-black text-ocean-950 flex items-center gap-2"><Clock size={20} className="text-ocean-600"/> Horário de Funcionamento</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    {Object.entries(business.openingHours).map(([day, hours]) => (
+                        <div key={day} className="text-sm">
+                            <p className="font-bold text-slate-700">{day}</p>
+                            <p className="text-slate-500">{hours}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
             {/* GALERIA DE FOTOS */}
             {business.gallery && business.gallery.length > 0 && (
                 <div className="space-y-4">

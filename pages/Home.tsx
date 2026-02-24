@@ -4,7 +4,7 @@ import { MapPin, ChevronDown, ChevronRight, Gem, ArrowRight, Loader2, Utensils, 
 import { Coupon, User, AppCategory, BusinessProfile, BlogPost, Collection, FeaturedConfig } from '../types';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
-import { getCoupons, redeemCoupon, getCategories, getBusinesses, getBlogPosts, getCollections, getFeaturedConfig, identifyNeighborhood } from '../services/dataService';
+import { getCoupons, redeemCoupon, getCategories, getBusinesses, getBlogPosts, getCollections, getFeaturedConfig, identifyNeighborhood, checkIfOpen } from '../services/dataService';
 
 interface HomeProps {
   currentUser: User | null;
@@ -328,7 +328,10 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                                         <Star size={10} className="text-gold-500 fill-gold-500" />
                                         <span className="text-xs font-bold text-slate-700">{biz.rating}</span>
                                     </div>
-                                    {biz.isOpenNow && <span className="text-[10px] text-green-600 font-bold">Aberto</span>}
+                                    {checkIfOpen(biz.openingHours) ? 
+                                        <span className="text-[10px] text-green-600 font-bold">Aberto</span> : 
+                                        <span className="text-[10px] text-red-600 font-bold">Fechado</span>
+                                    }
                                 </div>
                             </div>
                             <div className="h-full flex items-center justify-center pr-2">

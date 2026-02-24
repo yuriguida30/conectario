@@ -52,7 +52,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     setStats(s);
     setCategories(getCategories());
     if (currentUser.role === UserRole.SUPER_ADMIN) {
-        const allRequests = await getCompanyRequests();
+        const allRequests = getCompanyRequests();
         setRequests(allRequests.filter(r => r.status === 'PENDING'));
     }
     setLoading(false);

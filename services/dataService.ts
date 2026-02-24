@@ -34,6 +34,7 @@ let _businesses: BusinessProfile[] = MOCK_BUSINESSES;
 let _coupons: Coupon[] = MOCK_COUPONS;
 let _users: User[] = MOCK_USERS;
 let _categories: AppCategory[] = [];
+let _requests: CompanyRequest[] = [];
 let _isInitialized = false;
 
 const _collections: Collection[] = [];
@@ -101,6 +102,11 @@ export const initFirebaseData = () => {
             _categories = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppCategory));
             notifyListeners();
         }
+    });
+
+    onSnapshot(collection(db, 'companyRequests'), (snapshot) => {
+        _requests = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
+        notifyListeners();
     });
 };
 
@@ -348,9 +354,8 @@ export const createCompanyRequest = async (request: any) => {
     });
 };
 
-export const getCompanyRequests = async () => {
-    const snap = await getDocs(collection(db, 'companyRequests'));
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
+export const getCompanyRequests = () => {
+    return _requests;
 };
 
 export const rejectCompanyRequest = async (requestId: string) => {

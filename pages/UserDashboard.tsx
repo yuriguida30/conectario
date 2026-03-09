@@ -114,7 +114,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {currentUser.role === UserRole.SUPER_ADMIN && (
                   <button 
-                    onClick={() => onNavigate('super-admin-dashboard')}
+                    onClick={() => onNavigate('admin-dashboard')}
                     className="bg-ocean-950 text-white p-6 rounded-[2rem] flex items-center justify-between group hover:bg-black transition-all"
                   >
                       <div className="flex items-center gap-4">

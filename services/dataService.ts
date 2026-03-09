@@ -175,9 +175,30 @@ export const saveBusiness = async (b: BusinessProfile) => {
     await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); 
 };
 
-export const deleteBusiness = async (id: string) => {
-    await deleteDoc(doc(db, 'businesses', id));
+export const toggleBusinessStatus = async (businessId: string, isBlocked: boolean) => {
+    await updateDoc(doc(db, 'businesses', businessId), { isBlocked });
+    // Also block the associated user if they exist (id matches)
+    const userDoc = await getDoc(doc(db, 'users', businessId));
+    if (userDoc.exists()) {
+        await updateDoc(doc(db, 'users', businessId), { isBlocked });
+    }
+    notifyListeners();
 };
+
+export const deleteBusinessPermanently = async (businessId: string) => {
+    await deleteDoc(doc(db, 'businesses', businessId));
+    // Also delete the associated user
+    await deleteDoc(doc(db, 'users', businessId));
+    // Delete their coupons
+    const couponsQuery = query(collection(db, 'coupons'), where('companyId', '==', businessId));
+    const couponsSnap = await getDocs(couponsQuery);
+    for (const d of couponsSnap.docs) {
+        await deleteDoc(doc(db, 'coupons', d.id));
+    }
+    notifyListeners();
+};
+
+export const deleteBusiness = deleteBusinessPermanently;
 
 export const deleteUser = async (id: string) => {
     await deleteDoc(doc(db, 'users', id));

@@ -74,6 +74,7 @@ export interface BusinessProfile {
   shares?: number;
   actionCounts?: { [key: string]: number };
   isClaimed?: boolean;
+  isBlocked?: boolean;
   plan?: BusinessPlan;
 }
 

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers,
-  Mail, User as UserIcon
+  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -16,7 +16,7 @@ import { LocationPicker } from '../components/LocationPicker';
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -171,8 +171,18 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                     <>
                         <button 
                             onClick={() => setView('REQUESTS')}
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'REQUESTS' ? 'bg-amber-500 text-white shadow-lg' : 'bg-white border border-slate-100 text-amber-600 shadow-sm'}`}>
+                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 relative ${view === 'REQUESTS' ? 'bg-amber-500 text-white shadow-lg' : 'bg-white border border-slate-100 text-amber-600 shadow-sm'}`}>
                             <Layers size={18} /> SOLICITAÇÕES
+                            {requests.length > 0 && (
+                                <span className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] border-2 border-white animate-bounce">
+                                    {requests.length}
+                                </span>
+                            )}
+                        </button>
+                        <button 
+                            onClick={() => setView('BUSINESSES')}
+                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'BUSINESSES' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-blue-600 shadow-sm'}`}>
+                            <Store size={18} /> EMPRESAS
                         </button>
                         <button 
                             onClick={() => setView('CATEGORIES')} 
@@ -226,13 +236,13 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                               <h3 className="text-4xl font-black">{categories.length}</h3>
                               <p className="text-ocean-100 text-[10px] font-bold mt-2">Gestão de Segmentos</p>
                           </div>
-                          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm cursor-pointer hover:shadow-md transition-all group" onClick={() => setView('BUSINESSES')}>
                               <div className="flex justify-between items-start mb-2">
                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresas Ativas</p>
-                                 <Store size={16} className="text-ocean-500" />
+                                 <Store size={16} className="text-ocean-500 group-hover:scale-110 transition-transform" />
                               </div>
                               <h3 className="text-4xl font-black text-ocean-950">{getBusinesses().length}</h3>
-                              <p className="text-slate-400 text-[10px] font-bold mt-2">No Guia Conecta Rio</p>
+                              <p className="text-slate-400 text-[10px] font-bold mt-2">Gerenciar Lojistas</p>
                           </div>
                       </div>
 
@@ -806,6 +816,74 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                     </div>
                 ))}
             </div>
+        </div>
+      )}
+
+      {view === 'BUSINESSES' && (
+        <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+          <div className="flex justify-between items-center">
+            <h2 className="text-3xl font-black text-ocean-950">Gestão de Empresas</h2>
+            <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                <ChevronLeft size={16} /> Voltar
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {getBusinesses().length === 0 ? (
+              <p className="text-slate-500 text-center py-10">Nenhuma empresa cadastrada.</p>
+            ) : (
+              getBusinesses().map(biz => {
+                const owner = getAllUsers().find(u => u.id === biz.id);
+                return (
+                  <div key={biz.id} className={`p-6 rounded-[2rem] border transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${biz.isBlocked ? 'bg-red-50 border-red-100 opacity-80' : 'bg-slate-50 border-slate-100'}`}>
+                    <div className="flex items-center gap-4 flex-1">
+                        <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-200 shrink-0">
+                            {biz.coverImage && <img src={biz.coverImage} className="w-full h-full object-cover" />}
+                        </div>
+                        <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-black text-lg text-ocean-950">{biz.name}</h3>
+                                {biz.isBlocked && <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Inativa</span>}
+                            </div>
+                            <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{biz.category}</p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                                <p className="text-[10px] text-slate-400 flex items-center gap-1 font-bold"><Mail size={12} /> {owner?.email || 'Email não vinculado'}</p>
+                                <p className="text-[10px] text-slate-400 flex items-center gap-1 font-bold"><Phone size={12} /> {biz.phone}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="flex gap-2 w-full md:w-auto">
+                        <button 
+                            onClick={async () => {
+                                if (confirm(`Deseja ${biz.isBlocked ? 'ativar' : 'inativar'} esta empresa e seu usuário?`)) {
+                                    await toggleBusinessStatus(biz.id, !biz.isBlocked);
+                                    refreshData();
+                                }
+                            }}
+                            className={`flex-1 md:flex-none px-4 py-3 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 transition-all ${biz.isBlocked ? 'bg-green-500 text-white' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`}
+                        >
+                            {biz.isBlocked ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
+                            {biz.isBlocked ? 'ATIVAR' : 'INATIVAR'}
+                        </button>
+                        
+                        <button 
+                            onClick={async () => {
+                                if (confirm("ATENÇÃO: Esta ação é permanente e excluirá a empresa, o usuário e todos os seus cupons. Deseja continuar?")) {
+                                    await deleteBusinessPermanently(biz.id);
+                                    refreshData();
+                                }
+                            }}
+                            className="flex-1 md:flex-none bg-white border border-red-100 text-red-500 px-4 py-3 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 hover:bg-red-50 transition-all"
+                        >
+                            <UserX size={16} /> EXCLUIR
+                        </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
 

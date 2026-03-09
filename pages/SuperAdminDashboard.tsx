@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, CompanyRequest, BusinessProfile, UserRole, BusinessPlan } from '../types';
 import { 
   getCompanyRequests, approveCompanyRequest, getAllUsers, 
-  getBusinesses, getCoupons, saveBusiness, updateUser, getAdminStats,
+  getAllBusinesses, getCoupons, saveBusiness, updateUser, getAdminStats,
   resetUserPassword, deleteBusiness, deleteUser, getCategories
 } from '../services/dataService';
 import { 
@@ -37,7 +37,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
         const reqs = await getCompanyRequests();
         setRequests(reqs || []);
         setAllUsers(getAllUsers() || []);
-        setBusinesses(getBusinesses() || []);
+        setBusinesses(getAllBusinesses() || []);
         const s = await getAdminStats();
         setStats(s);
     } catch (e) {

@@ -116,6 +116,7 @@ export const login = async (email: string, pass: string): Promise<User | null> =
     if (pass === '123456') {
         const foundUser = _users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
         if (foundUser) {
+            if (foundUser.isBlocked) throw new Error("Sua conta está inativa. Entre em contato com o suporte.");
             localStorage.setItem(SESSION_KEY, JSON.stringify(foundUser));
             notifyListeners();
             return foundUser;
@@ -125,6 +126,10 @@ export const login = async (email: string, pass: string): Promise<User | null> =
     const userDoc = await getDoc(doc(db, 'users', res.user.uid));
     if (userDoc.exists()) {
         const userData = { id: userDoc.id, ...userDoc.data() } as User;
+        if (userData.isBlocked) {
+            await auth.signOut();
+            throw new Error("Sua conta está inativa. Entre em contato com o suporte.");
+        }
         localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
         notifyListeners();
         return userData;
@@ -139,6 +144,10 @@ export const loginWithGoogle = async (): Promise<User | null> => {
     let userData: User;
     if (userDoc.exists()) {
         userData = { id: userDoc.id, ...userDoc.data() } as User;
+        if (userData.isBlocked) {
+            await auth.signOut();
+            throw new Error("Sua conta está inativa. Entre em contato com o suporte.");
+        }
     } else {
         userData = {
             id: res.user.uid,
@@ -167,9 +176,14 @@ export const logout = async () => {
     notifyListeners();
 };
 
-export const getBusinesses = () => _businesses;
-export const getCoupons = async () => _coupons;
-export const getBusinessById = (id: string) => _businesses.find(b => b.id === id);
+export const getBusinesses = () => _businesses.filter(b => !b.isBlocked);
+export const getAllBusinesses = () => _businesses;
+export const getCoupons = async () => {
+    const activeBusinessIds = _businesses.filter(b => !b.isBlocked).map(b => b.id);
+    return _coupons.filter(c => activeBusinessIds.includes(c.companyId));
+};
+export const getBusinessById = (id: string) => _businesses.find(b => b.id === id && !b.isBlocked);
+export const getBusinessByIdAdmin = (id: string) => _businesses.find(b => b.id === id);
 
 export const saveBusiness = async (b: BusinessProfile) => {
     await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); 

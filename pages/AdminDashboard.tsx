@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
@@ -44,7 +44,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const refreshData = async () => {
     const allCoupons = await getCoupons();
     setCoupons(allCoupons.filter(c => c.companyId === currentUser.id));
-    const biz = getBusinesses().find(b => b.id === currentUser.id);
+    const biz = getAllBusinesses().find(b => b.id === currentUser.id);
     if (biz) {
         setMyBusiness(biz);
         setEditBusiness(biz);
@@ -241,7 +241,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresas Ativas</p>
                                  <Store size={16} className="text-ocean-500 group-hover:scale-110 transition-transform" />
                               </div>
-                              <h3 className="text-4xl font-black text-ocean-950">{getBusinesses().length}</h3>
+                              <h3 className="text-4xl font-black text-ocean-950">{getAllBusinesses().length}</h3>
                               <p className="text-slate-400 text-[10px] font-bold mt-2">Gerenciar Lojistas</p>
                           </div>
                       </div>
@@ -829,10 +829,10 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
           </div>
 
           <div className="space-y-4">
-            {getBusinesses().length === 0 ? (
+            {getAllBusinesses().length === 0 ? (
               <p className="text-slate-500 text-center py-10">Nenhuma empresa cadastrada.</p>
             ) : (
-              getBusinesses().map(biz => {
+              getAllBusinesses().map(biz => {
                 const owner = getAllUsers().find(u => u.id === biz.id);
                 return (
                   <div key={biz.id} className={`p-6 rounded-[2rem] border transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${biz.isBlocked ? 'bg-red-50 border-red-100 opacity-80' : 'bg-slate-50 border-slate-100'}`}>

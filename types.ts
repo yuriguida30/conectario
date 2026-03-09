@@ -80,6 +80,7 @@ export interface BusinessProfile {
 export interface CompanyRequest {
   id: string;
   userId?: string;
+  companyId?: string; // For claims
   companyName: string;
   ownerName: string;
   email: string;
@@ -90,7 +91,8 @@ export interface CompanyRequest {
   document: string;
   category: string;
   description: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CLAIM';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  type: 'NEW_REGISTRATION' | 'CLAIM';
   requestDate: string;
 }
 

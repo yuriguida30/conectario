@@ -342,13 +342,14 @@ export const registerUser = async (name: string, email: string, pass: string): P
     return newUser;
 };
 
-export const createCompanyRequest = async (request: any) => {
+export const createCompanyRequest = async (request: any, type: 'NEW_REGISTRATION' | 'CLAIM' = 'NEW_REGISTRATION') => {
     const user = getCurrentUser();
     const id = `req_${Date.now()}`;
     const data: any = {
         ...request,
         id,
         status: 'PENDING',
+        type,
         requestDate: new Date().toISOString()
     };
 
@@ -374,7 +375,29 @@ export const approveCompanyRequest = async (requestId: string) => {
     const request = reqDoc.data() as CompanyRequest;
     await updateDoc(doc(db, 'companyRequests', requestId), { status: 'APPROVED' });
     
-    if (request.userId) {
+    if (request.type === 'CLAIM' && request.companyId && request.userId) {
+        // Handle Claim: Update business to be claimed by this user
+        await updateDoc(doc(db, 'businesses', request.companyId), { 
+            isClaimed: true,
+            id: request.userId // In this system, business ID usually matches user ID for companies
+        });
+        
+        // Also update user role to COMPANY
+        const userDoc = await getDoc(doc(db, 'users', request.userId));
+        if (userDoc.exists()) {
+            const user = { id: userDoc.id, ...userDoc.data() } as User;
+            await updateUser({
+                ...user,
+                role: UserRole.COMPANY,
+                companyName: request.companyName,
+                permissions: {
+                    canCreateCoupons: true,
+                    canManageBusiness: true
+                }
+            });
+        }
+    } else if (request.userId) {
+        // Handle New Registration
         const userDoc = await getDoc(doc(db, 'users', request.userId));
         if (userDoc.exists()) {
             const user = { id: userDoc.id, ...userDoc.data() } as User;

@@ -6,7 +6,8 @@ import {
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
-  Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers
+  Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers,
+  Mail, User as UserIcon
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -206,12 +207,18 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               {currentUser.role === UserRole.SUPER_ADMIN ? (
                   <div className="lg:col-span-12 space-y-8">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                           <div className="bg-amber-500 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('REQUESTS')}>
                               <Layers className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
-                              <p className="text-[10px] font-black text-amber-100 uppercase tracking-widest mb-2">Solicitações Pendentes</p>
-                              <h3 className="text-4xl font-black">{requests.length}</h3>
-                              <p className="text-amber-100 text-[10px] font-bold mt-2">Empresas aguardando aprovação</p>
+                              <p className="text-[10px] font-black text-amber-100 uppercase tracking-widest mb-2">Reivindicações</p>
+                              <h3 className="text-4xl font-black">{requests.filter(r => r.type === 'CLAIM').length}</h3>
+                              <p className="text-amber-100 text-[10px] font-bold mt-2">Empresas Reivindicadas</p>
+                          </div>
+                          <div className="bg-blue-600 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('REQUESTS')}>
+                              <Layers className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
+                              <p className="text-[10px] font-black text-blue-100 uppercase tracking-widest mb-2">Leads de Cadastro</p>
+                              <h3 className="text-4xl font-black">{requests.filter(r => r.type === 'NEW_REGISTRATION').length}</h3>
+                              <p className="text-blue-100 text-[10px] font-bold mt-2">Novos Parceiros</p>
                           </div>
                           <div className="bg-ocean-600 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('CATEGORIES')}>
                               <Layers className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
@@ -803,24 +810,52 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
       )}
 
       {view === 'REQUESTS' && (
-        <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100">
-          <h2 className="text-3xl font-black text-ocean-950 mb-8">Solicitações de Empresas</h2>
+        <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+          <div className="flex justify-between items-center">
+            <h2 className="text-3xl font-black text-ocean-950">Solicitações & Leads</h2>
+            <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                <ChevronLeft size={16} /> Voltar
+            </button>
+          </div>
+          
           <div className="space-y-4">
             {requests.length === 0 ? (
-              <p className="text-slate-500">Nenhuma solicitação pendente.</p>
+              <div className="text-center py-20 bg-slate-50 rounded-[2rem] border border-dashed border-slate-200">
+                <Layers size={48} className="mx-auto text-slate-300 mb-4" />
+                <p className="text-slate-500 font-bold">Nenhuma solicitação pendente no momento.</p>
+              </div>
             ) : (
               requests.map(req => (
-                <div key={req.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
-                  <div>
-                    <h3 className="font-bold text-ocean-900">{req.companyName}</h3>
-                    <p className="text-sm text-slate-600">{req.ownerName} - {req.email}</p>
+                <div key={req.id} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:shadow-md transition-all">
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-3">
+                        <h3 className="font-black text-xl text-ocean-950">{req.companyName}</h3>
+                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${req.type === 'CLAIM' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
+                            {req.type === 'CLAIM' ? 'Reivindicação' : 'Novo Lead'}
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
+                        <p className="text-sm text-slate-600 flex items-center gap-2"><UserIcon size={14} className="text-slate-400" /> {req.ownerName}</p>
+                        <p className="text-sm text-slate-600 flex items-center gap-2"><Mail size={14} className="text-slate-400" /> {req.email}</p>
+                        <p className="text-sm text-slate-600 flex items-center gap-2"><Phone size={14} className="text-slate-400" /> {req.phone}</p>
+                        <p className="text-sm text-slate-600 flex items-center gap-2"><CalendarDays size={14} className="text-slate-400" /> {new Date(req.requestDate).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    {req.description && (
+                        <p className="text-xs text-slate-400 mt-2 bg-white p-3 rounded-xl border border-slate-100 italic">&quot;{req.description}&quot;</p>
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => handleApprove(req.id)} className="bg-green-500 text-white p-2 rounded-lg">
-                      <Check size={20} />
+                  <div className="flex gap-3 w-full md:w-auto">
+                    <button 
+                        onClick={() => handleApprove(req.id)} 
+                        className="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white px-6 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 transition-all"
+                    >
+                      <Check size={18} /> APROVAR
                     </button>
-                    <button onClick={() => handleReject(req.id)} className="bg-red-500 text-white p-2 rounded-lg">
-                      <X size={20} />
+                    <button 
+                        onClick={() => handleReject(req.id)} 
+                        className="flex-1 md:flex-none bg-white border border-red-100 text-red-500 px-6 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 hover:bg-red-50 transition-all"
+                    >
+                      <X size={18} /> REJEITAR
                     </button>
                   </div>
                 </div>

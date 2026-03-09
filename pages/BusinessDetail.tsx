@@ -3,10 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { 
   ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, 
   MessageCircle, Share2, Loader2, Ticket, 
-  Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays
+  Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2
 } from 'lucide-react';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, BusinessPlan } from '../types';
-import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen } from '../services/dataService';
+import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 
@@ -153,6 +153,38 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                 <h3 className="text-xl font-black text-ocean-950">Sobre o Local</h3>
                 <p className="text-slate-600 leading-relaxed text-sm">{business.description}</p>
             </div>
+
+            {!business.isClaimed && (
+                <div className="bg-amber-50 p-8 rounded-[2rem] border border-amber-100 space-y-4">
+                    <div className="flex items-center gap-3 text-amber-600">
+                        <Building2 size={24} />
+                        <h3 className="text-lg font-black uppercase tracking-tight">Esta é sua empresa?</h3>
+                    </div>
+                    <p className="text-sm text-amber-900/70 font-medium leading-relaxed">
+                        Reivindique esta página para gerenciar informações, responder avaliações e criar cupons de desconto exclusivos para seus clientes.
+                    </p>
+                    <button 
+                        onClick={() => {
+                            if (!currentUser) return alert("Faça login para reivindicar esta empresa.");
+                            const claimRequest = {
+                                companyId: business.id,
+                                companyName: business.name,
+                                ownerName: currentUser.name,
+                                email: currentUser.email,
+                                phone: business.phone,
+                                document: '', // Will be filled in admin or asked later
+                                category: business.category,
+                                description: `Reivindicação da empresa ${business.name}`
+                            };
+                            createCompanyRequest(claimRequest, 'CLAIM');
+                            alert("Sua solicitação de reivindicação foi enviada para análise!");
+                        }}
+                        className="bg-amber-500 text-white font-black px-6 py-3 rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all text-xs uppercase tracking-widest"
+                    >
+                        Reivindicar agora
+                    </button>
+                </div>
+            )}
 
             <div className="space-y-4">
                 <h3 className="text-xl font-black text-ocean-950 flex items-center gap-2"><Clock size={20} className="text-ocean-600"/> Horário de Funcionamento</h3>

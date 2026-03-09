@@ -104,7 +104,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
       e.preventDefault();
       setLoading(true);
       setTimeout(() => {
-          createCompanyRequest(regForm);
+          createCompanyRequest(regForm, 'NEW_REGISTRATION');
           setRequestSent(true);
           setLoading(false);
       }, 1500);

@@ -166,147 +166,199 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               </div>
           </div>
           <div className="flex flex-wrap gap-3 justify-center">
-                {currentUser.role === UserRole.SUPER_ADMIN && (
-                    <button 
-                        onClick={() => setView('REQUESTS')}
-                        className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'REQUESTS' ? 'bg-amber-500 text-white shadow-lg' : 'bg-white border border-slate-100 text-amber-600 shadow-sm'}`}>
-                        <Layers size={18} /> SOLICITAÇÕES
-                    </button>
+                {currentUser.role === UserRole.SUPER_ADMIN ? (
+                    <>
+                        <button 
+                            onClick={() => setView('REQUESTS')}
+                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'REQUESTS' ? 'bg-amber-500 text-white shadow-lg' : 'bg-white border border-slate-100 text-amber-600 shadow-sm'}`}>
+                            <Layers size={18} /> SOLICITAÇÕES
+                        </button>
+                        <button 
+                            onClick={() => setView('CATEGORIES')} 
+                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'CATEGORIES' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}>
+                            <Layers size={18} /> CATEGORIAS
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        <button 
+                            onClick={() => setView('MENU')} 
+                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'MENU' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+                        >
+                            <Utensils size={18} /> CARDÁPIO
+                        </button>
+                        <button 
+                            onClick={() => setView(view === 'PROFILE' ? 'HOME' : 'PROFILE')} 
+                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'PROFILE' ? 'bg-slate-200 text-slate-700' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+                        >
+                            <Settings size={18} /> {view === 'PROFILE' ? 'VOLTAR' : 'CONFIGURAR PERFIL'}
+                        </button>
+                        <button onClick={() => setView('CREATE_COUPON')} className="bg-ocean-600 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-ocean-600/20 active:scale-95 transition-all">
+                            + NOVO CUPOM
+                        </button>
+                    </>
                 )}
-                <button 
-                onClick={() => setView('CATEGORIES')} 
-                className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'CATEGORIES' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}>
-                <Layers size={18} /> CATEGORIAS
-              </button>
-              <button 
-                onClick={() => setView('MENU')} 
-                className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'MENU' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
-              >
-                <Utensils size={18} /> CARDÁPIO
-              </button>
-              <button 
-                onClick={() => setView(view === 'PROFILE' ? 'HOME' : 'PROFILE')} 
-                className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'PROFILE' ? 'bg-slate-200 text-slate-700' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
-              >
-                <Settings size={18} /> {view === 'PROFILE' ? 'VOLTAR' : 'CONFIGURAR PERFIL'}
-              </button>
-              <button onClick={() => setView('CREATE_COUPON')} className="bg-ocean-600 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-ocean-600/20 active:scale-95 transition-all">
-                + NOVO CUPOM
-              </button>
-              <button onClick={onLogout} className="px-6 py-4 bg-red-50 text-red-500 rounded-2xl font-black text-xs">SAIR</button>
+                <button onClick={onLogout} className="px-6 py-4 bg-red-50 text-red-500 rounded-2xl font-black text-xs">SAIR</button>
           </div>
       </div>
 
       {view === 'HOME' && stats && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              {/* KPIs DE CONVERSÃO */}
-              <div className="lg:col-span-8 space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="bg-ocean-950 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
-                          <MousePointer2 className="absolute -right-4 -bottom-4 w-24 h-24 text-white/5 group-hover:scale-110 transition-transform" />
-                          <p className="text-[10px] font-black text-ocean-400 uppercase tracking-widest mb-2">Total de Resgates</p>
-                          <h3 className="text-4xl font-black">{stats.totalConversions}</h3>
-                          <p className="text-ocean-200 text-[10px] font-bold mt-2">Leads Gerados pelo Guia</p>
-                      </div>
-                      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                          <div className="flex justify-between items-start mb-2">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compartilhamentos</p>
-                             <Share2 size={16} className="text-ocean-500" />
+              {currentUser.role === UserRole.SUPER_ADMIN ? (
+                  <div className="lg:col-span-12 space-y-8">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="bg-amber-500 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('REQUESTS')}>
+                              <Layers className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
+                              <p className="text-[10px] font-black text-amber-100 uppercase tracking-widest mb-2">Solicitações Pendentes</p>
+                              <h3 className="text-4xl font-black">{requests.length}</h3>
+                              <p className="text-amber-100 text-[10px] font-bold mt-2">Empresas aguardando aprovação</p>
                           </div>
-                          <h3 className="text-4xl font-black text-ocean-950">{stats.shares}</h3>
-                          <p className="text-slate-400 text-[10px] font-bold mt-2">Engajamento Social</p>
-                      </div>
-                      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                          <div className="flex justify-between items-start mb-2">
-                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visitas Totais</p>
-                             <Eye size={16} className="text-ocean-500" />
+                          <div className="bg-ocean-600 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('CATEGORIES')}>
+                              <Layers className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
+                              <p className="text-[10px] font-black text-ocean-100 uppercase tracking-widest mb-2">Total de Categorias</p>
+                              <h3 className="text-4xl font-black">{categories.length}</h3>
+                              <p className="text-ocean-100 text-[10px] font-bold mt-2">Gestão de Segmentos</p>
                           </div>
-                          <h3 className="text-4xl font-black text-ocean-950">{stats.views}</h3>
-                          <p className="text-slate-400 text-[10px] font-bold mt-2">Audiência da Página</p>
+                          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                              <div className="flex justify-between items-start mb-2">
+                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresas Ativas</p>
+                                 <Store size={16} className="text-ocean-500" />
+                              </div>
+                              <h3 className="text-4xl font-black text-ocean-950">{getBusinesses().length}</h3>
+                              <p className="text-slate-400 text-[10px] font-bold mt-2">No Guia Conecta Rio</p>
+                          </div>
                       </div>
-                  </div>
 
-                  {/* GRÁFICO DE TENDÊNCIA DE CONVERSÃO */}
-                  <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
-                      <h3 className="text-lg font-black text-ocean-950 mb-8 flex items-center gap-3">
-                          <TrendingUp className="text-ocean-600" size={20} /> Fluxo de Resgates (Últimos 7 dias)
-                      </h3>
-                      <div className="h-72 w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                              <AreaChart data={stats.conversionTrend}>
-                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                  <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 'bold', fill: '#94a3b8'}} />
-                                  <YAxis hide />
-                                  <Tooltip 
-                                    contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
-                                    labelStyle={{ fontWeight: 'black', color: '#0f172a' }}
-                                  />
-                                  <Area type="monotone" dataKey="valor" stroke="#0ea5e9" strokeWidth={4} fillOpacity={1} fill="url(#colorRes)" />
-                                  <defs>
-                                      <linearGradient id="colorRes" x1="0" y1="0" x2="0" y2="1">
-                                          <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
-                                          <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
-                                      </linearGradient>
-                                  </defs>
-                              </AreaChart>
-                          </ResponsiveContainer>
+                      <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
+                          <h3 className="text-xl font-black text-ocean-950 mb-6">Bem-vindo, Super Admin</h3>
+                          <p className="text-slate-500 leading-relaxed">
+                              Este é o seu painel de controle mestre. Aqui você pode gerenciar as solicitações de novas empresas, 
+                              ajustar as categorias do sistema e monitorar o crescimento da plataforma.
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+                              <button onClick={() => setView('REQUESTS')} className="bg-slate-50 hover:bg-amber-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
+                                  <h4 className="font-bold text-amber-600 mb-1">Ver Solicitações</h4>
+                                  <p className="text-xs text-slate-500">Aprove ou rejeite novos parceiros.</p>
+                              </button>
+                              <button onClick={() => setView('CATEGORIES')} className="bg-slate-50 hover:bg-ocean-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
+                                  <h4 className="font-bold text-ocean-600 mb-1">Gerenciar Categorias</h4>
+                                  <p className="text-xs text-slate-500">Adicione ou remova subcategorias.</p>
+                              </button>
+                          </div>
                       </div>
                   </div>
-              </div>
+              ) : (
+                  <>
+                      {/* KPIs DE CONVERSÃO */}
+                      <div className="lg:col-span-8 space-y-8">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                              <div className="bg-ocean-950 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
+                                  <MousePointer2 className="absolute -right-4 -bottom-4 w-24 h-24 text-white/5 group-hover:scale-110 transition-transform" />
+                                  <p className="text-[10px] font-black text-ocean-400 uppercase tracking-widest mb-2">Total de Resgates</p>
+                                  <h3 className="text-4xl font-black">{stats.totalConversions}</h3>
+                                  <p className="text-ocean-200 text-[10px] font-bold mt-2">Leads Gerados pelo Guia</p>
+                              </div>
+                              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                                  <div className="flex justify-between items-start mb-2">
+                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compartilhamentos</p>
+                                     <Share2 size={16} className="text-ocean-500" />
+                                  </div>
+                                  <h3 className="text-4xl font-black text-ocean-950">{stats.shares}</h3>
+                                  <p className="text-slate-400 text-[10px] font-bold mt-2">Engajamento Social</p>
+                              </div>
+                              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
+                                  <div className="flex justify-between items-start mb-2">
+                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visitas Totais</p>
+                                     <Eye size={16} className="text-ocean-500" />
+                                  </div>
+                                  <h3 className="text-4xl font-black text-ocean-950">{stats.views}</h3>
+                                  <p className="text-slate-400 text-[10px] font-bold mt-2">Audiência da Página</p>
+                              </div>
+                          </div>
 
-              {/* GRÁFICOS LATERAIS - ORIGEM E HEATMAP */}
-              <div className="lg:col-span-4 space-y-8">
-                  {/* HEATMAP DE CLIQUES - AGORA COM DADOS REAIS DE BOTÕES */}
-                  <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
-                      <h3 className="text-lg font-black text-ocean-950 mb-6 flex items-center gap-3">
-                          <BarChart3 className="text-ocean-600" size={20} /> Comportamento (Botões)
-                      </h3>
-                      <div className="h-[400px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                              <BarChart data={stats.actionHeatmap} layout="vertical">
-                                  <XAxis type="number" hide />
-                                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold'}} width={90} />
-                                  <Tooltip 
-                                    cursor={{fill: 'transparent'}}
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                  />
-                                  <Bar dataKey="cliques" radius={[0, 10, 10, 0]}>
-                                      {stats.actionHeatmap.map((_: any, index: number) => (
-                                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                      ))}
-                                  </Bar>
-                              </BarChart>
-                          </ResponsiveContainer>
+                          {/* GRÁFICO DE TENDÊNCIA DE CONVERSÃO */}
+                          <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
+                              <h3 className="text-lg font-black text-ocean-950 mb-8 flex items-center gap-3">
+                                  <TrendingUp className="text-ocean-600" size={20} /> Fluxo de Resgates (Últimos 7 dias)
+                              </h3>
+                              <div className="h-72 w-full">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                      <AreaChart data={stats.conversionTrend}>
+                                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                          <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 'bold', fill: '#94a3b8'}} />
+                                          <YAxis hide />
+                                          <Tooltip 
+                                            contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                                            labelStyle={{ fontWeight: 'black', color: '#0f172a' }}
+                                          />
+                                          <Area type="monotone" dataKey="valor" stroke="#0ea5e9" strokeWidth={4} fillOpacity={1} fill="url(#colorRes)" />
+                                          <defs>
+                                              <linearGradient id="colorRes" x1="0" y1="0" x2="0" y2="1">
+                                                  <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
+                                                  <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/>
+                                              </linearGradient>
+                                          </defs>
+                                      </AreaChart>
+                                  </ResponsiveContainer>
+                              </div>
+                          </div>
                       </div>
-                      <p className="text-[10px] text-slate-400 mt-4 text-center font-bold uppercase">Métricas em tempo real</p>
-                  </div>
 
-                  {/* ORIGEM DO TRÁFEGO */}
-                  <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
-                      <h3 className="text-lg font-black text-ocean-950 mb-6 flex items-center gap-3">
-                          <PieIcon className="text-ocean-600" size={20} /> Origem das Visitas
-                      </h3>
-                      <div className="h-64 w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                  <Pie
-                                    data={stats.trafficSource}
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={8}
-                                    dataKey="value"
-                                  >
-                                    {stats.trafficSource.map((_: any, index: number) => (
-                                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                  </Pie>
-                                  <Tooltip />
-                                  <Legend verticalAlign="bottom" align="center" iconType="circle" />
-                              </PieChart>
-                          </ResponsiveContainer>
+                      {/* GRÁFICOS LATERAIS - ORIGEM E HEATMAP */}
+                      <div className="lg:col-span-4 space-y-8">
+                          {/* HEATMAP DE CLIQUES - AGORA COM DADOS REAIS DE BOTÕES */}
+                          <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
+                              <h3 className="text-lg font-black text-ocean-950 mb-6 flex items-center gap-3">
+                                  <BarChart3 className="text-ocean-600" size={20} /> Comportamento (Botões)
+                              </h3>
+                              <div className="h-[400px] w-full">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                      <BarChart data={stats.actionHeatmap} layout="vertical">
+                                          <XAxis type="number" hide />
+                                          <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold'}} width={90} />
+                                          <Tooltip 
+                                            cursor={{fill: 'transparent'}}
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                          />
+                                          <Bar dataKey="cliques" radius={[0, 10, 10, 0]}>
+                                              {stats.actionHeatmap.map((_: any, index: number) => (
+                                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                              ))}
+                                          </Bar>
+                                      </BarChart>
+                                  </ResponsiveContainer>
+                              </div>
+                              <p className="text-[10px] text-slate-400 mt-4 text-center font-bold uppercase">Métricas em tempo real</p>
+                          </div>
+
+                          {/* ORIGEM DO TRÁFEGO */}
+                          <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
+                              <h3 className="text-lg font-black text-ocean-950 mb-6 flex items-center gap-3">
+                                  <PieIcon className="text-ocean-600" size={20} /> Origem das Visitas
+                              </h3>
+                              <div className="h-64 w-full">
+                                  <ResponsiveContainer width="100%" height="100%">
+                                      <PieChart>
+                                          <Pie
+                                            data={stats.trafficSource}
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={8}
+                                            dataKey="value"
+                                          >
+                                            {stats.trafficSource.map((_: any, index: number) => (
+                                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                          </Pie>
+                                          <Tooltip />
+                                          <Legend verticalAlign="bottom" align="center" iconType="circle" />
+                                      </PieChart>
+                                  </ResponsiveContainer>
+                              </div>
+                          </div>
                       </div>
-                  </div>
-              </div>
+                  </>
+              )}
           </div>
       )}
 

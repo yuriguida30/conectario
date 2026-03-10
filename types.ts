@@ -93,6 +93,8 @@ export interface BusinessProfile {
   isBlocked?: boolean;
   canBeClaimed?: boolean;
   plan?: BusinessPlan;
+  cityId?: string;
+  neighborhoodId?: string;
 }
 
 export interface CompanyRequest {

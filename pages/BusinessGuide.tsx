@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon, X, ChevronDown, ListFilter } from 'lucide-react';
-import { BusinessProfile, AppCategory, AppLocation, AppAmenity, User } from '../types';
-import { getBusinesses, getCategories, getLocations, getAmenities, toggleFavorite, calculateDistance } from '../services/dataService';
+import { BusinessProfile, AppCategory, AppAmenity, User, City, Neighborhood } from '../types';
+import { getBusinesses, getCategories, getAmenities, toggleFavorite, calculateDistance, getCities, getNeighborhoods, identifyNeighborhood } from '../services/dataService';
 
 interface BusinessGuideProps {
   currentUser: User | null;
@@ -28,7 +28,8 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   const [isLoadingDB, setIsLoadingDB] = useState(true);
   
   const [categories, setCategories] = useState<AppCategory[]>([]);
-  const [locations, setLocations] = useState<AppLocation[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>([]);
   const [amenities, setAmenities] = useState<AppAmenity[]>([]);
 
   const [query, setQuery] = useState('');
@@ -39,6 +40,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   const [onlyOpen, setOnlyOpen] = useState(false);
   const [nearby, setNearby] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [currentLocationName, setCurrentLocationName] = useState('Rio de Janeiro');
 
   const [favorites, setFavorites] = useState<string[]>(currentUser?.favorites?.businesses || []);
 
@@ -46,7 +48,8 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     const biz = getBusinesses();
     setBusinesses(biz);
     setCategories(getCategories());
-    setLocations(getLocations());
+    setCities(getCities());
+    setNeighborhoods(getNeighborhoods());
     setAmenities(getAmenities());
     setIsLoadingDB(false);
   };
@@ -55,6 +58,18 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     syncData();
     window.addEventListener('dataUpdated', syncData);
     const timer = setTimeout(() => setIsLoadingDB(false), 4000);
+    
+    // Auto-detect location on load if available
+    const storedGps = sessionStorage.getItem('user_gps');
+    if (storedGps) {
+        setNearby(true);
+        const { lat, lng } = JSON.parse(storedGps);
+        setCurrentLocationName(identifyNeighborhood(lat, lng));
+    } else {
+        const defaultCity = getCities()[0]?.name || 'Rio de Janeiro';
+        setCurrentLocationName(defaultCity);
+    }
+
     return () => {
         window.removeEventListener('dataUpdated', syncData);
         clearTimeout(timer);
@@ -75,21 +90,55 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
 
     if (selectedCategory !== 'Todos') result = result.filter(b => b.category === selectedCategory);
     if (selectedSubCategory !== 'Todos') result = result.filter(b => b.subcategory === selectedSubCategory);
-    if (selectedLocation !== 'Todos') result = result.filter(b => b.locationId === selectedLocation || (b.address || '').includes(selectedLocation));
+    if (selectedLocation !== 'Todos') {
+        const isCity = cities.some(c => c.id === selectedLocation);
+        if (isCity) {
+            result = result.filter(b => b.cityId === selectedLocation);
+        } else {
+            result = result.filter(b => b.neighborhoodId === selectedLocation);
+        }
+    } else if (!nearby) {
+        // If location is off and no specific location is selected, show default city
+        const defaultCity = cities[0];
+        if (defaultCity) {
+            result = result.filter(b => b.cityId === defaultCity.id);
+        }
+    }
+    
     if (onlyOpen) result = result.filter(b => b.isOpenNow);
     
     if (selectedAmenities && selectedAmenities.length > 0) {
         result = result.filter(b => selectedAmenities.every(sa => (b.amenities || []).includes(sa)));
     }
 
-    if (nearby) {
+    if (nearby && selectedLocation === 'Todos') {
         const storedGps = sessionStorage.getItem('user_gps');
         if (storedGps) {
             const { lat, lng } = JSON.parse(storedGps);
-            result = result
-                .map(b => ({...b, distance: calculateDistance(lat, lng, b.lat || 0, b.lng || 0)}))
-                .filter(b => (b.distance || 0) < 15) 
-                .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+            
+            // Find the current neighborhood based on GPS
+            let currentNeighborhoodId: string | null = null;
+            let minDistance = Infinity;
+            for (const n of neighborhoods) {
+                if (n.lat && n.lng && n.active) {
+                    const dist = calculateDistance(lat, lng, n.lat, n.lng);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        currentNeighborhoodId = n.id;
+                    }
+                }
+            }
+            
+            if (currentNeighborhoodId && minDistance < 10) {
+                // Filter by neighborhood if within 10km
+                result = result.filter(b => b.neighborhoodId === currentNeighborhoodId);
+            } else {
+                // Otherwise, sort by distance
+                result = result
+                    .map(b => ({...b, distance: calculateDistance(lat, lng, b.lat || 0, b.lng || 0)}))
+                    .filter(b => (b.distance || 0) < 15) 
+                    .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+            }
         }
     } else {
         result.sort((a, b) => (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0) || (b.reviewCount || 0) - (a.reviewCount || 0));
@@ -106,13 +155,18 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   };
 
   const handleNearbyClick = () => {
-      if (nearby) return setNearby(false);
+      if (nearby) {
+          setNearby(false);
+          setCurrentLocationName(cities[0]?.name || 'Rio de Janeiro');
+          return;
+      }
       setLocating(true);
       navigator.geolocation.getCurrentPosition(
           (pos) => {
               sessionStorage.setItem('user_gps', JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }));
               setLocating(false);
               setNearby(true);
+              setCurrentLocationName(identifyNeighborhood(pos.coords.latitude, pos.coords.longitude));
           },
           () => { setLocating(false); alert("GPS não autorizado."); }
       );
@@ -126,7 +180,13 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   return (
     <div className="pb-24 pt-4 min-h-screen bg-slate-50">
       <div className="px-4 mb-4 max-w-7xl mx-auto w-full">
-          <h1 className="text-2xl font-bold text-ocean-950 mb-1">Guia Comercial</h1>
+          <div className="flex justify-between items-center mb-1">
+              <h1 className="text-2xl font-bold text-ocean-950">Guia Comercial</h1>
+              <div className="flex items-center gap-1 text-ocean-600 bg-ocean-50 px-2 py-1 rounded-lg">
+                  <MapPin size={14} />
+                  <span className="text-xs font-bold">{currentLocationName}</span>
+              </div>
+          </div>
           <p className="text-sm text-slate-500 mb-4">Os melhores lugares do Rio na palma da sua mão.</p>
           
           <div className="bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
@@ -156,8 +216,15 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-2.5 outline-none text-xs font-bold text-slate-600 appearance-none pr-6"
                         value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)}
                       >
-                          <option value="Todos">Bairros</option>
-                          {locations.map(loc => <option key={loc.id} value={loc.name}>{loc.name}</option>)}
+                          <option value="Todos">Localização</option>
+                          {cities.map(city => (
+                              <optgroup key={city.id} label={city.name}>
+                                  <option value={city.id}>Toda a cidade</option>
+                                  {neighborhoods.filter(n => n.cityId === city.id).map(n => (
+                                      <option key={n.id} value={n.id}>{n.name}</option>
+                                  ))}
+                              </optgroup>
+                          ))}
                       </select>
                       <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
                   </div>
@@ -216,7 +283,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                               <span className="text-xs font-bold">{business.rating}</span>
                           </div>
                       </div>
-                      <p className="text-slate-400 text-xs font-medium mb-2">{business.category} • {business.locationId || 'Rio'}</p>
+                      <p className="text-slate-400 text-xs font-medium mb-2">{business.category} • {neighborhoods.find(n => n.id === business.neighborhoodId)?.name || cities.find(c => c.id === business.cityId)?.name || 'Rio'}</p>
                       <p className="text-slate-600 text-sm line-clamp-2 mb-4">{(business.description || '').substring(0, 100)}...</p>
                       <div className="mt-auto pt-3 border-t border-slate-50 flex gap-2 overflow-hidden">
                           {(business.amenities || []).slice(0, 3).map(am => (

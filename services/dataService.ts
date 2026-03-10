@@ -425,8 +425,33 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 };
 
 export const identifyNeighborhood = (lat: number, lng: number): string => {
-    const dist = calculateDistance(lat, lng, -22.9689, -43.6967);
-    return dist < 10 ? "Sepetiba" : "Rio de Janeiro";
+    if (_neighborhoods.length === 0) {
+        return _cities.length > 0 ? _cities[0].name : "Rio de Janeiro";
+    }
+
+    let closestNeighborhood: Neighborhood | null = null;
+    let minDistance = Infinity;
+
+    for (const n of _neighborhoods) {
+        if (n.lat && n.lng && n.active) {
+            const dist = calculateDistance(lat, lng, n.lat, n.lng);
+            if (dist < minDistance) {
+                minDistance = dist;
+                closestNeighborhood = n;
+            }
+        }
+    }
+
+    if (closestNeighborhood && minDistance < 10) {
+        return closestNeighborhood.name;
+    }
+
+    if (closestNeighborhood) {
+        const city = _cities.find(c => c.id === closestNeighborhood.cityId);
+        if (city) return city.name;
+    }
+
+    return _cities.length > 0 ? _cities[0].name : "Rio de Janeiro";
 };
 
 export const toggleFavorite = async (type: 'coupon' | 'business', id: string) => {

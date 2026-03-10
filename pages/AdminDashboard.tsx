@@ -715,6 +715,27 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                         onLocationSelect={(lat, lng) => setEditBusiness({...editBusiness, lat, lng})} 
                                     />
                                   </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <select 
+                                          required
+                                          className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
+                                          value={editBusiness.cityId || ''}
+                                          onChange={e => setEditBusiness({...editBusiness, cityId: e.target.value, neighborhoodId: ''})}
+                                      >
+                                          <option value="">Selecione a Cidade</option>
+                                          {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                      </select>
+                                      <select 
+                                          required
+                                          className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
+                                          value={editBusiness.neighborhoodId || ''}
+                                          onChange={e => setEditBusiness({...editBusiness, neighborhoodId: e.target.value})}
+                                          disabled={!editBusiness.cityId}
+                                      >
+                                          <option value="">Selecione o Bairro</option>
+                                          {neighborhoods.filter(n => n.cityId === editBusiness.cityId).map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+                                      </select>
+                                  </div>
                                   <input 
                                     required 
                                     className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm" 
@@ -1220,6 +1241,27 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
                         <div>
                             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Endereço / Localização</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <select 
+                                    required
+                                    className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
+                                    value={newPlace.cityId || ''}
+                                    onChange={e => setNewPlace({...newPlace, cityId: e.target.value, neighborhoodId: ''})}
+                                >
+                                    <option value="">Selecione a Cidade</option>
+                                    {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                                <select 
+                                    required
+                                    className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
+                                    value={newPlace.neighborhoodId || ''}
+                                    onChange={e => setNewPlace({...newPlace, neighborhoodId: e.target.value})}
+                                    disabled={!newPlace.cityId}
+                                >
+                                    <option value="">Selecione o Bairro</option>
+                                    {neighborhoods.filter(n => n.cityId === newPlace.cityId).map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+                                </select>
+                            </div>
                             <input 
                                 required
                                 className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none" 
@@ -1753,6 +1795,13 @@ const LocationsManager: React.FC<{ cities: City[]; neighborhoods: Neighborhood[]
                                 <option value="">Selecione a Cidade</option>
                                 {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
+                            <div className="h-48 rounded-xl overflow-hidden border border-slate-100 shadow-inner">
+                                <LocationPicker 
+                                    initialLat={editingNeighborhood.lat} 
+                                    initialLng={editingNeighborhood.lng} 
+                                    onLocationSelect={(lat, lng) => setEditingNeighborhood({...editingNeighborhood, lat, lng})} 
+                                />
+                            </div>
                             <div className="flex gap-4">
                                 <button type="button" onClick={() => setEditingNeighborhood(null)} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-slate-500 bg-slate-100">CANCELAR</button>
                                 <button type="submit" disabled={isSaving} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-white bg-emerald-600">SALVAR</button>

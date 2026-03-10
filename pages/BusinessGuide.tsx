@@ -65,9 +65,6 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
         setNearby(true);
         const { lat, lng } = JSON.parse(storedGps);
         setCurrentLocationName(identifyNeighborhood(lat, lng));
-    } else {
-        const defaultCity = getCities()[0]?.name || 'Rio de Janeiro';
-        setCurrentLocationName(defaultCity);
     }
 
     return () => {
@@ -94,15 +91,13 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
         const isCity = cities.some(c => c.id === selectedLocation);
         if (isCity) {
             result = result.filter(b => b.cityId === selectedLocation);
+            setCurrentLocationName(cities.find(c => c.id === selectedLocation)?.name || 'Rio de Janeiro');
         } else {
             result = result.filter(b => b.neighborhoodId === selectedLocation);
+            setCurrentLocationName(neighborhoods.find(n => n.id === selectedLocation)?.name || 'Rio de Janeiro');
         }
     } else if (!nearby) {
-        // If location is off and no specific location is selected, show default city
-        const defaultCity = cities[0];
-        if (defaultCity) {
-            result = result.filter(b => b.cityId === defaultCity.id);
-        }
+        setCurrentLocationName('Todas as Regiões');
     }
     
     if (onlyOpen) result = result.filter(b => b.isOpenNow);
@@ -145,7 +140,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     }
 
     setFiltered(result);
-  }, [query, selectedCategory, selectedSubCategory, selectedLocation, onlyOpen, selectedAmenities, nearby, businesses]);
+  }, [query, selectedCategory, selectedSubCategory, selectedLocation, onlyOpen, selectedAmenities, nearby, businesses, cities, neighborhoods]);
 
   const handleToggleFavorite = (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
@@ -157,7 +152,6 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   const handleNearbyClick = () => {
       if (nearby) {
           setNearby(false);
-          setCurrentLocationName(cities[0]?.name || 'Rio de Janeiro');
           return;
       }
       setLocating(true);

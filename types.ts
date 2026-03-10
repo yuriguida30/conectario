@@ -219,6 +219,17 @@ export interface Collection {
   businessIds: string[];
 }
 
+export interface HomeHighlight {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  buttonText: string;
+  buttonLink: string;
+  order: number;
+  active: boolean;
+}
+
 export interface FeaturedConfig {
   title: string;
   subtitle: string;

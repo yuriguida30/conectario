@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { MapPin, ChevronDown, ChevronRight, Gem, ArrowRight, Loader2, Utensils, Bed, Anchor, ShoppingBag, Star, Calendar, Map, Layers } from 'lucide-react';
-import { Coupon, User, AppCategory, BusinessProfile, BlogPost, Collection, FeaturedConfig } from '../types';
+import { Coupon, User, AppCategory, BusinessProfile, BlogPost, Collection, FeaturedConfig, HomeHighlight } from '../types';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
-import { getCoupons, redeemCoupon, getCategories, getBusinesses, getBlogPosts, getCollections, getFeaturedConfig, identifyNeighborhood, checkIfOpen } from '../services/dataService';
+import { getCoupons, redeemCoupon, getCategories, getBusinesses, getBlogPosts, getCollections, getFeaturedConfig, identifyNeighborhood, checkIfOpen, getHomeHighlights } from '../services/dataService';
 
 interface HomeProps {
   currentUser: User | null;
@@ -38,7 +38,8 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [categories, setCategories] = useState<AppCategory[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
-  const [featured, setFeatured] = useState<FeaturedConfig | null>(null);
+  const [highlights, setHighlights] = useState<HomeHighlight[]>([]);
+  const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   
   // Start loading if no data in memory
@@ -54,14 +55,14 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
       const postData = getBlogPosts();
       const catData = getCategories();
       const colData = getCollections();
-      const featData = getFeaturedConfig();
+      const highData = getHomeHighlights();
       
       setCoupons(couponData.filter(c => c.active));
       setBusinesses(businessData);
       setPosts(postData);
       setCategories(catData || []);
       setCollections(colData || []);
-      setFeatured(featData);
+      setHighlights(highData);
       
       // Stop loading only if we got some critical data
       if (couponData.length > 0 || businessData.length > 0 || (catData && catData.length > 0)) {
@@ -90,6 +91,15 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
         clearTimeout(timeout);
     }
   }, []);
+
+  useEffect(() => {
+    if (highlights.length > 1) {
+        const interval = setInterval(() => {
+            setCurrentHighlightIndex(prev => (prev + 1) % highlights.length);
+        }, 5000);
+        return () => clearInterval(interval);
+    }
+  }, [highlights]);
 
   const handleCardClick = (coupon: Coupon) => {
       setSelectedCoupon(coupon);
@@ -168,32 +178,73 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
          </div>
       </div>
 
-      {/* Hero Section */}
-      <div className="relative w-full h-auto mb-8">
-          <div className="h-72 md:h-[400px] w-full relative bg-slate-900">
-            <img 
-                src={featured?.imageUrl || "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=1600"} 
-                className={`w-full h-full object-cover transition-opacity duration-700 ${isActuallyLoading ? 'opacity-0' : 'opacity-100'}`}
-                alt="Featured" 
-                onLoad={(e) => e.currentTarget.classList.remove('opacity-0')}
-            />
-            {isActuallyLoading && <div className="absolute inset-0 flex items-center justify-center"><Loader2 className="animate-spin text-white/50" /></div>}
-            
-            <div className="absolute inset-0 bg-gradient-to-t from-ocean-950/90 via-ocean-900/40 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 max-w-7xl mx-auto w-full">
-                <div className="animate-in slide-in-from-bottom-5 fade-in duration-700">
-                    <span className="bg-gold-500 text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-md mb-3 inline-block shadow-lg border border-white/20 backdrop-blur-md">
-                        Destaque Premium
-                    </span>
-                    <h2 className="text-white text-2xl md:text-5xl font-bold mb-2 drop-shadow-xl tracking-tight leading-tight">{featured?.title || "Destaque"}</h2>
-                    <p className="text-slate-100 text-xs md:text-lg mb-4 max-w-xl leading-relaxed opacity-90 line-clamp-2">
-                        {featured?.subtitle || "Uma experiência incrível."}
-                    </p>
-                    <button className="bg-white text-ocean-900 font-bold px-6 py-2.5 rounded-full text-xs md:text-sm shadow-xl hover:bg-ocean-50 active:scale-95 transition-all flex items-center gap-2 w-fit">
-                        {featured?.buttonText || "Ver Oferta"} <ArrowRight size={16} />
-                    </button>
+      {/* Hero Section - Carousel */}
+      <div className="relative w-full h-auto mb-8 overflow-hidden">
+          <div className="h-72 md:h-[450px] w-full relative bg-slate-900">
+            {highlights.length > 0 ? (
+                highlights.map((h, idx) => (
+                    <div 
+                        key={h.id}
+                        className={`absolute inset-0 transition-all duration-1000 ease-in-out ${idx === currentHighlightIndex ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'}`}
+                    >
+                        <img 
+                            src={h.imageUrl} 
+                            className="w-full h-full object-cover"
+                            alt={h.title} 
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-ocean-950/90 via-ocean-900/40 to-transparent" />
+                        <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 max-w-7xl mx-auto w-full">
+                            <div className="animate-in slide-in-from-bottom-5 fade-in duration-700">
+                                <span className="bg-gold-500 text-white font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-md mb-3 inline-block shadow-lg border border-white/20 backdrop-blur-md">
+                                    Destaque Premium
+                                </span>
+                                <h2 className="text-white text-2xl md:text-5xl font-black mb-2 drop-shadow-xl tracking-tight leading-tight max-w-2xl">{h.title}</h2>
+                                <p className="text-slate-100 text-xs md:text-lg mb-6 max-w-xl leading-relaxed opacity-90 line-clamp-2 font-medium">
+                                    {h.description}
+                                </p>
+                                <button 
+                                    onClick={() => {
+                                        if (h.buttonLink.startsWith('http')) {
+                                            window.open(h.buttonLink, '_blank');
+                                        } else {
+                                            onNavigate(h.buttonLink.replace('/', ''));
+                                        }
+                                    }}
+                                    className="bg-white text-ocean-900 font-black px-8 py-3 rounded-full text-xs md:text-sm shadow-xl hover:bg-ocean-50 active:scale-95 transition-all flex items-center gap-2 w-fit"
+                                >
+                                    {h.buttonText} <ArrowRight size={18} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))
+            ) : (
+                <div className="absolute inset-0">
+                    <img 
+                        src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=1600" 
+                        className="w-full h-full object-cover"
+                        alt="Default Featured" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-ocean-950/90 via-ocean-900/40 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 max-w-7xl mx-auto w-full text-white">
+                        <h2 className="text-2xl md:text-5xl font-black mb-2">Bem-vindo ao Conecta Rio</h2>
+                        <p className="text-xs md:text-lg opacity-90">Explore o melhor da cidade com benefícios exclusivos.</p>
+                    </div>
                 </div>
-            </div>
+            )}
+
+            {/* Carousel Indicators */}
+            {highlights.length > 1 && (
+                <div className="absolute bottom-6 right-6 flex gap-2 z-20">
+                    {highlights.map((_, idx) => (
+                        <button 
+                            key={idx}
+                            onClick={() => setCurrentHighlightIndex(idx)}
+                            className={`w-2 h-2 rounded-full transition-all ${idx === currentHighlightIndex ? 'bg-white w-6' : 'bg-white/40'}`}
+                        />
+                    ))}
+                </div>
+            )}
           </div>
       </div>
 

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan } from '../services/dataService';
+import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight } from '../types';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers, Zap,
-  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock
+  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -16,7 +16,7 @@ import { LocationPicker } from '../components/LocationPicker';
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -26,6 +26,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const [newSubcategory, setNewSubcategory] = useState<{ [key: string]: string }>({});
   const [requests, setRequests] = useState<CompanyRequest[]>([]);
   const [plans, setPlans] = useState<PricingPlan[]>([]);
+  const [highlights, setHighlights] = useState<HomeHighlight[]>([]);
 
   const [editBusiness, setEditBusiness] = useState<Partial<BusinessProfile>>({});
   const [newPassword, setNewPassword] = useState('');
@@ -83,6 +84,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
         const allRequests = getCompanyRequests();
         setRequests(allRequests.filter(r => r.status === 'PENDING'));
         setPlans(getPricingPlans());
+        setHighlights(getAllHomeHighlights());
     }
     setLoading(false);
   };
@@ -287,6 +289,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                             className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'PLANS' ? 'bg-purple-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-purple-600 shadow-sm'}`}>
                             <Zap size={18} /> PLANOS
                         </button>
+                        <button 
+                            onClick={() => setView('HIGHLIGHTS')} 
+                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'HIGHLIGHTS' ? 'bg-pink-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-pink-600 shadow-sm'}`}>
+                            <Layout size={18} /> DESTAQUES
+                        </button>
                     </>
                 ) : (
                     <>
@@ -354,6 +361,12 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                               <h3 className="text-4xl font-black">{plans.length}</h3>
                               <p className="text-purple-100 text-[10px] font-bold mt-2">Configurar Planos</p>
                           </div>
+                          <div className="bg-pink-600 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('HIGHLIGHTS')}>
+                              <Layout className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
+                              <p className="text-[10px] font-black text-pink-100 uppercase tracking-widest mb-2">Destaques Home</p>
+                              <h3 className="text-4xl font-black">{highlights.length}</h3>
+                              <p className="text-pink-100 text-[10px] font-bold mt-2">Gerenciar Banners</p>
+                          </div>
                       </div>
 
                       <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
@@ -374,6 +387,10 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                               <button onClick={() => setView('PLANS')} className="bg-slate-50 hover:bg-purple-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
                                   <h4 className="font-bold text-purple-600 mb-1">Planos de Assinatura</h4>
                                   <p className="text-xs text-slate-500">Crie planos personalizados para parceiros.</p>
+                              </button>
+                              <button onClick={() => setView('HIGHLIGHTS')} className="bg-slate-50 hover:bg-pink-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
+                                  <h4 className="font-bold text-pink-600 mb-1">Destaques da Home</h4>
+                                  <p className="text-xs text-slate-500">Gerencie o carrossel de banners da home.</p>
                               </button>
                           </div>
                       </div>
@@ -1402,6 +1419,187 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
             </div>
         </div>
       )}
+      {view === 'HIGHLIGHTS' && currentUser.role === UserRole.SUPER_ADMIN && (
+          <HighlightsManager 
+            highlights={highlights} 
+            onBack={() => setView('HOME')} 
+            onRefresh={refreshData} 
+          />
+      )}
     </div>
   );
+};
+
+const HighlightsManager: React.FC<{ highlights: HomeHighlight[]; onBack: () => void; onRefresh: () => void }> = ({ highlights, onBack, onRefresh }) => {
+    const [isSaving, setIsSaving] = useState(false);
+    const [editingHighlight, setEditingHighlight] = useState<Partial<HomeHighlight> | null>(null);
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingHighlight) return;
+        setIsSaving(true);
+        try {
+            await saveHomeHighlight(editingHighlight);
+            alert("Destaque salvo com sucesso!");
+            setEditingHighlight(null);
+            onRefresh();
+        } catch (err) {
+            alert("Erro ao salvar destaque.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (confirm("Deseja excluir este destaque?")) {
+            await deleteHomeHighlight(id);
+            onRefresh();
+        }
+    };
+
+    return (
+        <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+            <div className="flex justify-between items-center">
+                <button onClick={onBack} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                    <ChevronLeft size={16} /> Voltar
+                </button>
+                <button 
+                    onClick={() => setEditingHighlight({ title: '', description: '', imageUrl: '', buttonText: '', buttonLink: '', order: highlights.length, active: true })}
+                    className="bg-ocean-600 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg flex items-center gap-2"
+                >
+                    <Plus size={18} /> NOVO DESTAQUE
+                </button>
+            </div>
+
+            <div className="space-y-6">
+                <h2 className="text-3xl font-black text-ocean-950">Destaques da Home</h2>
+                <p className="text-slate-500 text-sm">Gerencie até 4 destaques que aparecerão no carrossel da página inicial.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {highlights.map(h => (
+                        <div key={h.id} className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex gap-4 items-start">
+                            <div className="w-24 h-24 rounded-2xl overflow-hidden bg-slate-200 shrink-0">
+                                <img src={h.imageUrl} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex justify-between items-start">
+                                    <h4 className="font-black text-ocean-950 truncate">{h.title}</h4>
+                                    <span className={`text-[10px] font-black px-2 py-0.5 rounded ${h.active ? 'bg-green-100 text-green-600' : 'bg-slate-200 text-slate-500'}`}>
+                                        {h.active ? 'ATIVO' : 'INATIVO'}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500 line-clamp-2 mt-1">{h.description}</p>
+                                <div className="flex gap-2 mt-4">
+                                    <button onClick={() => setEditingHighlight(h)} className="text-ocean-600 font-black text-[10px] uppercase hover:underline">Editar</button>
+                                    <button onClick={() => handleDelete(h.id)} className="text-red-500 font-black text-[10px] uppercase hover:underline">Excluir</button>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {highlights.length === 0 && (
+                        <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl">
+                            Nenhum destaque cadastrado.
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {editingHighlight && (
+                <div className="fixed inset-0 bg-ocean-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="p-8 border-b border-slate-100 flex justify-between items-center">
+                            <h3 className="text-xl font-black text-ocean-950 uppercase tracking-tight">Configurar Destaque</h3>
+                            <button onClick={() => setEditingHighlight(null)} className="text-slate-400 hover:text-ocean-600 transition-colors">
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleSave} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="col-span-full">
+                                    <ImageUpload 
+                                        label="Imagem de Fundo" 
+                                        currentImage={editingHighlight.imageUrl} 
+                                        onImageSelect={img => setEditingHighlight({...editingHighlight, imageUrl: img})} 
+                                    />
+                                </div>
+                                <div className="col-span-full">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Título do Destaque</label>
+                                    <input 
+                                        required 
+                                        className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none focus:ring-2 focus:ring-ocean-500" 
+                                        value={editingHighlight.title} 
+                                        onChange={e => setEditingHighlight({...editingHighlight, title: e.target.value})} 
+                                    />
+                                </div>
+                                <div className="col-span-full">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Descrição</label>
+                                    <textarea 
+                                        required 
+                                        className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 text-sm outline-none focus:ring-2 focus:ring-ocean-500" 
+                                        rows={3}
+                                        value={editingHighlight.description} 
+                                        onChange={e => setEditingHighlight({...editingHighlight, description: e.target.value})} 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Texto do Botão</label>
+                                    <input 
+                                        required 
+                                        className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none focus:ring-2 focus:ring-ocean-500" 
+                                        value={editingHighlight.buttonText} 
+                                        onChange={e => setEditingHighlight({...editingHighlight, buttonText: e.target.value})} 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Link do Botão</label>
+                                    <input 
+                                        required 
+                                        className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none focus:ring-2 focus:ring-ocean-500" 
+                                        placeholder="Ex: /guia ou https://..."
+                                        value={editingHighlight.buttonLink} 
+                                        onChange={e => setEditingHighlight({...editingHighlight, buttonLink: e.target.value})} 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Ordem</label>
+                                    <input 
+                                        type="number"
+                                        className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none focus:ring-2 focus:ring-ocean-500" 
+                                        value={editingHighlight.order} 
+                                        onChange={e => setEditingHighlight({...editingHighlight, order: parseInt(e.target.value)})} 
+                                    />
+                                </div>
+                                <div className="flex items-center gap-3 pt-6">
+                                    <button 
+                                        type="button"
+                                        onClick={() => setEditingHighlight({...editingHighlight, active: !editingHighlight.active})}
+                                        className={`w-12 h-6 rounded-full transition-all relative ${editingHighlight.active ? 'bg-ocean-600' : 'bg-slate-300'}`}
+                                    >
+                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${editingHighlight.active ? 'left-7' : 'left-1'}`} />
+                                    </button>
+                                    <span className="text-xs font-black text-ocean-950 uppercase">Destaque Ativo</span>
+                                </div>
+                            </div>
+                            <div className="pt-6 flex gap-4">
+                                <button 
+                                    type="button" 
+                                    onClick={() => setEditingHighlight(null)}
+                                    className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-slate-500 bg-slate-100"
+                                >
+                                    CANCELAR
+                                </button>
+                                <button 
+                                    type="submit" 
+                                    disabled={isSaving}
+                                    className="flex-[2] px-6 py-4 rounded-2xl font-black text-xs text-white bg-ocean-600 shadow-lg shadow-ocean-600/20 flex items-center justify-center gap-2"
+                                >
+                                    {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} SALVAR DESTAQUE
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };

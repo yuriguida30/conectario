@@ -25,7 +25,7 @@ import { auth, db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, 
     CompanyRequest, AppCategory, DEFAULT_CATEGORIES, 
-    DEFAULT_AMENITIES, AppConfig, Collection, BusinessPlan, PricingPlan
+    DEFAULT_AMENITIES, AppConfig, Collection, BusinessPlan, PricingPlan, HomeHighlight
 } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
@@ -37,6 +37,7 @@ let _users: User[] = MOCK_USERS;
 let _categories: AppCategory[] = [];
 let _requests: CompanyRequest[] = [];
 let _plans: PricingPlan[] = [];
+let _highlights: HomeHighlight[] = [];
 let _isInitialized = false;
 
 const _collections: Collection[] = [];
@@ -113,6 +114,11 @@ export const initFirebaseData = () => {
 
     onSnapshot(collection(db, 'pricingPlans'), (snapshot) => {
         _plans = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PricingPlan));
+        notifyListeners();
+    });
+
+    onSnapshot(collection(db, 'home_highlights'), (snapshot) => {
+        _highlights = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as HomeHighlight)).sort((a, b) => a.order - b.order);
         notifyListeners();
     });
 };
@@ -352,6 +358,30 @@ export const getCollections = (): Collection[] => _collections;
 export const getCollectionById = (id: string) => _collections.find(c => c.id === id);
 
 export const getFeaturedConfig = () => null;
+
+export const getHomeHighlights = () => _highlights.filter(h => h.active);
+export const getAllHomeHighlights = () => _highlights;
+
+export const saveHomeHighlight = async (h: Partial<HomeHighlight>) => {
+    const id = h.id || doc(collection(db, 'home_highlights')).id;
+    const newHighlight: HomeHighlight = {
+        id,
+        title: h.title || '',
+        description: h.description || '',
+        imageUrl: h.imageUrl || '',
+        buttonText: h.buttonText || '',
+        buttonLink: h.buttonLink || '',
+        order: h.order || 0,
+        active: h.active ?? true,
+        ...h
+    } as HomeHighlight;
+    await setDoc(doc(db, 'home_highlights', id), newHighlight);
+    return newHighlight;
+};
+
+export const deleteHomeHighlight = async (id: string) => {
+    await deleteDoc(doc(db, 'home_highlights', id));
+};
 
 export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371;

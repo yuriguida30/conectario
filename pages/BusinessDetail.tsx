@@ -5,7 +5,7 @@ import {
   MessageCircle, Share2, Loader2, Ticket, 
   Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2
 } from 'lucide-react';
-import { BusinessProfile, AMENITIES_LABELS, Coupon, User, BusinessPlan, PricingPlan } from '../types';
+import { BusinessProfile, AMENITIES_LABELS, Coupon, User, PricingPlan } from '../types';
 import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest, getPricingPlans } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';

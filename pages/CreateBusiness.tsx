@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, UserRole, BusinessProfile, BusinessPlan } from '../types';
-import { getCategories, saveBusiness, updateUser, getCities, getNeighborhoods } from '../services/dataService';
+import { User, UserRole, BusinessProfile } from '../types';
+import { getCategories, saveBusiness, updateUser, getCities, getNeighborhoods, getPricingPlans } from '../services/dataService';
 import { Store, ArrowLeft, Loader2, CheckCircle2, Camera, MapPin, Phone, Info } from 'lucide-react';
 
 interface CreateBusinessProps {
@@ -41,6 +41,10 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
         
         setLoading(true);
         try {
+            // 0. Buscar plano padrão (grátis)
+            const plans = getPricingPlans();
+            const freePlan = plans.find(p => p.price === 0 && p.active) || plans[0];
+
             // 1. Criar perfil da empresa
             const newBiz: BusinessProfile = {
                 id: currentUser.id,
@@ -59,7 +63,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                 views: 0,
                 shares: 0,
                 isClaimed: true,
-                plan: BusinessPlan.FREE
+                plan: freePlan?.id || ''
             };
             await saveBusiness(newBiz);
 

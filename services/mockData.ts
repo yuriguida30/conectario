@@ -1,5 +1,5 @@
 
-import { Coupon, User, UserRole, BusinessProfile, BlogPost, BusinessPlan } from '../types';
+import { Coupon, User, UserRole, BusinessProfile, BlogPost } from '../types';
 
 export const MOCK_USERS: User[] = [
   {
@@ -33,7 +33,7 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     lng: -43.1833,
     views: 1250,
     shares: 320,
-    plan: BusinessPlan.PREMIUM,
+    plan: 'PREMIUM',
     actionCounts: { phone: 50, map: 120, social: 80, website: 60, delivery: 40, menu: 150 }
   },
   {
@@ -57,7 +57,7 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
     lng: -43.2462,
     views: 890,
     shares: 150,
-    plan: BusinessPlan.PREMIUM,
+    plan: 'PREMIUM',
     actionCounts: { phone: 80, map: 200, social: 45, website: 90, booking: 60 }
   }
 ];

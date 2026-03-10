@@ -56,7 +56,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     address: '',
     canBeClaimed: true,
     openingHours: {},
-    plan: 'FREE'
+    plan: ''
   });
 
   const [newPlan, setNewPlan] = useState<Partial<PricingPlan>>({
@@ -195,7 +195,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
             address: '',
             canBeClaimed: true,
             openingHours: {},
-            plan: 'FREE'
+            plan: ''
         });
         refreshData();
     } catch (err) {
@@ -1102,7 +1102,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                             <span className="text-[9px] font-black text-slate-400 uppercase">Plano:</span>
                             <select 
                                 className="bg-transparent text-[10px] font-black text-ocean-600 outline-none cursor-pointer"
-                                value={biz.plan || 'FREE'}
+                                value={biz.plan || ''}
                                 onChange={async (e) => {
                                     const newPlanId = e.target.value;
                                     if (confirm(`Deseja alterar o plano de "${biz.name}" para "${newPlanId}"?`)) {
@@ -1111,8 +1111,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                     }
                                 }}
                             >
-                                <option value="FREE">FREE</option>
-                                <option value="PREMIUM">PREMIUM</option>
+                                <option value="">Sem Plano</option>
                                 {plans.map(p => (
                                     <option key={p.id} value={p.id}>{p.name}</option>
                                 ))}
@@ -1246,7 +1245,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Plano Inicial</label>
                                 <select 
                                     className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
-                                    value={newPlace.plan || 'FREE'}
+                                    value={newPlace.plan || ''}
                                     onChange={e => {
                                         const planId = e.target.value;
                                         const plan = plans.find(p => p.id === planId);
@@ -1257,8 +1256,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                         });
                                     }}
                                 >
-                                    <option value="FREE">FREE</option>
-                                    <option value="PREMIUM">PREMIUM</option>
+                                    <option value="">Sem Plano</option>
                                     {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
                             </div>

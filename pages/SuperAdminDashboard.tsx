@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, CompanyRequest, BusinessProfile, UserRole, BusinessPlan } from '../types';
+import { User, CompanyRequest, BusinessProfile, UserRole } from '../types';
 import { 
   getCompanyRequests, approveCompanyRequest, getAllUsers, 
   getAllBusinesses, getCoupons, saveBusiness, updateUser, getAdminStats,

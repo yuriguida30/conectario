@@ -6,11 +6,6 @@ export enum UserRole {
   CONTENT_CREATOR = 'CONTENT_CREATOR',
 }
 
-export enum BusinessPlan {
-  FREE = 'FREE',
-  PREMIUM = 'PREMIUM'
-}
-
 export interface PricingPlan {
   id: string;
   name: string;
@@ -46,7 +41,7 @@ export interface User {
   category?: string;
   phone?: string;
   maxCoupons?: number;
-  plan?: BusinessPlan | string;
+  plan?: string;
   permissions?: UserPermissions;
   isBlocked?: boolean;
   manualPassword?: string;
@@ -92,7 +87,7 @@ export interface BusinessProfile {
   isClaimed?: boolean;
   isBlocked?: boolean;
   canBeClaimed?: boolean;
-  plan?: BusinessPlan | string;
+  plan?: string;
   cityId?: string;
   neighborhoodId?: string;
 }

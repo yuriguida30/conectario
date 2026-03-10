@@ -26,7 +26,7 @@ import { auth, db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, SavingsRecord, 
     CompanyRequest, AppCategory, DEFAULT_CATEGORIES, 
-    DEFAULT_AMENITIES, AppConfig, Collection, BusinessPlan, PricingPlan, HomeHighlight, City, Neighborhood
+    DEFAULT_AMENITIES, AppConfig, Collection, PricingPlan, HomeHighlight, City, Neighborhood
 } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 

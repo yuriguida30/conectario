@@ -64,7 +64,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
 
             setSuccess(true);
             setTimeout(() => {
-                onNavigate('admin-dashboard');
+                onNavigate('pricing-plans');
             }, 2000);
         } catch (error) {
             console.error("Erro ao criar empresa:", error);

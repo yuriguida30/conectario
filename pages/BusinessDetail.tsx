@@ -5,13 +5,14 @@ import {
   MessageCircle, Share2, Loader2, Ticket, 
   Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2
 } from 'lucide-react';
-import { BusinessProfile, AMENITIES_LABELS, Coupon, User, BusinessPlan } from '../types';
-import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest } from '../services/dataService';
+import { BusinessProfile, AMENITIES_LABELS, Coupon, User, BusinessPlan, PricingPlan } from '../types';
+import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest, getPricingPlans } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 
 export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: string, params?: any) => void }> = ({ businessId, onNavigate }) => {
   const [business, setBusiness] = useState<BusinessProfile | undefined>(undefined);
+  const [plan, setPlan] = useState<PricingPlan | undefined>(undefined);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -25,6 +26,10 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
         const busData = getBusinessById(businessId);
         setBusiness(busData);
         if (busData) {
+            const allPlans = getPricingPlans();
+            const busPlan = allPlans.find(p => p.name === busData.plan);
+            setPlan(busPlan);
+
             incrementBusinessView(businessId);
             setIsOpen(checkIfOpen(busData.openingHours));
             const isFromSearch = document.referrer.includes('/search') || document.referrer.includes('?q=');
@@ -114,14 +119,14 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                         <span className="text-[9px] font-black uppercase text-slate-400">Rota</span>
                     </button>
 
-                    {business.instagram && (
+                    {business.instagram && (plan?.showSocialMedia !== false) && (
                         <button onClick={() => handleAction('social')} className="flex flex-col items-center gap-2 group">
                             <div className="w-14 h-14 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white shadow-lg group-active:scale-95 transition-all"><Instagram size={24}/></div>
                             <span className="text-[9px] font-black uppercase text-slate-400">Instagram</span>
                         </button>
                     )}
 
-                    {business.website && (
+                    {business.website && (plan?.showSocialMedia !== false) && (
                         <button onClick={() => handleAction('website')} className="flex flex-col items-center gap-2 group">
                             <div className="w-14 h-14 bg-ocean-100 rounded-2xl flex items-center justify-center text-ocean-600 shadow-md border border-ocean-200 group-active:scale-95 transition-all"><Globe size={24}/></div>
                             <span className="text-[9px] font-black uppercase text-slate-400">Website</span>
@@ -142,10 +147,12 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                         </button>
                     )}
 
-                    <button onClick={() => handleAction('menu')} className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 bg-ocean-600 rounded-2xl flex items-center justify-center text-white shadow-lg group-active:scale-95 transition-all"><Utensils size={24}/></div>
-                        <span className="text-[9px] font-black uppercase text-ocean-600 font-bold">Cardápio</span>
-                    </button>
+                    {(plan?.showMenu !== false) && (
+                        <button onClick={() => handleAction('menu')} className="flex flex-col items-center gap-2 group">
+                            <div className="w-14 h-14 bg-ocean-600 rounded-2xl flex items-center justify-center text-white shadow-lg group-active:scale-95 transition-all"><Utensils size={24}/></div>
+                            <span className="text-[9px] font-black uppercase text-ocean-600 font-bold">Cardápio</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -199,7 +206,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             </div>
 
             {/* GALERIA DE FOTOS */}
-            {business.gallery && business.gallery.length > 0 && (
+            {business.gallery && business.gallery.length > 0 && (plan?.showGallery !== false) && (
                 <div className="space-y-4">
                     <h3 className="text-xl font-black text-ocean-950">Galeria de Fotos</h3>
                     <div className="overflow-x-auto hide-scrollbar -mx-6 px-6">

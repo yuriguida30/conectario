@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus } from '../services/dataService';
+import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan } from '../types';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
-  Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers,
+  Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers, Zap,
   Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
@@ -16,7 +16,7 @@ import { LocationPicker } from '../components/LocationPicker';
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -25,6 +25,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const [categories, setCategories] = useState<any[]>([]);
   const [newSubcategory, setNewSubcategory] = useState<{ [key: string]: string }>({});
   const [requests, setRequests] = useState<CompanyRequest[]>([]);
+  const [plans, setPlans] = useState<PricingPlan[]>([]);
 
   const [editBusiness, setEditBusiness] = useState<Partial<BusinessProfile>>({});
   const [newPassword, setNewPassword] = useState('');
@@ -53,6 +54,20 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     openingHours: {}
   });
 
+  const [newPlan, setNewPlan] = useState<Partial<PricingPlan>>({
+    name: '',
+    price: 0,
+    period: 'monthly',
+    maxCoupons: 5,
+    maxBusinesses: 1,
+    isFeatured: false,
+    showGallery: true,
+    showMenu: true,
+    showSocialMedia: true,
+    showReviews: true,
+    active: true
+  });
+
   const refreshData = async () => {
     const allCoupons = await getCoupons();
     setCoupons(allCoupons.filter(c => c.companyId === currentUser.id));
@@ -67,6 +82,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         const allRequests = getCompanyRequests();
         setRequests(allRequests.filter(r => r.status === 'PENDING'));
+        setPlans(getPricingPlans());
     }
     setLoading(false);
   };
@@ -179,6 +195,40 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     }
   };
 
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+        await savePricingPlan(newPlan);
+        alert("Plano salvo com sucesso!");
+        setNewPlan({
+            name: '',
+            price: 0,
+            period: 'monthly',
+            maxCoupons: 5,
+            maxBusinesses: 1,
+            isFeatured: false,
+            showGallery: true,
+            showMenu: true,
+            showSocialMedia: true,
+            showReviews: true,
+            active: true
+        });
+        refreshData();
+    } catch (err) {
+        alert("Erro ao salvar plano.");
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
+  const handleDeletePlan = async (id: string) => {
+    if (confirm("Deseja excluir este plano?")) {
+        await deletePricingPlan(id);
+        refreshData();
+    }
+  };
+
   if (loading && !stats) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-ocean-600" size={48} /></div>;
 
   const renderName = () => {
@@ -224,6 +274,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                             onClick={() => setView('CATEGORIES')} 
                             className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'CATEGORIES' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}>
                             <Layers size={18} /> CATEGORIAS
+                        </button>
+                        <button 
+                            onClick={() => setView('PLANS')} 
+                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'PLANS' ? 'bg-purple-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-purple-600 shadow-sm'}`}>
+                            <Zap size={18} /> PLANOS
                         </button>
                     </>
                 ) : (
@@ -280,6 +335,12 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                               <h3 className="text-4xl font-black text-ocean-950">{getAllBusinesses().length}</h3>
                               <p className="text-slate-400 text-[10px] font-bold mt-2">Gerenciar Lojistas</p>
                           </div>
+                          <div className="bg-purple-600 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('PLANS')}>
+                              <Zap className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
+                              <p className="text-[10px] font-black text-purple-100 uppercase tracking-widest mb-2">Planos de Assinatura</p>
+                              <h3 className="text-4xl font-black">{plans.length}</h3>
+                              <p className="text-purple-100 text-[10px] font-bold mt-2">Configurar Planos</p>
+                          </div>
                       </div>
 
                       <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
@@ -296,6 +357,10 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                               <button onClick={() => setView('CATEGORIES')} className="bg-slate-50 hover:bg-ocean-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
                                   <h4 className="font-bold text-ocean-600 mb-1">Gerenciar Categorias</h4>
                                   <p className="text-xs text-slate-500">Adicione ou remova subcategorias.</p>
+                              </button>
+                              <button onClick={() => setView('PLANS')} className="bg-slate-50 hover:bg-purple-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
+                                  <h4 className="font-bold text-purple-600 mb-1">Planos de Assinatura</h4>
+                                  <p className="text-xs text-slate-500">Crie planos personalizados para parceiros.</p>
                               </button>
                           </div>
                       </div>
@@ -1152,6 +1217,176 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                     {isSaving ? <Loader2 className="animate-spin" size={24} /> : <CheckCircle2 size={24} />} CADASTRAR NO GUIA
                 </button>
             </form>
+        </div>
+      )}
+
+      {view === 'PLANS' && (
+        <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+            <div className="flex justify-between items-center">
+                <h2 className="text-3xl font-black text-ocean-950">Gerenciar Planos</h2>
+                <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                    <ChevronLeft size={16} /> Voltar
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-1 bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 h-fit">
+                    <h3 className="text-xl font-black text-ocean-950 mb-6">Criar Novo Plano</h3>
+                    <form onSubmit={handleSavePlan} className="space-y-6">
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nome do Plano</label>
+                            <input 
+                                required 
+                                className="w-full bg-white p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none" 
+                                value={newPlan.name} 
+                                onChange={e => setNewPlan({...newPlan, name: e.target.value})} 
+                                placeholder="Ex: Plano Premium"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Preço (R$)</label>
+                                <input 
+                                    type="number"
+                                    required 
+                                    className="w-full bg-white p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none" 
+                                    value={newPlan.price} 
+                                    onChange={e => setNewPlan({...newPlan, price: Number(e.target.value)})} 
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Período</label>
+                                <select 
+                                    className="w-full bg-white p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
+                                    value={newPlan.period}
+                                    onChange={e => setNewPlan({...newPlan, period: e.target.value as any})}
+                                >
+                                    <option value="monthly">Mensal</option>
+                                    <option value="yearly">Anual</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4 bg-white p-6 rounded-2xl border border-slate-100">
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Recursos e Limites</h4>
+                            
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-slate-600">Max. Cupons</span>
+                                <input 
+                                    type="number"
+                                    className="w-16 bg-slate-50 p-2 rounded-lg border border-slate-100 font-bold text-xs text-center"
+                                    value={newPlan.maxCoupons}
+                                    onChange={e => setNewPlan({...newPlan, maxCoupons: Number(e.target.value)})}
+                                />
+                            </div>
+
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <input 
+                                    type="checkbox" 
+                                    className="w-5 h-5 rounded-lg border-slate-200 text-ocean-600 focus:ring-ocean-500"
+                                    checked={newPlan.isFeatured}
+                                    onChange={e => setNewPlan({...newPlan, isFeatured: e.target.checked})}
+                                />
+                                <span className="text-xs font-bold text-slate-600 group-hover:text-ocean-600 transition-colors">Destaque nas Pesquisas</span>
+                            </label>
+
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <input 
+                                    type="checkbox" 
+                                    className="w-5 h-5 rounded-lg border-slate-200 text-ocean-600 focus:ring-ocean-500"
+                                    checked={newPlan.showGallery}
+                                    onChange={e => setNewPlan({...newPlan, showGallery: e.target.checked})}
+                                />
+                                <span className="text-xs font-bold text-slate-600 group-hover:text-ocean-600 transition-colors">Exibir Galeria</span>
+                            </label>
+
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <input 
+                                    type="checkbox" 
+                                    className="w-5 h-5 rounded-lg border-slate-200 text-ocean-600 focus:ring-ocean-500"
+                                    checked={newPlan.showMenu}
+                                    onChange={e => setNewPlan({...newPlan, showMenu: e.target.checked})}
+                                />
+                                <span className="text-xs font-bold text-slate-600 group-hover:text-ocean-600 transition-colors">Exibir Cardápio</span>
+                            </label>
+
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <input 
+                                    type="checkbox" 
+                                    className="w-5 h-5 rounded-lg border-slate-200 text-ocean-600 focus:ring-ocean-500"
+                                    checked={newPlan.showSocialMedia}
+                                    onChange={e => setNewPlan({...newPlan, showSocialMedia: e.target.checked})}
+                                />
+                                <span className="text-xs font-bold text-slate-600 group-hover:text-ocean-600 transition-colors">Exibir Redes Sociais</span>
+                            </label>
+
+                            <label className="flex items-center gap-3 cursor-pointer group">
+                                <input 
+                                    type="checkbox" 
+                                    className="w-5 h-5 rounded-lg border-slate-200 text-ocean-600 focus:ring-ocean-500"
+                                    checked={newPlan.showReviews}
+                                    onChange={e => setNewPlan({...newPlan, showReviews: e.target.checked})}
+                                />
+                                <span className="text-xs font-bold text-slate-600 group-hover:text-ocean-600 transition-colors">Exibir Avaliações</span>
+                            </label>
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            disabled={isSaving}
+                            className="w-full bg-ocean-600 text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-ocean-600/20 hover:bg-ocean-700 transition-all flex justify-center items-center gap-2"
+                        >
+                            {isSaving ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />} SALVAR PLANO
+                        </button>
+                    </form>
+                </div>
+
+                <div className="lg:col-span-2 space-y-6">
+                    <h3 className="text-xl font-black text-ocean-950">Planos Ativos</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {plans.length === 0 ? (
+                            <p className="text-slate-400 text-sm italic col-span-2">Nenhum plano cadastrado.</p>
+                        ) : (
+                            plans.map(plan => (
+                                <div key={plan.id} className={`p-8 rounded-[2.5rem] border transition-all relative group ${plan.isFeatured ? 'bg-ocean-50 border-ocean-100' : 'bg-white border-slate-100'}`}>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <h4 className="text-xl font-black text-ocean-950">{plan.name}</h4>
+                                            <p className="text-ocean-600 font-bold">R$ {plan.price} <span className="text-[10px] text-slate-400">/{plan.period === 'monthly' ? 'mês' : 'ano'}</span></p>
+                                        </div>
+                                        <button 
+                                            onClick={() => handleDeletePlan(plan.id)}
+                                            className="w-10 h-10 bg-white text-red-500 rounded-xl flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+
+                                    <div className="space-y-2 mb-6">
+                                        <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
+                                            <Check size={12} className="text-green-500" /> Max. {plan.maxCoupons} cupons
+                                        </div>
+                                        {plan.isFeatured && <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500"><Check size={12} className="text-green-500" /> Destaque nas buscas</div>}
+                                        {plan.showGallery && <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500"><Check size={12} className="text-green-500" /> Galeria de fotos</div>}
+                                        {plan.showMenu && <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500"><Check size={12} className="text-green-500" /> Cardápio digital</div>}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${plan.active ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
+                                            {plan.active ? 'Ativo' : 'Inativo'}
+                                        </span>
+                                        {plan.isFeatured && (
+                                            <span className="bg-amber-100 text-amber-600 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
+                                                <Star size={8} fill="currentColor" /> Popular
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </div>
         </div>
       )}
     </div>

@@ -11,6 +11,21 @@ export enum BusinessPlan {
   PREMIUM = 'PREMIUM'
 }
 
+export interface PricingPlan {
+  id: string;
+  name: string;
+  price: number;
+  period: 'monthly' | 'yearly';
+  maxCoupons: number;
+  maxBusinesses: number;
+  isFeatured: boolean;
+  showGallery: boolean;
+  showMenu: boolean;
+  showSocialMedia: boolean;
+  showReviews: boolean;
+  active: boolean;
+}
+
 export interface UserPermissions {
   canCreateCoupons: boolean;
   canManageBusiness: boolean;

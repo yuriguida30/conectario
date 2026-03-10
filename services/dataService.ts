@@ -25,7 +25,7 @@ import { auth, db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, 
     CompanyRequest, AppCategory, DEFAULT_CATEGORIES, 
-    DEFAULT_AMENITIES, AppConfig, Collection, BusinessPlan
+    DEFAULT_AMENITIES, AppConfig, Collection, BusinessPlan, PricingPlan
 } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
@@ -36,6 +36,7 @@ let _coupons: Coupon[] = MOCK_COUPONS;
 let _users: User[] = MOCK_USERS;
 let _categories: AppCategory[] = [];
 let _requests: CompanyRequest[] = [];
+let _plans: PricingPlan[] = [];
 let _isInitialized = false;
 
 const _collections: Collection[] = [];
@@ -107,6 +108,11 @@ export const initFirebaseData = () => {
 
     onSnapshot(collection(db, 'companyRequests'), (snapshot) => {
         _requests = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
+        notifyListeners();
+    });
+
+    onSnapshot(collection(db, 'pricingPlans'), (snapshot) => {
+        _plans = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PricingPlan));
         notifyListeners();
     });
 };
@@ -541,4 +547,31 @@ export const checkIfOpen = (openingHours: { [key: string]: string }): boolean =>
     }
 
     return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+};
+
+export const getPricingPlans = () => _plans;
+
+export const savePricingPlan = async (plan: Partial<PricingPlan>) => {
+    const id = plan.id || doc(collection(db, 'pricingPlans')).id;
+    const newPlan: PricingPlan = {
+        id,
+        name: plan.name || 'Novo Plano',
+        price: plan.price || 0,
+        period: plan.period || 'monthly',
+        maxCoupons: plan.maxCoupons || 5,
+        maxBusinesses: plan.maxBusinesses || 1,
+        isFeatured: plan.isFeatured || false,
+        showGallery: plan.showGallery || false,
+        showMenu: plan.showMenu || false,
+        showSocialMedia: plan.showSocialMedia || false,
+        showReviews: plan.showReviews || false,
+        active: plan.active ?? true,
+        ...plan
+    } as PricingPlan;
+    await setDoc(doc(db, 'pricingPlans', id), newPlan);
+    return newPlan;
+};
+
+export const deletePricingPlan = async (id: string) => {
+    await deleteDoc(doc(db, 'pricingPlans', id));
 };

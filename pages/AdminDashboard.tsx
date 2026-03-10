@@ -7,7 +7,7 @@ import {
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers, Zap,
-  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout
+  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, Bike
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -1060,7 +1060,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                         </div>
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                                <h3 className="font-black text-lg text-ocean-950">{biz.name}</h3>
+                                <h3 className="font-black text-lg text-ocean-950 flex items-center gap-2">
+                                    {biz.name}
+                                    {biz.deliveryUrl && (
+                                        <span title="Delivery Disponível" className="bg-ocean-100 p-1 rounded-full shrink-0">
+                                            <Bike size={12} className="text-ocean-600" />
+                                        </span>
+                                    )}
+                                </h3>
                                 {biz.isBlocked && <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Inativa</span>}
                             </div>
                             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{biz.category}</p>

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, ChevronDown, ChevronRight, Gem, ArrowRight, Loader2, Utensils, Bed, Anchor, ShoppingBag, Star, Calendar, Map, Layers } from 'lucide-react';
+import { MapPin, ChevronDown, ChevronRight, Gem, ArrowRight, Loader2, Utensils, Bed, Anchor, ShoppingBag, Star, Calendar, Map, Layers, Bike } from 'lucide-react';
 import { Coupon, User, AppCategory, BusinessProfile, BlogPost, Collection, FeaturedConfig, HomeHighlight } from '../types';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
@@ -372,7 +372,14 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                         >
                             <img src={biz.coverImage} className="w-20 h-20 rounded-lg object-cover bg-slate-100" />
                             <div className="flex-1 overflow-hidden">
-                                <h4 className="font-bold text-ocean-950 truncate">{biz.name}</h4>
+                                <h4 className="font-bold text-ocean-950 truncate flex items-center gap-2">
+                                    {biz.name}
+                                    {biz.deliveryUrl && (
+                                        <span title="Delivery Disponível" className="bg-ocean-50 p-1 rounded-full shrink-0">
+                                            <Bike size={12} className="text-ocean-600" />
+                                        </span>
+                                    )}
+                                </h4>
                                 <p className="text-xs text-slate-500 mb-2 truncate">{biz.category}</p>
                                 <div className="flex items-center gap-2">
                                     <div className="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded">

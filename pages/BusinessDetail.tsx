@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { 
   ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, 
   MessageCircle, Share2, Loader2, Ticket, 
-  Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2
+  Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2, Bike
 } from 'lucide-react';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, PricingPlan } from '../types';
 import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest, getPricingPlans } from '../services/dataService';
@@ -92,7 +92,14 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             </div>
             <div className="absolute bottom-6 left-6 z-10">
                 <span className="bg-ocean-600 text-white px-3 py-1 rounded-lg text-[10px] font-black uppercase mb-2 inline-block tracking-wider shadow-lg">{business.category}</span>
-                <h1 className="text-4xl font-black text-ocean-950 mb-1 drop-shadow-sm">{business.name}</h1>
+                <h1 className="text-4xl font-black text-ocean-950 mb-1 drop-shadow-sm flex items-center gap-3">
+                    {business.name}
+                    {business.deliveryUrl && (
+                        <span title="Delivery Disponível" className="bg-ocean-50 p-2 rounded-full shrink-0 shadow-sm">
+                            <Bike size={20} className="text-ocean-600" />
+                        </span>
+                    )}
+                </h1>
                 <div className="flex items-center gap-4">
                     <p className="text-sm text-slate-500 font-bold flex items-center gap-1"><MapPin size={14} className="text-ocean-500"/> {business.address}</p>
                     {isOpen !== null && (

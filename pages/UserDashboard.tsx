@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, SavingsRecord, Coupon, BusinessProfile, UserRole } from '../types';
-import { Tag, LogOut, ChevronRight, HelpCircle, Trophy, TrendingUp, Wallet, Star, Heart, Store, Ticket, Send, Camera, Loader2, ShieldCheck, Zap, Bell, Clock } from 'lucide-react';
+import { Tag, LogOut, ChevronRight, HelpCircle, Trophy, TrendingUp, Wallet, Star, Heart, Store, Ticket, Send, Camera, Loader2, ShieldCheck, Zap, Bell, Clock, Bike } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 // Fix: Removed non-existent export 'sendSupportMessage' from dataService
 import { getCoupons, getBusinesses, getBusinessById, updateUser, logout } from '../services/dataService';
@@ -393,7 +393,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                                   >
                                       <img src={biz.coverImage} className="w-12 h-12 rounded-xl object-cover" />
                                       <div>
-                                          <h4 className="font-bold text-ocean-950">{biz.name}</h4>
+                                          <h4 className="font-bold text-ocean-950 flex items-center gap-2">
+                                              {biz.name}
+                                              {biz.deliveryUrl && (
+                                                  <span title="Delivery Disponível" className="bg-ocean-50 p-1 rounded-full shrink-0">
+                                                      <Bike size={12} className="text-ocean-600" />
+                                                  </span>
+                                              )}
+                                          </h4>
                                           <p className="text-xs text-slate-500">{biz.category}</p>
                                       </div>
                                   </div>

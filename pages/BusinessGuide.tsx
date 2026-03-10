@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon, X, ChevronDown, ListFilter } from 'lucide-react';
+import { Search, MapPin, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon, X, ChevronDown, ListFilter, Bike } from 'lucide-react';
 import { BusinessProfile, AppCategory, AppAmenity, User, City, Neighborhood } from '../types';
 import { getBusinesses, getCategories, getAmenities, toggleFavorite, calculateDistance, getCities, getNeighborhoods, identifyNeighborhood, checkIfOpen } from '../services/dataService';
 
@@ -285,7 +285,14 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                   </div>
                   <div className="p-4 flex-1 flex flex-col">
                       <div className="flex justify-between items-start mb-1">
-                          <h3 className="font-bold text-ocean-950 text-lg line-clamp-1">{business.name}</h3>
+                          <h3 className="font-bold text-ocean-950 text-lg line-clamp-1 flex items-center gap-2">
+                              {business.name}
+                              {business.deliveryUrl && (
+                                  <span title="Delivery Disponível" className="bg-ocean-50 p-1 rounded-full">
+                                      <Bike size={14} className="text-ocean-600" />
+                                  </span>
+                              )}
+                          </h3>
                           <div className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded">
                               <Star size={12} className="text-gold-500 fill-gold-500" />
                               <span className="text-xs font-bold">{business.rating}</span>

@@ -154,7 +154,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                 <p className="text-slate-600 leading-relaxed text-sm">{business.description}</p>
             </div>
 
-            {!business.isClaimed && (
+            {!business.isClaimed && business.canBeClaimed !== false && (
                 <div className="bg-amber-50 p-8 rounded-[2rem] border border-amber-100 space-y-4">
                     <div className="flex items-center gap-3 text-amber-600">
                         <Building2 size={24} />

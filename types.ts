@@ -76,6 +76,7 @@ export interface BusinessProfile {
   actionCounts?: { [key: string]: number };
   isClaimed?: boolean;
   isBlocked?: boolean;
+  canBeClaimed?: boolean;
   plan?: BusinessPlan;
 }
 

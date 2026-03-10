@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
@@ -16,7 +16,7 @@ import { LocationPicker } from '../components/LocationPicker';
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -41,6 +41,16 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     rules: [],
     maxRedemptions: 100,
     limitPerUser: 1
+  });
+
+  const [newPlace, setNewPlace] = useState<Partial<BusinessProfile>>({
+    name: '',
+    description: '',
+    category: 'Passeios',
+    coverImage: '',
+    address: '',
+    canBeClaimed: true,
+    openingHours: {}
   });
 
   const refreshData = async () => {
@@ -143,6 +153,30 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const handleReject = async (requestId: string) => {
     await rejectCompanyRequest(requestId);
     refreshData();
+  };
+
+  const handleCreatePlace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+        await createAdminPlace(newPlace);
+        alert("Lugar cadastrado com sucesso no guia!");
+        setView('BUSINESSES');
+        setNewPlace({
+            name: '',
+            description: '',
+            category: 'Passeios',
+            coverImage: '',
+            address: '',
+            canBeClaimed: true,
+            openingHours: {}
+        });
+        refreshData();
+    } catch (err) {
+        alert("Erro ao cadastrar lugar.");
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   if (loading && !stats) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-ocean-600" size={48} /></div>;
@@ -866,7 +900,15 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
       {view === 'BUSINESSES' && (
         <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
           <div className="flex justify-between items-center">
-            <h2 className="text-3xl font-black text-ocean-950">Gestão de Empresas</h2>
+            <div className="flex items-center gap-4">
+                <h2 className="text-3xl font-black text-ocean-950">Gestão de Empresas</h2>
+                <button 
+                    onClick={() => setView('CREATE_PLACE')}
+                    className="bg-gold-500 text-white px-4 py-2 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-gold-500/20 hover:bg-gold-600 transition-all flex items-center gap-2"
+                >
+                    <Plus size={16} /> CADASTRAR LUGAR
+                </button>
+            </div>
             <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
                 <ChevronLeft size={16} /> Voltar
             </button>
@@ -909,6 +951,19 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                         >
                             {biz.isBlocked ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
                             {biz.isBlocked ? 'ATIVAR' : 'INATIVAR'}
+                        </button>
+
+                        <button 
+                            onClick={async () => {
+                                if (confirm(`Deseja ${biz.canBeClaimed ? 'desativar' : 'ativar'} a possibilidade de reivindicação para este lugar?`)) {
+                                    await updateClaimableStatus(biz.id, !biz.canBeClaimed);
+                                    refreshData();
+                                }
+                            }}
+                            className={`flex-1 md:flex-none px-4 py-3 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 transition-all ${biz.canBeClaimed ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}`}
+                        >
+                            <CheckCircle2 size={16} />
+                            {biz.canBeClaimed ? 'REIVINDICÁVEL' : 'NÃO REIVINDICÁVEL'}
                         </button>
 
                         <button 
@@ -997,6 +1052,106 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               ))
             )}
           </div>
+        </div>
+      )}
+
+      {view === 'CREATE_PLACE' && (
+        <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+            <div className="flex justify-between items-center">
+                <h2 className="text-3xl font-black text-ocean-950">Cadastrar Novo Lugar</h2>
+                <button onClick={() => setView('BUSINESSES')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                    <ChevronLeft size={16} /> Voltar
+                </button>
+            </div>
+
+            <form onSubmit={handleCreatePlace} className="space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Nome do Lugar / Empresa</label>
+                            <input 
+                                required 
+                                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-lg outline-none" 
+                                value={newPlace.name} 
+                                onChange={e => setNewPlace({...newPlace, name: e.target.value})} 
+                                placeholder="Ex: Praia de Sepetiba, Teatro Municipal..."
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Categoria</label>
+                                <select 
+                                    className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
+                                    value={newPlace.category}
+                                    onChange={e => setNewPlace({...newPlace, category: e.target.value})}
+                                >
+                                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Permitir Reivindicação?</label>
+                                <select 
+                                    className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
+                                    value={newPlace.canBeClaimed ? 'true' : 'false'}
+                                    onChange={e => setNewPlace({...newPlace, canBeClaimed: e.target.value === 'true'})}
+                                >
+                                    <option value="true">Sim (Empresas podem pedir acesso)</option>
+                                    <option value="false">Não (Lugar público / Admin apenas)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Descrição Curta</label>
+                            <textarea 
+                                required
+                                rows={4}
+                                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none" 
+                                value={newPlace.description} 
+                                onChange={e => setNewPlace({...newPlace, description: e.target.value})}
+                                placeholder="Descreva brevemente o local..."
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Endereço / Localização</label>
+                            <input 
+                                required
+                                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none" 
+                                value={newPlace.address} 
+                                onChange={e => setNewPlace({...newPlace, address: e.target.value})}
+                                placeholder="Rua, Número, Bairro..."
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        <ImageUpload 
+                            label="Foto de Capa"
+                            currentImage={newPlace.coverImage}
+                            onImageSelect={img => setNewPlace({...newPlace, coverImage: img})}
+                        />
+
+                        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100">
+                            <h4 className="text-amber-700 font-black text-xs uppercase mb-2 flex items-center gap-2">
+                                <ShieldAlert size={16} /> Nota para o Admin
+                            </h4>
+                            <p className="text-amber-600 text-[10px] font-bold leading-relaxed">
+                                Você está cadastrando um lugar diretamente no guia. Se você marcar como &quot;Reivindicável&quot;, empresas que se identificarem como donas deste local poderão solicitar acesso através do botão &quot;Reivindicar Empresa&quot; na página de detalhes.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <button 
+                    type="submit" 
+                    disabled={isSaving}
+                    className="w-full bg-ocean-600 text-white py-6 rounded-2xl font-black text-lg shadow-xl shadow-ocean-600/20 hover:bg-ocean-700 transition-all flex justify-center items-center gap-3"
+                >
+                    {isSaving ? <Loader2 className="animate-spin" size={24} /> : <CheckCircle2 size={24} />} CADASTRAR NO GUIA
+                </button>
+            </form>
         </div>
       )}
     </div>

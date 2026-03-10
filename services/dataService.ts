@@ -396,6 +396,41 @@ export const redeemCoupon = async (uid: string, c: Coupon) => {
     });
 };
 
+export const createAdminPlace = async (data: Partial<BusinessProfile>) => {
+    const id = doc(collection(db, 'businesses')).id;
+    const newPlace: BusinessProfile = {
+        id,
+        name: data.name || '',
+        category: data.category || 'Passeios',
+        description: data.description || '',
+        coverImage: data.coverImage || '',
+        gallery: data.gallery || [],
+        address: data.address || '',
+        phone: data.phone || '',
+        amenities: data.amenities || [],
+        openingHours: data.openingHours || {},
+        rating: 5,
+        reviewCount: 0,
+        views: 0,
+        shares: 0,
+        isClaimed: false,
+        isBlocked: false,
+        canBeClaimed: data.canBeClaimed ?? true,
+        ...data
+    };
+    await setDoc(doc(db, 'businesses', id), newPlace);
+    _businesses.push(newPlace);
+    notifyListeners();
+    return newPlace;
+};
+
+export const updateClaimableStatus = async (id: string, canBeClaimed: boolean) => {
+    await updateDoc(doc(db, 'businesses', id), { canBeClaimed });
+    const biz = _businesses.find(b => b.id === id);
+    if (biz) biz.canBeClaimed = canBeClaimed;
+    notifyListeners();
+};
+
 export const registerUser = async (name: string, email: string, pass: string): Promise<User> => {
     const res = await createUserWithEmailAndPassword(auth, email, pass);
     const newUser: User = { id: res.user.uid, name, email, role: UserRole.CUSTOMER, favorites: { coupons: [], businesses: [] }, history: [], savedAmount: 0 };

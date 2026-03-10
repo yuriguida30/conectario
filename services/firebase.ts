@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getAnalytics } from 'firebase/analytics';
+import { getAnalytics, isSupported } from 'firebase/analytics';
 
 // --- CONFIGURAÇÃO DO FIREBASE (CONECTA RIO) ---
 const firebaseConfig = {
@@ -20,7 +20,13 @@ const app = initializeApp(firebaseConfig);
 // Inicializa os serviços que o site usa
 const auth = getAuth(app);        // Para login
 const db = getFirestore(app);     // Para banco de dados (cupons, empresas)
-const analytics = getAnalytics(app); // Para métricas de acesso
+
+let analytics: any = null;
+isSupported().then(supported => {
+  if (supported) {
+    analytics = getAnalytics(app); // Para métricas de acesso
+  }
+});
 
 console.log("🔥 Firebase conectado e pronto para uso!");
 

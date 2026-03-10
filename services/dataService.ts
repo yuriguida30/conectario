@@ -46,8 +46,10 @@ const _collections: Collection[] = [];
 const _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
 
 const notifyListeners = () => {
-    window.dispatchEvent(new Event('dataUpdated'));
-    window.dispatchEvent(new Event('appConfigUpdated'));
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('dataUpdated'));
+        window.dispatchEvent(new Event('appConfigUpdated'));
+    }
 };
 
 onAuthStateChanged(auth, async (firebaseUser) => {
@@ -145,6 +147,48 @@ export const initFirebaseData = () => {
             notifyListeners();
         }
     });
+};
+
+export const updateBusinessesWithLocation = async () => {
+    try {
+        // Find or create Rio de Janeiro
+        let rioCity = _cities.find(c => c.name.toLowerCase() === 'rio de janeiro');
+        if (!rioCity) {
+            const cityId = doc(collection(db, 'cities')).id;
+            rioCity = { id: cityId, name: 'Rio de Janeiro', active: true };
+            await setDoc(doc(db, 'cities', cityId), rioCity);
+            _cities.push(rioCity);
+        }
+
+        // Find or create Sepetiba
+        let sepetibaNeighborhood = _neighborhoods.find(n => n.name.toLowerCase() === 'sepetiba' && n.cityId === rioCity!.id);
+        if (!sepetibaNeighborhood) {
+            const nId = doc(collection(db, 'neighborhoods')).id;
+            sepetibaNeighborhood = { id: nId, cityId: rioCity.id, name: 'Sepetiba', active: true };
+            await setDoc(doc(db, 'neighborhoods', nId), sepetibaNeighborhood);
+            _neighborhoods.push(sepetibaNeighborhood);
+        }
+
+        // Update businesses
+        const businessesSnap = await getDocs(collection(db, 'businesses'));
+        let updatedCount = 0;
+        
+        for (const d of businessesSnap.docs) {
+            const bizData = d.data() as BusinessProfile;
+            if (!bizData.cityId || !bizData.neighborhoodId) {
+                await updateDoc(doc(db, 'businesses', d.id), {
+                    cityId: rioCity.id,
+                    neighborhoodId: sepetibaNeighborhood.id
+                });
+                updatedCount++;
+            }
+        }
+        
+        return { success: true, updatedCount };
+    } catch (error) {
+        console.error("Error updating businesses with location:", error);
+        return { success: false, error };
+    }
 };
 
 initFirebaseData();

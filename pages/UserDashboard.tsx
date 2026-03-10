@@ -80,6 +80,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
               <div>
                   <h1 className="text-ocean-950 text-xl font-bold">{currentUser.name}</h1>
                   <p className="text-slate-500 text-xs">{currentUser.email}</p>
+                  {currentUser.role === UserRole.COMPANY && currentUser.plan && (
+                      <div className="mt-1 inline-flex items-center gap-1 bg-gold-50 text-gold-600 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border border-gold-100">
+                          <Star size={10} /> Plano: {currentUser.plan}
+                      </div>
+                  )}
               </div>
           </div>
           <button onClick={onLogout} className="bg-white p-2.5 rounded-xl text-slate-400 hover:text-red-500 shadow-sm border border-slate-100">
@@ -140,6 +145,21 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                           </div>
                       </div>
                       <ChevronRight className="text-slate-400 group-hover:translate-x-1 transition-transform" />
+                  </button>
+              )}
+              {currentUser.role === UserRole.COMPANY && (
+                  <button 
+                    onClick={() => onNavigate('pricing-plans')}
+                    className="bg-gradient-to-tr from-gold-500 to-gold-400 text-white p-6 rounded-[2rem] flex items-center justify-between group hover:from-gold-600 hover:to-gold-500 transition-all shadow-md"
+                  >
+                      <div className="flex items-center gap-4">
+                          <div className="bg-white/20 p-3 rounded-2xl"><Star size={24} className="text-white" /></div>
+                          <div className="text-left">
+                              <p className="text-xs font-black text-gold-100 uppercase">Evolua seu negócio</p>
+                              <h3 className="font-bold">Ver Planos do Conecta Rio</h3>
+                          </div>
+                      </div>
+                      <ChevronRight className="group-hover:translate-x-1 transition-transform" />
                   </button>
               )}
           </div>

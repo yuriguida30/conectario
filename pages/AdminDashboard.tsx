@@ -249,7 +249,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   <h1 className="text-3xl font-black text-ocean-950 tracking-tight">
                       {renderName()}
                   </h1>
-                  <p className="text-[10px] text-ocean-600 font-black uppercase tracking-widest mt-1">Painel Administrativo</p>
+                  <div className="flex items-center gap-2 mt-1">
+                      <p className="text-[10px] text-ocean-600 font-black uppercase tracking-widest">Painel Administrativo</p>
+                      {currentUser.role === UserRole.COMPANY && currentUser.plan && (
+                          <span className="bg-gold-50 text-gold-600 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border border-gold-100 flex items-center gap-1">
+                              <Star size={10} /> {currentUser.plan}
+                          </span>
+                      )}
+                  </div>
               </div>
           </div>
           <div className="flex flex-wrap gap-3 justify-center">
@@ -288,6 +295,12 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                             className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'MENU' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
                         >
                             <Utensils size={18} /> CARDÁPIO
+                        </button>
+                        <button 
+                            onClick={() => onNavigate('pricing-plans')} 
+                            className="bg-gradient-to-tr from-gold-500 to-gold-400 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-gold-500/20 active:scale-95 transition-all flex items-center gap-2"
+                        >
+                            <Star size={18} /> MEU PLANO
                         </button>
                         <button 
                             onClick={() => setView(view === 'PROFILE' ? 'HOME' : 'PROFILE')} 

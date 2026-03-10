@@ -121,6 +121,9 @@ export interface SavingsRecord {
   amount: number;
   couponTitle: string;
   couponId?: string;
+  companyName?: string;
+  expiryDate?: string;
+  code?: string;
 }
 
 export interface Coupon {

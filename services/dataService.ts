@@ -10,7 +10,8 @@ import {
     query, 
     where, 
     increment,
-    onSnapshot
+    onSnapshot,
+    arrayUnion
 } from 'firebase/firestore';
 import { 
     signInWithEmailAndPassword, 
@@ -23,7 +24,7 @@ import {
 } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { 
-    Coupon, User, UserRole, BusinessProfile, BlogPost, 
+    Coupon, User, UserRole, BusinessProfile, BlogPost, SavingsRecord, 
     CompanyRequest, AppCategory, DEFAULT_CATEGORIES, 
     DEFAULT_AMENITIES, AppConfig, Collection, BusinessPlan, PricingPlan, HomeHighlight, City, Neighborhood
 } from '../types';
@@ -539,11 +540,33 @@ export const trackAction = async (businessId: string, type: string) => {
 };
 
 export const redeemCoupon = async (uid: string, c: Coupon) => {
+    const record: SavingsRecord = { 
+        date: new Date().toISOString(), 
+        amount: c.originalPrice - c.discountedPrice, 
+        couponTitle: c.title, 
+        couponId: c.id,
+        companyName: c.companyName,
+        expiryDate: c.expiryDate,
+        code: c.code
+    };
+
     await updateDoc(doc(db, 'coupons', c.id), { currentRedemptions: increment(1) });
     await updateDoc(doc(db, 'users', uid), { 
-        savedAmount: increment(c.originalPrice - c.discountedPrice),
-        history: [{ date: new Date().toISOString(), amount: c.originalPrice - c.discountedPrice, couponTitle: c.title, couponId: c.id }]
+        savedAmount: increment(record.amount),
+        history: arrayUnion(record)
     });
+
+    // Update local user state if it's the current user
+    const currentUser = getCurrentUser();
+    if (currentUser && currentUser.id === uid) {
+        const updatedUser = {
+            ...currentUser,
+            savedAmount: (currentUser.savedAmount || 0) + record.amount,
+            history: [...(currentUser.history || []), record]
+        };
+        localStorage.setItem(SESSION_KEY, JSON.stringify(updatedUser));
+        notifyListeners();
+    }
 };
 
 export const createAdminPlace = async (data: Partial<BusinessProfile>) => {

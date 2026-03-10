@@ -62,8 +62,12 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
                 <p className="text-slate-500 text-lg mb-2 leading-relaxed">
                     Seu cupom foi confirmado.
                 </p>
-                <div className="bg-green-50 border border-green-100 p-4 rounded-2xl mb-8">
+                <div className="bg-green-50 border border-green-100 p-6 rounded-2xl mb-8 space-y-3">
                     <p className="text-green-800 font-bold text-sm">Economia de R$ {(coupon.originalPrice - coupon.discountedPrice).toFixed(2)} adicionada à sua carteira!</p>
+                    <div className="h-px bg-green-200 w-full" />
+                    <p className="text-green-700 text-xs font-medium">
+                        O comprovante já está disponível no seu <strong>Perfil</strong> e ficará visível por 24 horas.
+                    </p>
                 </div>
                 <button 
                     onClick={onClose}

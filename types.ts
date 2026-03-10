@@ -174,6 +174,22 @@ export interface AppConfig {
     logoUrl?: string;
     loginLogoUrl?: string;
     faviconUrl?: string;
+    defaultCityId?: string;
+}
+
+export interface City {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
+export interface Neighborhood {
+  id: string;
+  cityId: string;
+  name: string;
+  active: boolean;
+  lat?: number;
+  lng?: number;
 }
 
 export interface MenuItem {

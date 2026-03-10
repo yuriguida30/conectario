@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight } from '../services/dataService';
+import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood } from '../types';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
@@ -16,7 +16,7 @@ import { LocationPicker } from '../components/LocationPicker';
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -27,6 +27,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const [requests, setRequests] = useState<CompanyRequest[]>([]);
   const [plans, setPlans] = useState<PricingPlan[]>([]);
   const [highlights, setHighlights] = useState<HomeHighlight[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>([]);
 
   const [editBusiness, setEditBusiness] = useState<Partial<BusinessProfile>>({});
   const [newPassword, setNewPassword] = useState('');
@@ -85,6 +87,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
         setRequests(allRequests.filter(r => r.status === 'PENDING'));
         setPlans(getPricingPlans());
         setHighlights(getAllHomeHighlights());
+        setCities(getCities());
+        setNeighborhoods(getNeighborhoods());
     }
     setLoading(false);
   };
@@ -293,6 +297,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                             onClick={() => setView('HIGHLIGHTS')} 
                             className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'HIGHLIGHTS' ? 'bg-pink-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-pink-600 shadow-sm'}`}>
                             <Layout size={18} /> DESTAQUES
+                        </button>
+                        <button 
+                            onClick={() => setView('LOCATIONS')} 
+                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'LOCATIONS' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-emerald-600 shadow-sm'}`}>
+                            <MapPin size={18} /> LOCAIS
                         </button>
                     </>
                 ) : (
@@ -1426,6 +1435,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
             onRefresh={refreshData} 
           />
       )}
+      {view === 'LOCATIONS' && currentUser.role === UserRole.SUPER_ADMIN && (
+          <LocationsManager 
+            cities={cities}
+            neighborhoods={neighborhoods}
+            onBack={() => setView('HOME')} 
+            onRefresh={refreshData} 
+          />
+      )}
     </div>
   );
 };
@@ -1595,6 +1612,150 @@ const HighlightsManager: React.FC<{ highlights: HomeHighlight[]; onBack: () => v
                                 >
                                     {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} SALVAR DESTAQUE
                                 </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const LocationsManager: React.FC<{ cities: City[]; neighborhoods: Neighborhood[]; onBack: () => void; onRefresh: () => void }> = ({ cities, neighborhoods, onBack, onRefresh }) => {
+    const [isSaving, setIsSaving] = useState(false);
+    const [editingCity, setEditingCity] = useState<Partial<City> | null>(null);
+    const [editingNeighborhood, setEditingNeighborhood] = useState<Partial<Neighborhood> | null>(null);
+
+    const handleSaveCity = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingCity) return;
+        setIsSaving(true);
+        try {
+            await saveCity(editingCity as City);
+            alert("Cidade salva com sucesso!");
+            setEditingCity(null);
+            onRefresh();
+        } catch (err) {
+            alert("Erro ao salvar cidade.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleSaveNeighborhood = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingNeighborhood) return;
+        setIsSaving(true);
+        try {
+            await saveNeighborhood(editingNeighborhood as Neighborhood);
+            alert("Bairro salvo com sucesso!");
+            setEditingNeighborhood(null);
+            onRefresh();
+        } catch (err) {
+            alert("Erro ao salvar bairro.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDeleteCity = async (id: string) => {
+        if (confirm("Deseja excluir esta cidade?")) {
+            await deleteCity(id);
+            onRefresh();
+        }
+    };
+
+    const handleDeleteNeighborhood = async (id: string) => {
+        if (confirm("Deseja excluir este bairro?")) {
+            await deleteNeighborhood(id);
+            onRefresh();
+        }
+    };
+
+    return (
+        <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+            <div className="flex justify-between items-center">
+                <button onClick={onBack} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                    <ChevronLeft size={16} /> Voltar
+                </button>
+                <div className="flex gap-4">
+                    <button 
+                        onClick={() => setEditingCity({ name: '', active: true })}
+                        className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg flex items-center gap-2"
+                    >
+                        <Plus size={18} /> NOVA CIDADE
+                    </button>
+                    <button 
+                        onClick={() => setEditingNeighborhood({ name: '', cityId: '', active: true })}
+                        className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg flex items-center gap-2"
+                    >
+                        <Plus size={18} /> NOVO BAIRRO
+                    </button>
+                </div>
+            </div>
+
+            <div className="space-y-6">
+                <h2 className="text-3xl font-black text-ocean-950">Locais</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 className="text-xl font-black text-ocean-950 mb-4">Cidades</h3>
+                        <div className="space-y-4">
+                            {cities.map(c => (
+                                <div key={c.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                                    <span className="font-bold">{c.name}</span>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setEditingCity(c)} className="text-ocean-600 font-black text-[10px] uppercase hover:underline">Editar</button>
+                                        <button onClick={() => handleDeleteCity(c.id)} className="text-red-500 font-black text-[10px] uppercase hover:underline">Excluir</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="text-xl font-black text-ocean-950 mb-4">Bairros</h3>
+                        <div className="space-y-4">
+                            {neighborhoods.map(n => (
+                                <div key={n.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex justify-between items-center">
+                                    <span className="font-bold">{n.name} <span className="text-slate-400 text-xs">({cities.find(c => c.id === n.cityId)?.name})</span></span>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setEditingNeighborhood(n)} className="text-ocean-600 font-black text-[10px] uppercase hover:underline">Editar</button>
+                                        <button onClick={() => handleDeleteNeighborhood(n.id)} className="text-red-500 font-black text-[10px] uppercase hover:underline">Excluir</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Modals for editing city/neighborhood */}
+            {editingCity && (
+                <div className="fixed inset-0 bg-ocean-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 space-y-6">
+                        <h3 className="text-xl font-black text-ocean-950">Configurar Cidade</h3>
+                        <form onSubmit={handleSaveCity} className="space-y-4">
+                            <input required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm" placeholder="Nome da Cidade" value={editingCity.name} onChange={e => setEditingCity({...editingCity, name: e.target.value})} />
+                            <div className="flex gap-4">
+                                <button type="button" onClick={() => setEditingCity(null)} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-slate-500 bg-slate-100">CANCELAR</button>
+                                <button type="submit" disabled={isSaving} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-white bg-emerald-600">SALVAR</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {editingNeighborhood && (
+                <div className="fixed inset-0 bg-ocean-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 space-y-6">
+                        <h3 className="text-xl font-black text-ocean-950">Configurar Bairro</h3>
+                        <form onSubmit={handleSaveNeighborhood} className="space-y-4">
+                            <input required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm" placeholder="Nome do Bairro" value={editingNeighborhood.name} onChange={e => setEditingNeighborhood({...editingNeighborhood, name: e.target.value})} />
+                            <select required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm" value={editingNeighborhood.cityId} onChange={e => setEditingNeighborhood({...editingNeighborhood, cityId: e.target.value})}>
+                                <option value="">Selecione a Cidade</option>
+                                {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                            <div className="flex gap-4">
+                                <button type="button" onClick={() => setEditingNeighborhood(null)} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-slate-500 bg-slate-100">CANCELAR</button>
+                                <button type="submit" disabled={isSaving} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-white bg-emerald-600">SALVAR</button>
                             </div>
                         </form>
                     </div>

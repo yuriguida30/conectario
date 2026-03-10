@@ -25,7 +25,7 @@ import { auth, db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, 
     CompanyRequest, AppCategory, DEFAULT_CATEGORIES, 
-    DEFAULT_AMENITIES, AppConfig, Collection, BusinessPlan, PricingPlan, HomeHighlight
+    DEFAULT_AMENITIES, AppConfig, Collection, BusinessPlan, PricingPlan, HomeHighlight, City, Neighborhood
 } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
@@ -38,6 +38,8 @@ let _categories: AppCategory[] = [];
 let _requests: CompanyRequest[] = [];
 let _plans: PricingPlan[] = [];
 let _highlights: HomeHighlight[] = [];
+let _cities: City[] = [];
+let _neighborhoods: Neighborhood[] = [];
 let _isInitialized = false;
 
 const _collections: Collection[] = [];
@@ -119,6 +121,16 @@ export const initFirebaseData = () => {
 
     onSnapshot(collection(db, 'home_highlights'), (snapshot) => {
         _highlights = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as HomeHighlight)).sort((a, b) => a.order - b.order);
+        notifyListeners();
+    });
+
+    onSnapshot(collection(db, 'cities'), (snapshot) => {
+        _cities = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as City));
+        notifyListeners();
+    });
+
+    onSnapshot(collection(db, 'neighborhoods'), (snapshot) => {
+        _neighborhoods = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Neighborhood));
         notifyListeners();
     });
 };
@@ -381,6 +393,27 @@ export const saveHomeHighlight = async (h: Partial<HomeHighlight>) => {
 
 export const deleteHomeHighlight = async (id: string) => {
     await deleteDoc(doc(db, 'home_highlights', id));
+};
+
+export const getCities = () => _cities;
+export const getNeighborhoods = () => _neighborhoods;
+
+export const saveCity = async (c: City) => {
+    const id = c.id || doc(collection(db, 'cities')).id;
+    await setDoc(doc(db, 'cities', id), { ...c, id }, { merge: true });
+};
+
+export const saveNeighborhood = async (n: Neighborhood) => {
+    const id = n.id || doc(collection(db, 'neighborhoods')).id;
+    await setDoc(doc(db, 'neighborhoods', id), { ...n, id }, { merge: true });
+};
+
+export const deleteCity = async (id: string) => {
+    await deleteDoc(doc(db, 'cities', id));
+};
+
+export const deleteNeighborhood = async (id: string) => {
+    await deleteDoc(doc(db, 'neighborhoods', id));
 };
 
 export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {

@@ -581,6 +581,24 @@ export const updateClaimableStatus = async (id: string, canBeClaimed: boolean) =
     notifyListeners();
 };
 
+export const updateBusinessPlan = async (businessId: string, planId: string) => {
+    const plan = _plans.find(p => p.id === planId);
+    const updates: any = { 
+        plan: planId,
+        isFeatured: plan ? plan.isFeatured : false
+    };
+    
+    await updateDoc(doc(db, 'businesses', businessId), updates);
+    
+    const biz = _businesses.find(b => b.id === businessId);
+    if (biz) {
+        biz.plan = planId as any;
+        biz.isFeatured = plan ? plan.isFeatured : false;
+    }
+    
+    notifyListeners();
+};
+
 export const registerUser = async (name: string, email: string, pass: string): Promise<User> => {
     const res = await createUserWithEmailAndPassword(auth, email, pass);
     const newUser: User = { id: res.user.uid, name, email, role: UserRole.CUSTOMER, favorites: { coupons: [], businesses: [] }, history: [], savedAmount: 0 };

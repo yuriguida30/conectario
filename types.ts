@@ -46,7 +46,7 @@ export interface User {
   category?: string;
   phone?: string;
   maxCoupons?: number;
-  plan?: BusinessPlan;
+  plan?: BusinessPlan | string;
   permissions?: UserPermissions;
   isBlocked?: boolean;
   manualPassword?: string;
@@ -92,7 +92,7 @@ export interface BusinessProfile {
   isClaimed?: boolean;
   isBlocked?: boolean;
   canBeClaimed?: boolean;
-  plan?: BusinessPlan;
+  plan?: BusinessPlan | string;
   cityId?: string;
   neighborhoodId?: string;
 }

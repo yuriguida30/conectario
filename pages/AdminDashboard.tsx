@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
@@ -55,7 +55,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     coverImage: '',
     address: '',
     canBeClaimed: true,
-    openingHours: {}
+    openingHours: {},
+    plan: 'FREE'
   });
 
   const [newPlan, setNewPlan] = useState<Partial<PricingPlan>>({
@@ -193,7 +194,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
             coverImage: '',
             address: '',
             canBeClaimed: true,
-            openingHours: {}
+            openingHours: {},
+            plan: 'FREE'
         });
         refreshData();
     } catch (err) {
@@ -1096,6 +1098,27 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                             {biz.canBeClaimed ? 'REIVINDICÁVEL' : 'NÃO REIVINDICÁVEL'}
                         </button>
 
+                        <div className="flex-1 md:flex-none flex items-center gap-2 bg-white border border-slate-200 px-3 py-2 rounded-xl">
+                            <span className="text-[9px] font-black text-slate-400 uppercase">Plano:</span>
+                            <select 
+                                className="bg-transparent text-[10px] font-black text-ocean-600 outline-none cursor-pointer"
+                                value={biz.plan || 'FREE'}
+                                onChange={async (e) => {
+                                    const newPlanId = e.target.value;
+                                    if (confirm(`Deseja alterar o plano de "${biz.name}" para "${newPlanId}"?`)) {
+                                        await updateBusinessPlan(biz.id, newPlanId);
+                                        refreshData();
+                                    }
+                                }}
+                            >
+                                <option value="FREE">FREE</option>
+                                <option value="PREMIUM">PREMIUM</option>
+                                {plans.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
                         <button 
                             onClick={async () => {
                                 const pass = prompt(`Definir nova senha manual para "${biz.name}":`);
@@ -1219,6 +1242,29 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                     {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                                 </select>
                             </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Plano Inicial</label>
+                                <select 
+                                    className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
+                                    value={newPlace.plan || 'FREE'}
+                                    onChange={e => {
+                                        const planId = e.target.value;
+                                        const plan = plans.find(p => p.id === planId);
+                                        setNewPlace({
+                                            ...newPlace, 
+                                            plan: planId,
+                                            isFeatured: plan ? plan.isFeatured : false
+                                        });
+                                    }}
+                                >
+                                    <option value="FREE">FREE</option>
+                                    <option value="PREMIUM">PREMIUM</option>
+                                    {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Permitir Reivindicação?</label>
                                 <select 

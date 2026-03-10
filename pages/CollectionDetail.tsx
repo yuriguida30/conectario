@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { Collection, BusinessProfile } from '../types';
-import { getCollectionById, getBusinessById } from '../services/dataService';
-import { ArrowLeft, Star, Heart } from 'lucide-react';
+import { getCollectionById, getBusinessById, checkIfOpen } from '../services/dataService';
+import { ArrowLeft, Star, Heart, Clock } from 'lucide-react';
 import { toggleFavorite, getCurrentUser } from '../services/dataService';
 
 interface CollectionDetailProps {
@@ -84,11 +84,23 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
                             <div className="h-48 w-full relative shrink-0">
                                 <img src={biz.coverImage} className="w-full h-full object-cover" alt={biz.name} />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
-                                {biz.isOpenNow ? (
-                                    <span className="absolute top-2 left-2 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded">ABERTO</span>
-                                ) : (
-                                    <span className="absolute top-2 left-2 bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded">FECHADO</span>
-                                )}
+                                {(() => {
+                                    const isOpen = checkIfOpen(biz.openingHours);
+                                    const today = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][new Date().getDay()];
+                                    const todayHours = biz.openingHours[today] || 'Fechado';
+                                    return (
+                                        <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm ${isOpen ? 'bg-green-500' : 'bg-red-500'}`}>
+                                                {isOpen ? 'ABERTO AGORA' : 'FECHADO'}
+                                            </span>
+                                            {isOpen && (
+                                                <span className="bg-black/50 backdrop-blur-md text-white text-[8px] font-black px-2 py-0.5 rounded shadow-sm uppercase tracking-tighter">
+                                                    Hoje: {todayHours}
+                                                </span>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                                 
                                 <button 
                                     onClick={(e) => handleToggleFavorite(e, biz.id)}

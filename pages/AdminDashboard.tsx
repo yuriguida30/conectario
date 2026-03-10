@@ -77,18 +77,19 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     const biz = getAllBusinesses().find(b => b.id === currentUser.id);
     if (biz) {
         setMyBusiness(biz);
-        setEditBusiness(biz);
+        setEditBusiness(prev => Object.keys(prev).length === 0 ? biz : prev);
     }
     const s = await getBusinessStats(currentUser.id);
     setStats(s);
     setCategories(getCategories());
+    setCities(getCities());
+    setNeighborhoods(getNeighborhoods());
+    
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         const allRequests = getCompanyRequests();
         setRequests(allRequests.filter(r => r.status === 'PENDING'));
         setPlans(getPricingPlans());
         setHighlights(getAllHomeHighlights());
-        setCities(getCities());
-        setNeighborhoods(getNeighborhoods());
     }
     setLoading(false);
   };

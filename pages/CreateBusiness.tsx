@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, UserRole, BusinessProfile, BusinessPlan } from '../types';
-import { getCategories, saveBusiness, updateUser } from '../services/dataService';
+import { getCategories, saveBusiness, updateUser, getCities, getNeighborhoods } from '../services/dataService';
 import { Store, ArrowLeft, Loader2, CheckCircle2, Camera, MapPin, Phone, Info } from 'lucide-react';
 
 interface CreateBusinessProps {
@@ -12,13 +12,25 @@ interface CreateBusinessProps {
 export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onNavigate }) => {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [, setTick] = useState(0);
+
+    useEffect(() => {
+        const handleUpdate = () => setTick(t => t + 1);
+        window.addEventListener('dataUpdated', handleUpdate);
+        return () => window.removeEventListener('dataUpdated', handleUpdate);
+    }, []);
+
     const categories = getCategories();
+    const cities = getCities();
+    const neighborhoods = getNeighborhoods();
 
     const [formData, setFormData] = useState({
         name: '',
         category: 'Gastronomia',
         description: '',
         address: '',
+        cityId: '',
+        neighborhoodId: '',
         phone: currentUser.phone || '',
         coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200'
     });
@@ -38,6 +50,8 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                 coverImage: formData.coverImage,
                 gallery: [],
                 address: formData.address,
+                cityId: formData.cityId,
+                neighborhoodId: formData.neighborhoodId,
                 phone: formData.phone,
                 amenities: [],
                 openingHours: {},
@@ -141,12 +155,34 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Endereço Completo</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Localização</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                    <select 
+                                        required
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
+                                        value={formData.cityId}
+                                        onChange={e => setFormData({...formData, cityId: e.target.value, neighborhoodId: ''})}
+                                    >
+                                        <option value="">Selecione a Cidade</option>
+                                        {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                    <select 
+                                        required
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
+                                        value={formData.neighborhoodId}
+                                        onChange={e => setFormData({...formData, neighborhoodId: e.target.value})}
+                                        disabled={!formData.cityId}
+                                    >
+                                        <option value="">Selecione o Bairro</option>
+                                        {neighborhoods.filter(n => n.cityId === formData.cityId).map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+                                    </select>
+                                </div>
                                 <div className="relative">
                                     <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
                                     <input 
+                                        required
                                         className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
-                                        placeholder="Rua, Número, Bairro, Cidade"
+                                        placeholder="Rua, Número, Complemento"
                                         value={formData.address}
                                         onChange={e => setFormData({...formData, address: e.target.value})}
                                     />

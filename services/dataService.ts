@@ -124,14 +124,26 @@ export const initFirebaseData = () => {
         notifyListeners();
     });
 
-    onSnapshot(collection(db, 'cities'), (snapshot) => {
-        _cities = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as City));
-        notifyListeners();
+    onSnapshot(collection(db, 'cities'), async (snapshot) => {
+        if (snapshot.empty) {
+            const cityId = doc(collection(db, 'cities')).id;
+            const newCity: City = { id: cityId, name: 'Rio de Janeiro', active: true };
+            await setDoc(doc(db, 'cities', cityId), newCity);
+            
+            const nId = doc(collection(db, 'neighborhoods')).id;
+            const newN: Neighborhood = { id: nId, cityId, name: 'Centro', active: true };
+            await setDoc(doc(db, 'neighborhoods', nId), newN);
+        } else {
+            _cities = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as City));
+            notifyListeners();
+        }
     });
 
     onSnapshot(collection(db, 'neighborhoods'), (snapshot) => {
-        _neighborhoods = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Neighborhood));
-        notifyListeners();
+        if (!snapshot.empty) {
+            _neighborhoods = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Neighborhood));
+            notifyListeners();
+        }
     });
 };
 

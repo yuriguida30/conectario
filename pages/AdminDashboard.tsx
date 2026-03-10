@@ -12,6 +12,7 @@ import {
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
 import { LocationPicker } from '../components/LocationPicker';
+import { BusinessHoursEditor } from '../components/BusinessHoursEditor';
 
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
@@ -767,23 +768,10 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                               <h3 className="font-black text-ocean-950 text-sm flex items-center gap-2 mb-6">
                                 <Clock size={18} className="text-ocean-600" /> Horário de Funcionamento
                               </h3>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map(day => (
-                                      <div key={day} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                          <span className="text-[10px] font-black text-slate-400 uppercase w-16">{day}</span>
-                                          <input 
-                                            className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none"
-                                            placeholder="Ex: 09:00 - 18:00 ou Fechado"
-                                            value={editBusiness.openingHours?.[day] || ''}
-                                            onChange={e => {
-                                                const newHours = { ...(editBusiness.openingHours || {}) };
-                                                newHours[day] = e.target.value;
-                                                setEditBusiness({ ...editBusiness, openingHours: newHours });
-                                            }}
-                                          />
-                                      </div>
-                                  ))}
-                              </div>
+                              <BusinessHoursEditor 
+                                hours={editBusiness.openingHours || {}} 
+                                onChange={newHours => setEditBusiness({ ...editBusiness, openingHours: newHours })} 
+                              />
                           </div>
 
                           <div className="pt-8 border-t border-slate-100">

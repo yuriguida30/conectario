@@ -100,7 +100,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
         setCurrentLocationName('Todas as Regiões');
     }
     
-    if (onlyOpen) result = result.filter(b => b.isOpenNow);
+    if (onlyOpen) result = result.filter(b => checkIfOpen(b.openingHours));
     
     if (selectedAmenities && selectedAmenities.length > 0) {
         result = result.filter(b => selectedAmenities.every(sa => (b.amenities || []).includes(sa)));
@@ -265,9 +265,23 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                       <button onClick={(e) => handleToggleFavorite(e, business.id)} className="absolute top-2 right-2 p-2 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm z-20">
                          <Heart size={16} className={favorites.includes(business.id) ? 'fill-red-500 text-red-500' : 'text-white'} />
                       </button>
-                      <span className={`absolute bottom-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold text-white ${business.isOpenNow ? 'bg-green-500' : 'bg-red-500'}`}>
-                          {business.isOpenNow ? 'ABERTO' : 'FECHADO'}
-                      </span>
+                      {(() => {
+                          const isOpen = checkIfOpen(business.openingHours);
+                          const today = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][new Date().getDay()];
+                          const todayHours = business.openingHours[today] || 'Fechado';
+                          return (
+                            <div className="absolute bottom-2 left-2 flex flex-col gap-1 items-start">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm ${isOpen ? 'bg-green-500' : 'bg-red-500'}`}>
+                                    {isOpen ? 'ABERTO AGORA' : 'FECHADO'}
+                                </span>
+                                {isOpen && (
+                                    <span className="bg-black/50 backdrop-blur-md text-white text-[8px] font-black px-2 py-0.5 rounded shadow-sm uppercase tracking-tighter">
+                                        Hoje: {todayHours}
+                                    </span>
+                                )}
+                            </div>
+                          );
+                      })()}
                   </div>
                   <div className="p-4 flex-1 flex flex-col">
                       <div className="flex justify-between items-start mb-1">

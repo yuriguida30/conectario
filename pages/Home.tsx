@@ -379,10 +379,19 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                                         <Star size={10} className="text-gold-500 fill-gold-500" />
                                         <span className="text-xs font-bold text-slate-700">{biz.rating}</span>
                                     </div>
-                                    {checkIfOpen(biz.openingHours) ? 
-                                        <span className="text-[10px] text-green-600 font-bold">Aberto</span> : 
-                                        <span className="text-[10px] text-red-600 font-bold">Fechado</span>
-                                    }
+                                    {(() => {
+                                        const isOpen = checkIfOpen(biz.openingHours);
+                                        const today = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][new Date().getDay()];
+                                        const todayHours = biz.openingHours[today] || 'Fechado';
+                                        return (
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-[10px] font-bold ${isOpen ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {isOpen ? 'Aberto' : 'Fechado'}
+                                                </span>
+                                                {isOpen && <span className="text-[9px] text-slate-400 font-medium">• {todayHours}</span>}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                             <div className="h-full flex items-center justify-center pr-2">

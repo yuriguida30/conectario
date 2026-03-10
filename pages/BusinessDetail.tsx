@@ -196,12 +196,19 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             <div className="space-y-4">
                 <h3 className="text-xl font-black text-ocean-950 flex items-center gap-2"><Clock size={20} className="text-ocean-600"/> Horário de Funcionamento</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                    {Object.entries(business.openingHours).map(([day, hours]) => (
-                        <div key={day} className="text-sm">
-                            <p className="font-bold text-slate-700">{day}</p>
-                            <p className="text-slate-500">{hours}</p>
-                        </div>
-                    ))}
+                    {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map(day => {
+                        const hours = business.openingHours[day] || 'Fechado';
+                        const isToday = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][new Date().getDay()] === day;
+                        return (
+                            <div key={day} className={`p-3 rounded-xl transition-all ${isToday ? 'bg-white shadow-sm border border-ocean-100 ring-1 ring-ocean-500/20' : ''}`}>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <p className={`font-black text-[10px] uppercase tracking-wider ${isToday ? 'text-ocean-600' : 'text-slate-400'}`}>{day}</p>
+                                    {isToday && <span className="w-1.5 h-1.5 rounded-full bg-ocean-500 animate-pulse" />}
+                                </div>
+                                <p className={`text-sm font-bold ${isToday ? 'text-ocean-950' : 'text-slate-600'}`}>{hours}</p>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 

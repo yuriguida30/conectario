@@ -676,21 +676,27 @@ export const checkIfOpen = (openingHours: { [key: string]: string }): boolean =>
         return true;
     }
 
-    const match = hoursString.match(/(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})/);
-    
-    if (!match) return false; 
-
-    const [, startHour, startMinute, endHour, endMinute] = match.map(Number);
-    
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
-    const startMinutes = startHour * 60 + startMinute;
-    const endMinutes = endHour * 60 + endMinute;
+    const ranges = hoursString.split(',').map(r => r.trim());
 
-    if (endMinutes < startMinutes) { // Handles overnight hours like 22:00 - 02:00
-        return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
+    for (const range of ranges) {
+        const match = range.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+        
+        if (!match) continue; 
+
+        const [, startHour, startMinute, endHour, endMinute] = match.map(Number);
+        
+        const startMinutes = startHour * 60 + startMinute;
+        const endMinutes = endHour * 60 + endMinute;
+
+        if (endMinutes < startMinutes) { // Handles overnight hours like 22:00 - 02:00
+            if (currentMinutes >= startMinutes || currentMinutes <= endMinutes) return true;
+        } else {
+            if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) return true;
+        }
     }
 
-    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+    return false;
 };
 
 export const getPricingPlans = () => _plans;

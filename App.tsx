@@ -4,6 +4,7 @@ import { NavBar } from './components/NavBar';
 import { Home } from './pages/Home';
 import { UserDashboard } from './pages/UserDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { JournalistDashboard } from './pages/JournalistDashboard';
 import { SearchPage } from './pages/Search';
 import { BusinessGuide } from './pages/BusinessGuide';
 import { BusinessDetail } from './pages/BusinessDetail';
@@ -41,6 +42,7 @@ const parseUrl = (): { page: string; params: any } => {
     case '/login': return { page: 'login', params: null };
     case '/user-dashboard': return { page: 'user-dashboard', params: null };
     case '/admin-dashboard': return { page: 'admin-dashboard', params: null };
+    case '/journalist-dashboard': return { page: 'journalist-dashboard', params: null };
     case '/create-business': return { page: 'create-business', params: null };
     case '/pricing-plans': return { page: 'pricing-plans', params: null };
     default: return { page: 'home', params: null };
@@ -59,6 +61,7 @@ const buildUrl = (page: string, params?: any): string => {
     case 'login': return '/login';
     case 'user-dashboard': return '/user-dashboard';
     case 'admin-dashboard': return '/admin-dashboard';
+    case 'journalist-dashboard': return '/journalist-dashboard';
     case 'create-business': return '/create-business';
     case 'pricing-plans': return '/pricing-plans';
     case 'business-detail': return `/business/${params?.businessId}`;
@@ -121,6 +124,8 @@ export default function App() {
     setUser(u);
     if (u?.role === UserRole.COMPANY || u?.role === UserRole.SUPER_ADMIN) {
       handleNavigate('admin-dashboard');
+    } else if (u?.role === UserRole.JOURNALIST) {
+      handleNavigate('journalist-dashboard');
     } else {
       handleNavigate('home');
     }
@@ -158,6 +163,8 @@ export default function App() {
         return user ? <UserDashboard currentUser={user} onLogout={handleLogout} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
       case 'admin-dashboard':
         return user && (user.role === UserRole.COMPANY || user.role === UserRole.SUPER_ADMIN) ? <AdminDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
+      case 'journalist-dashboard':
+        return user && user.role === UserRole.JOURNALIST ? <JournalistDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
       case 'create-business':
         return user && user.permissions?.canCreateBusiness ? <CreateBusiness currentUser={user} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
       case 'pricing-plans':

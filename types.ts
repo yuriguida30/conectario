@@ -4,6 +4,7 @@ export enum UserRole {
   COMPANY = 'COMPANY',
   SUPER_ADMIN = 'SUPER_ADMIN',
   CONTENT_CREATOR = 'CONTENT_CREATOR',
+  JOURNALIST = 'JOURNALIST',
 }
 
 export interface PricingPlan {
@@ -225,6 +226,10 @@ export interface BlogPost {
   date: string;
   author: string;
   authorId?: string;
+  tags?: string[];
+  metaDescription?: string;
+  metaKeywords?: string;
+  status?: 'draft' | 'published';
 }
 
 export interface Collection {

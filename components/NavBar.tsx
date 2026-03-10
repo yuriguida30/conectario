@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Home, Ticket, User, Gem, Compass, BookOpen, ShieldCheck } from 'lucide-react';
+import { Home, Ticket, User, Gem, Compass, BookOpen, ShieldCheck, PenTool } from 'lucide-react';
 import { User as UserType, UserRole, AppConfig } from '../types';
 import { getAppConfig, getCoupons } from '../services/dataService';
 
@@ -98,6 +98,11 @@ export const NavBar: React.FC<NavBarProps> = ({ currentUser, onNavigate, current
             <Gem size={20} />
             <span className="text-[9px]">Empresa</span>
           </button>
+      ) : currentUser?.role === UserRole.JOURNALIST ? (
+          <button onClick={() => onNavigate('journalist-dashboard')} className={navItemClass('journalist-dashboard')}>
+            <PenTool size={20} />
+            <span className="text-[9px]">Jornalista</span>
+          </button>
       ) : (
           <button onClick={() => onNavigate('user-dashboard')} className={navItemClass('user-dashboard')}>
             {currentUser?.avatarUrl ? (
@@ -149,7 +154,15 @@ export const NavBar: React.FC<NavBarProps> = ({ currentUser, onNavigate, current
         <button onClick={() => onNavigate('blog')} className={`font-medium hover:text-gold-500 ${currentPage === 'blog' ? 'text-ocean-950' : 'text-slate-500'}`}>Dicas & Blog</button>
         
         {currentUser ? (
-             <button onClick={() => onNavigate('user-dashboard')} className="flex items-center gap-2 text-ocean-600 font-bold border border-ocean-100 bg-ocean-50 px-4 py-1.5 rounded-full hover:bg-ocean-100">
+             <button onClick={() => {
+                 if (currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.COMPANY) {
+                     onNavigate('admin-dashboard');
+                 } else if (currentUser.role === UserRole.JOURNALIST) {
+                     onNavigate('journalist-dashboard');
+                 } else {
+                     onNavigate('user-dashboard');
+                 }
+             }} className="flex items-center gap-2 text-ocean-600 font-bold border border-ocean-100 bg-ocean-50 px-4 py-1.5 rounded-full hover:bg-ocean-100">
                 <User size={18} />
                 <span>Perfil</span>
              </button>

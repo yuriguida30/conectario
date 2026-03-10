@@ -148,6 +148,18 @@ export const initFirebaseData = () => {
             notifyListeners();
         }
     });
+
+    onSnapshot(collection(db, 'blog_posts'), (snapshot) => {
+        const fbPosts = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BlogPost));
+        const merged = [...MOCK_POSTS];
+        fbPosts.forEach(fp => {
+            const idx = merged.findIndex(m => m.id === fp.id);
+            if (idx >= 0) merged[idx] = fp;
+            else merged.push(fp);
+        });
+        _posts = merged;
+        notifyListeners();
+    });
 };
 
 export const updateBusinessesWithLocation = async () => {
@@ -419,8 +431,27 @@ export const getAdminStats = async () => {
 export const getAppConfig = () => _appConfig;
 export const getLocations = () => [{ id: 'sepetiba', name: 'Sepetiba', active: true }, { id: 'centro', name: 'Centro', active: true }];
 export const getAmenities = () => DEFAULT_AMENITIES;
-export const getBlogPosts = () => MOCK_POSTS;
-export const getBlogPostById = (id: string) => MOCK_POSTS.find(p => p.id === id);
+let _posts: BlogPost[] = [...MOCK_POSTS];
+
+export const getBlogPosts = () => _posts;
+export const getBlogPostById = (id: string) => _posts.find(p => p.id === id);
+
+export const saveBlogPost = async (post: BlogPost) => {
+    const idx = _posts.findIndex(p => p.id === post.id);
+    if (idx >= 0) {
+        _posts[idx] = post;
+    } else {
+        _posts.push(post);
+    }
+    await setDoc(doc(db, 'blog_posts', post.id), cleanObject(post), { merge: true });
+    notifyListeners();
+};
+
+export const deleteBlogPost = async (id: string) => {
+    _posts = _posts.filter(p => p.id !== id);
+    await deleteDoc(doc(db, 'blog_posts', id));
+    notifyListeners();
+};
 export const getCollections = (): Collection[] => _collections;
 
 // Fix: Added missing getCollectionById function export to resolve the import error in CollectionDetail.tsx
@@ -627,6 +658,25 @@ export const registerUser = async (name: string, email: string, pass: string): P
     const newUser: User = { id: res.user.uid, name, email, role: UserRole.CUSTOMER, favorites: { coupons: [], businesses: [] }, history: [], savedAmount: 0 };
     await setDoc(doc(db, 'users', newUser.id), cleanObject(newUser));
     localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
+    notifyListeners();
+    return newUser;
+};
+
+export const createJournalistUser = async (name: string, email: string, pass: string): Promise<User> => {
+    // To avoid logging out the current admin, we use a secondary app instance
+    const { initializeApp } = await import('firebase/app');
+    const { getAuth, createUserWithEmailAndPassword } = await import('firebase/auth');
+    
+    const secondaryApp = initializeApp(auth.app.options, 'SecondaryApp');
+    const secondaryAuth = getAuth(secondaryApp);
+    
+    const res = await createUserWithEmailAndPassword(secondaryAuth, email, pass);
+    const newUser: User = { id: res.user.uid, name, email, role: UserRole.JOURNALIST, favorites: { coupons: [], businesses: [] }, history: [], savedAmount: 0 };
+    await setDoc(doc(db, 'users', newUser.id), cleanObject(newUser));
+    
+    // Sign out the secondary app and delete it to clean up
+    await secondaryAuth.signOut();
+    
     notifyListeners();
     return newUser;
 };

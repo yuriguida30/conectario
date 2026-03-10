@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { 
   ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, 
   MessageCircle, Share2, Loader2, Ticket, 
-  Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2, Bike
+  Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2, ShoppingBag
 } from 'lucide-react';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, PricingPlan } from '../types';
 import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest, getPricingPlans } from '../services/dataService';
@@ -95,8 +95,8 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                 <h1 className="text-4xl font-black text-ocean-950 mb-1 drop-shadow-sm flex items-center gap-3">
                     {business.name}
                     {business.deliveryUrl && (
-                        <span title="Delivery Disponível" className="bg-ocean-50 p-2 rounded-full shrink-0 shadow-sm">
-                            <Bike size={20} className="text-ocean-600" />
+                        <span title="Delivery Disponível" className="bg-ocean-50 text-ocean-600 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shrink-0 shadow-sm">
+                            Tem Entrega
                         </span>
                     )}
                 </h1>

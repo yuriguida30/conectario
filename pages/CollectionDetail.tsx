@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Collection, BusinessProfile } from '../types';
 import { getCollectionById, getBusinessById, checkIfOpen } from '../services/dataService';
-import { ArrowLeft, Star, Heart, Clock, Bike } from 'lucide-react';
+import { ArrowLeft, Star, Heart, Clock, ShoppingBag } from 'lucide-react';
 import { toggleFavorite, getCurrentUser } from '../services/dataService';
 
 interface CollectionDetailProps {
@@ -115,8 +115,8 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
                                         <h3 className="text-lg font-bold text-ocean-900 line-clamp-1 flex items-center gap-2">
                                             {typeof biz.name === 'string' ? biz.name : 'Nome indisponível'}
                                             {biz.deliveryUrl && (
-                                                <span title="Delivery Disponível" className="bg-ocean-50 p-1 rounded-full shrink-0">
-                                                    <Bike size={14} className="text-ocean-600" />
+                                                <span title="Delivery Disponível" className="bg-ocean-50 text-ocean-600 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0">
+                                                    Tem Entrega
                                                 </span>
                                             )}
                                         </h3>

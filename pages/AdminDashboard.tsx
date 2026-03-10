@@ -7,7 +7,7 @@ import {
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers, Zap,
-  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, Bike
+  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -1063,8 +1063,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                 <h3 className="font-black text-lg text-ocean-950 flex items-center gap-2">
                                     {biz.name}
                                     {biz.deliveryUrl && (
-                                        <span title="Delivery Disponível" className="bg-ocean-100 p-1 rounded-full shrink-0">
-                                            <Bike size={12} className="text-ocean-600" />
+                                        <span title="Delivery Disponível" className="bg-ocean-100 text-ocean-600 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0">
+                                            Tem Entrega
                                         </span>
                                     )}
                                 </h3>

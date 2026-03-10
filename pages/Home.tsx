@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, ChevronDown, ChevronRight, Gem, ArrowRight, Loader2, Utensils, Bed, Anchor, ShoppingBag, Star, Calendar, Map, Layers, Bike } from 'lucide-react';
+import { MapPin, ChevronDown, ChevronRight, Gem, ArrowRight, Loader2, Utensils, Bed, Anchor, ShoppingBag, Star, Calendar, Map, Layers } from 'lucide-react';
 import { Coupon, User, AppCategory, BusinessProfile, BlogPost, Collection, FeaturedConfig, HomeHighlight } from '../types';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
@@ -375,8 +375,8 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                                 <h4 className="font-bold text-ocean-950 truncate flex items-center gap-2">
                                     {biz.name}
                                     {biz.deliveryUrl && (
-                                        <span title="Delivery Disponível" className="bg-ocean-50 p-1 rounded-full shrink-0">
-                                            <Bike size={12} className="text-ocean-600" />
+                                        <span title="Delivery Disponível" className="bg-ocean-50 text-ocean-600 px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0">
+                                            Tem Entrega
                                         </span>
                                     )}
                                 </h4>

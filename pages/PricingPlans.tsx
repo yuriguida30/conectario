@@ -5,7 +5,7 @@ import { getPricingPlans, updateUser } from '../services/dataService';
 import { Check, ArrowRight, Star, Shield, Zap, Loader2 } from 'lucide-react';
 
 interface PricingPlansProps {
-    currentUser: User;
+    currentUser: User | null;
     onNavigate: (page: string) => void;
 }
 
@@ -28,6 +28,10 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
     }, []);
 
     const handleSelectPlan = async (plan: PricingPlan) => {
+        if (!currentUser) {
+            onNavigate('login');
+            return;
+        }
         setSelecting(plan.id);
         try {
             // In a real app, this would redirect to a payment gateway

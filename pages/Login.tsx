@@ -6,9 +6,10 @@ import { Building2, User, ChevronLeft, CheckCircle2, Loader2, Instagram, Globe, 
 
 interface LoginProps {
   onLogin: () => void;
+  onNavigate?: (page: string, params?: any) => void;
 }
 
-export const Login: React.FC<LoginProps> = ({ onLogin }) => {
+export const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
   const [mode, setMode] = useState<'LOGIN' | 'REGISTER_USER' | 'REGISTER_COMPANY'>('LOGIN');
   
   // Login State
@@ -274,6 +275,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     >
                         <Building2 size={18} /> CADASTRAR MINHA EMPRESA
                     </button>
+                    <button 
+                        type="button"
+                        onClick={() => onNavigate && onNavigate('pricing-plans')}
+                        className="text-xs font-bold text-ocean-600 hover:text-ocean-700 transition-colors"
+                    >
+                        Ver Planos do Conecta Rio
+                    </button>
                 </div>
             </div>
         )}
@@ -290,7 +298,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                         <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Email</label>
                         <input type="email" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 focus:ring-4 focus:ring-ocean-500/10 outline-none font-bold text-sm" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Senha</label>
                             <input type="password" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none font-bold text-sm" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} />
@@ -339,7 +347,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 <form onSubmit={handleCompanyRegisterSubmit} className="space-y-4">
                     <div className="space-y-3">
                         <input placeholder="Nome da Empresa" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold text-sm outline-none" value={regForm.companyName} onChange={e => setRegForm({...regForm, companyName: e.target.value})} />
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <input placeholder="Responsável" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold text-sm outline-none" value={regForm.ownerName} onChange={e => setRegForm({...regForm, ownerName: e.target.value})} />
                             <input placeholder="CNPJ / CPF" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold text-sm outline-none" value={regForm.document} onChange={e => setRegForm({...regForm, document: e.target.value})} />
                         </div>

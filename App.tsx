@@ -155,15 +155,15 @@ export default function App() {
       case 'collection-detail':
         return <CollectionDetail collectionId={pageParams?.collectionId} onNavigate={handleNavigate} />;
       case 'user-dashboard':
-        return user ? <UserDashboard currentUser={user} onLogout={handleLogout} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} />;
+        return user ? <UserDashboard currentUser={user} onLogout={handleLogout} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
       case 'admin-dashboard':
-        return user && (user.role === UserRole.COMPANY || user.role === UserRole.SUPER_ADMIN) ? <AdminDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} />;
+        return user && (user.role === UserRole.COMPANY || user.role === UserRole.SUPER_ADMIN) ? <AdminDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
       case 'create-business':
-        return user && user.permissions?.canCreateBusiness ? <CreateBusiness currentUser={user} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} />;
+        return user && user.permissions?.canCreateBusiness ? <CreateBusiness currentUser={user} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
       case 'pricing-plans':
-        return user ? <PricingPlans currentUser={user} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} />;
+        return <PricingPlans currentUser={user} onNavigate={handleNavigate} />;
       case 'login':
-        return <Login onLogin={handleLoginSuccess} />;
+        return <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
       case 'map': 
          return <MapPage />;
       case 'subscribe':

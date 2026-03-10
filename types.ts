@@ -34,6 +34,7 @@ export interface User {
   plan?: BusinessPlan;
   permissions?: UserPermissions;
   isBlocked?: boolean;
+  manualPassword?: string;
   profession?: string;
   bio?: string;
   instagram?: string;

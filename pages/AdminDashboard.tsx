@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers,
-  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX
+  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -27,6 +27,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const [requests, setRequests] = useState<CompanyRequest[]>([]);
 
   const [editBusiness, setEditBusiness] = useState<Partial<BusinessProfile>>({});
+  const [newPassword, setNewPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const [newCoupon, setNewCoupon] = useState<Partial<Coupon>>({
     title: '',
@@ -453,6 +455,48 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                   </select>
                               </div>
 
+                              <div className="col-span-full pt-6 border-t border-slate-100">
+                                  <div className="flex items-center gap-2 mb-4">
+                                      <Lock size={18} className="text-ocean-600" />
+                                      <h3 className="text-sm font-black text-ocean-950 uppercase tracking-widest">Segurança da Conta</h3>
+                                  </div>
+                                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col md:flex-row items-end gap-4">
+                                      <div className="flex-1 w-full">
+                                          <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 ml-1">Nova Senha de Acesso</label>
+                                          <input 
+                                            type="password"
+                                            placeholder="Digite a nova senha"
+                                            className="w-full bg-white p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
+                                            value={newPassword}
+                                            onChange={e => setNewPassword(e.target.value)}
+                                          />
+                                      </div>
+                                      <button 
+                                        type="button"
+                                        disabled={!newPassword || isChangingPassword}
+                                        onClick={async () => {
+                                            if (!confirm("Deseja alterar sua senha de acesso?")) return;
+                                            setIsChangingPassword(true);
+                                            try {
+                                                await setManualPassword(currentUser.id, newPassword);
+                                                alert("Senha alterada com sucesso! Use a nova senha no próximo login.");
+                                                setNewPassword('');
+                                            } catch (err) {
+                                                alert("Erro ao alterar senha.");
+                                            } finally {
+                                                setIsChangingPassword(false);
+                                            }
+                                        }}
+                                        className="bg-ocean-600 text-white px-6 py-4 rounded-xl font-black text-[10px] uppercase shadow-lg shadow-ocean-600/20 hover:bg-ocean-700 transition-all disabled:opacity-50"
+                                      >
+                                          {isChangingPassword ? <Loader2 className="animate-spin" size={16} /> : "Atualizar Senha"}
+                                      </button>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 font-bold mt-3 ml-1">
+                                      * Esta senha será usada para o login manual. Você também pode solicitar um link de recuperação por e-mail na página de login.
+                                  </p>
+                              </div>
+
                               <div>
                                   <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Subcategoria (Opcional)</label>
                                   <select 
@@ -865,6 +909,19 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                         >
                             {biz.isBlocked ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
                             {biz.isBlocked ? 'ATIVAR' : 'INATIVAR'}
+                        </button>
+
+                        <button 
+                            onClick={async () => {
+                                const pass = prompt(`Definir nova senha manual para "${biz.name}":`);
+                                if (pass) {
+                                    await setManualPassword(biz.id, pass);
+                                    alert("Senha manual definida com sucesso!");
+                                }
+                            }}
+                            className="flex-1 md:flex-none bg-white border border-ocean-100 text-ocean-600 px-4 py-3 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 hover:bg-ocean-50 transition-all"
+                        >
+                            <Key size={16} /> SENHA
                         </button>
                         
                         <button 

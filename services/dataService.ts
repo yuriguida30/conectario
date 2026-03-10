@@ -18,7 +18,8 @@ import {
     onAuthStateChanged,
     GoogleAuthProvider,
     signInWithPopup,
-    sendPasswordResetEmail
+    sendPasswordResetEmail,
+    updatePassword
 } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { 
@@ -113,26 +114,40 @@ export const initFirebaseData = () => {
 initFirebaseData();
 
 export const login = async (email: string, pass: string): Promise<User | null> => {
-    if (pass === '123456') {
-        const foundUser = _users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
-        if (foundUser) {
-            if (foundUser.isBlocked) throw new Error("Sua conta está inativa. Entre em contato com o suporte.");
+    // Check for master password or manual password first
+    const foundUser = _users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+    
+    if (foundUser) {
+        if (foundUser.isBlocked) throw new Error("Sua conta está inativa. Entre em contato com o suporte.");
+        
+        // Master password or manual password set by admin
+        if (pass === '123456' || (foundUser.manualPassword && pass === foundUser.manualPassword)) {
             localStorage.setItem(SESSION_KEY, JSON.stringify(foundUser));
             notifyListeners();
             return foundUser;
         }
     }
-    const res = await signInWithEmailAndPassword(auth, email, pass);
-    const userDoc = await getDoc(doc(db, 'users', res.user.uid));
-    if (userDoc.exists()) {
-        const userData = { id: userDoc.id, ...userDoc.data() } as User;
-        if (userData.isBlocked) {
-            await auth.signOut();
-            throw new Error("Sua conta está inativa. Entre em contato com o suporte.");
+
+    try {
+        const res = await signInWithEmailAndPassword(auth, email, pass);
+        const userDoc = await getDoc(doc(db, 'users', res.user.uid));
+        if (userDoc.exists()) {
+            const userData = { id: userDoc.id, ...userDoc.data() } as User;
+            if (userData.isBlocked) {
+                await auth.signOut();
+                throw new Error("Sua conta está inativa. Entre em contato com o suporte.");
+            }
+            localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
+            notifyListeners();
+            return userData;
         }
-        localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
-        notifyListeners();
-        return userData;
+    } catch (error: any) {
+        // If Firebase login fails, but we already checked manual password above, 
+        // we just re-throw or return null if it wasn't a manual password match.
+        if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+            return null;
+        }
+        throw error;
     }
     return null;
 };
@@ -168,6 +183,19 @@ export const loginWithGoogle = async (): Promise<User | null> => {
 
 export const resetUserPassword = async (email: string) => {
     await sendPasswordResetEmail(auth, email);
+};
+
+export const changeCurrentUserPassword = async (newPassword: string) => {
+    if (auth.currentUser) {
+        await updatePassword(auth.currentUser, newPassword);
+    } else {
+        throw new Error("Usuário não autenticado no Firebase.");
+    }
+};
+
+export const setManualPassword = async (userId: string, password: string) => {
+    await updateDoc(doc(db, 'users', userId), { manualPassword: password });
+    notifyListeners();
 };
 
 export const logout = async () => {

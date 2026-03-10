@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserRole, AppCategory, AppConfig } from '../types';
-import { login, registerUser, createCompanyRequest, getCategories, getAppConfig, loginWithGoogle } from '../services/dataService';
+import { login, registerUser, createCompanyRequest, getCategories, getAppConfig, loginWithGoogle, resetUserPassword } from '../services/dataService';
 import { Building2, User, ChevronLeft, CheckCircle2, Loader2, Instagram, Globe, Phone, Mail, Lock, UserPlus, LogIn, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 
 interface LoginProps {
@@ -202,6 +202,29 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                             />
                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-ocean-600">
                                 {showPassword ? <EyeOff size={20}/> : <Eye size={20}/>}
+                            </button>
+                        </div>
+                        <div className="flex justify-end mt-2">
+                            <button 
+                                type="button"
+                                onClick={async () => {
+                                    if (!email) {
+                                        setError("Por favor, digite seu e-mail primeiro para recuperar a senha.");
+                                        return;
+                                    }
+                                    try {
+                                        setLoading(true);
+                                        await resetUserPassword(email);
+                                        alert(`E-mail de recuperação enviado para ${email}`);
+                                    } catch (err: any) {
+                                        setError(err.message || "Erro ao enviar e-mail de recuperação.");
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                className="text-[10px] font-black text-ocean-600 hover:text-ocean-700 uppercase tracking-widest"
+                            >
+                                Esqueci minha senha
                             </button>
                         </div>
                     </div>

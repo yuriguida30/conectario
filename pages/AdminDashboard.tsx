@@ -7,7 +7,7 @@ import {
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers, Zap,
-  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool
+  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool, Users
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -546,6 +546,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               )}
           </div>
       )}
+      {view === 'USERS' && (
           <div className="space-y-8">
               <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm">
                   <h3 className="text-lg font-black text-ocean-950 mb-4">Criar Novo Jornalista</h3>

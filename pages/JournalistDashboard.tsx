@@ -199,10 +199,131 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                       <h3 className="text-gray-500 text-sm font-medium">Total de Matérias</h3>
                       <p className="text-3xl font-bold text-gray-900 mt-2">{posts.length}</p>
                   </div>
-                  {/* ... more stats ... */}
               </div>
           )}
-          {/* ... posts and settings tabs ... */}
+
+          {activeTab === 'posts' && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              {posts.length === 0 ? (
+                <div className="p-12 text-center">
+                  <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900">Nenhuma matéria encontrada</h3>
+                  <button
+                    onClick={handleCreatePost}
+                    className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium inline-flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Criar Matéria
+                  </button>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="p-4 font-medium text-gray-600">Título</th>
+                      <th className="p-4 font-medium text-gray-600 hidden md:table-cell">Data</th>
+                      <th className="p-4 font-medium text-gray-600">Status</th>
+                      <th className="p-4 font-medium text-gray-600 text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {posts.map(post => (
+                      <tr key={post.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="p-4">
+                          <div className="font-medium text-gray-900">{post.title}</div>
+                        </td>
+                        <td className="p-4 text-gray-600 hidden md:table-cell">
+                          {new Date(post.date).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${post.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                            {post.status === 'published' ? 'Publicado' : 'Rascunho'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => handleEditPost(post)}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Editar"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePost(post.id)}
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Perfil do Jornalista</h3>
+              <div className="space-y-4 max-w-md">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Foto de Perfil</label>
+                  <ImageUpload
+                    currentImage={profile.avatarUrl}
+                    onImageSelect={(base64) => setProfile({...profile, avatarUrl: base64})}
+                    label="Alterar Foto"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Profissão</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 border border-gray-200 rounded-lg"
+                    value={profile.profession || ''}
+                    onChange={e => setProfile({...profile, profession: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Descrição (Quem é)</label>
+                  <textarea
+                    className="w-full p-3 border border-gray-200 rounded-lg"
+                    value={profile.bio || ''}
+                    onChange={e => setProfile({...profile, bio: e.target.value})}
+                  />
+                </div>
+                <button
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                    onClick={async () => {
+                        const { updateUser } = await import('../services/dataService');
+                        await updateUser({ ...currentUser, ...profile } as User);
+                        alert('Perfil atualizado!');
+                    }}
+                >
+                    Salvar Perfil
+                </button>
+              </div>
+
+              <h3 className="text-lg font-medium text-gray-900 mt-8 mb-4">Gerenciar Categorias</h3>
+              <div className="space-y-4 max-w-md">
+                  <div className="flex gap-2">
+                      <input type="text" id="new-cat" placeholder="Nova Categoria" className="w-full p-3 border border-gray-200 rounded-lg" />
+                      <button onClick={async () => {
+                          const input = document.getElementById('new-cat') as HTMLInputElement;
+                          if (!input.value) return;
+                          const { saveCategory } = await import('../services/dataService');
+                          await saveCategory({ id: input.value.toLowerCase(), name: input.value, subcategories: [] });
+                          input.value = '';
+                          alert('Categoria criada!');
+                          loadData();
+                      }} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Criar</button>
+                  </div>
+              </div>
+            </div>
+          )}
       </div>
     </div>
   );

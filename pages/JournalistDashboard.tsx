@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, BlogPost } from '../types';
 import { getBlogPosts, saveBlogPost, deleteBlogPost } from '../services/dataService';
 import { Pencil, Trash2, Plus, Image as ImageIcon, Tag, Globe, Settings, FileText, CheckCircle, XCircle } from 'lucide-react';
+import { ImageUpload } from '../components/ImageUpload';
 
 interface JournalistDashboardProps {
   currentUser: User;
@@ -385,12 +386,11 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
               <h3 className="text-lg font-medium text-gray-900 mb-4">Perfil do Jornalista</h3>
               <div className="space-y-4 max-w-md">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Foto de Perfil (URL)</label>
-                  <input
-                    type="text"
-                    className="w-full p-3 border border-gray-200 rounded-lg"
-                    value={profile.avatarUrl || ''}
-                    onChange={e => setProfile({...profile, avatarUrl: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Foto de Perfil</label>
+                  <ImageUpload
+                    currentImage={profile.avatarUrl}
+                    onImageSelect={(base64) => setProfile({...profile, avatarUrl: base64})}
+                    label="Alterar Foto"
                   />
                 </div>
                 <div>

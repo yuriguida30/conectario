@@ -447,6 +447,21 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                     Salvar Perfil
                 </button>
               </div>
+
+              <h3 className="text-lg font-medium text-gray-900 mt-8 mb-4">Gerenciar Categorias de Dicas</h3>
+              <div className="space-y-4 max-w-md">
+                  <div className="flex gap-2">
+                      <input type="text" id="new-cat" placeholder="Nova Categoria" className="w-full p-3 border border-gray-200 rounded-lg" />
+                      <button onClick={async () => {
+                          const input = document.getElementById('new-cat') as HTMLInputElement;
+                          if (!input.value) return;
+                          const { saveCategory } = await import('../services/dataService');
+                          await saveCategory({ id: input.value.toLowerCase(), name: input.value, subcategories: [] });
+                          input.value = '';
+                          alert('Categoria criada!');
+                      }} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Criar</button>
+                  </div>
+              </div>
             </div>
           )}
         </div>

@@ -24,6 +24,13 @@ export const Blog: React.FC<BlogProps> = ({ onNavigate }) => {
       }
   };
 
+  const handleAuthorClick = (e: React.MouseEvent, authorId?: string) => {
+      e.stopPropagation();
+      if (onNavigate && authorId) {
+          onNavigate('journalist-profile', { journalistId: authorId });
+      }
+  };
+
   const categories = ['Todos', 'Roteiro', 'Dica', 'Notícia'];
   const displayPosts = filter === 'Todos' ? posts : posts.filter(p => p.category === filter);
 
@@ -75,7 +82,10 @@ export const Blog: React.FC<BlogProps> = ({ onNavigate }) => {
                             {(() => {
                                 const author = getAuthor(posts[0].authorId);
                                 return (
-                                    <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md pr-4 rounded-full border border-white/10 p-1">
+                                    <div 
+                                        onClick={(e) => handleAuthorClick(e, posts[0].authorId)}
+                                        className="flex items-center gap-3 bg-white/10 backdrop-blur-md pr-4 rounded-full border border-white/10 p-1 cursor-pointer hover:bg-white/20 transition-colors"
+                                    >
                                         {author?.avatarUrl ? (
                                             <img src={author.avatarUrl} className="w-8 h-8 rounded-full border border-white/50 object-cover" alt={posts[0].author}/>
                                         ) : (
@@ -121,7 +131,10 @@ export const Blog: React.FC<BlogProps> = ({ onNavigate }) => {
                             </div>
                             
                             <div className="flex items-center justify-between mt-auto pt-4 border-t border-slate-50">
-                                <div className="flex items-center gap-3">
+                                <div 
+                                    onClick={(e) => handleAuthorClick(e, post.authorId)}
+                                    className="flex items-center gap-3 cursor-pointer group/author"
+                                >
                                     {author?.avatarUrl ? (
                                         <img src={author.avatarUrl} className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm" alt={post.author}/>
                                     ) : (
@@ -130,7 +143,7 @@ export const Blog: React.FC<BlogProps> = ({ onNavigate }) => {
                                         </div>
                                     )}
                                     <div className="flex flex-col">
-                                        <span className="text-xs font-bold text-ocean-900 leading-none mb-0.5">{post.author}</span>
+                                        <span className="text-xs font-bold text-ocean-900 leading-none mb-0.5 group-hover/author:text-ocean-600 transition-colors">{post.author}</span>
                                         <span className="text-[10px] text-slate-400 font-medium">{author?.profession || 'Colaborador'}</span>
                                     </div>
                                 </div>

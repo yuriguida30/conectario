@@ -363,6 +363,14 @@ export const saveCategory = async (category: AppCategory) => {
     await setDoc(doc(db, 'app_categories', category.id), cleanObject(category), { merge: true });
 };
 
+export const saveSubcategory = async (categoryId: string, subcategory: string) => {
+    const cat = _categories.find(c => c.id === categoryId);
+    if (cat) {
+        const updatedCat = { ...cat, subcategories: [...(cat.subcategories || []), subcategory] };
+        await setDoc(doc(db, 'app_categories', categoryId), cleanObject(updatedCat), { merge: true });
+    }
+};
+
 export const saveCoupon = async (c: Coupon) => {
     await setDoc(doc(db, 'coupons', c.id), cleanObject(c)); 
 };

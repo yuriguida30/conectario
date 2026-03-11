@@ -231,10 +231,12 @@ export interface BlogPost {
   content: string;
   imageUrl: string;
   category: string;
+  subcategory?: string;
   date: string;
   author: string;
   authorId?: string;
   tags?: string[];
+  metaTitle?: string;
   metaDescription?: string;
   metaKeywords?: string;
   status?: 'draft' | 'published';

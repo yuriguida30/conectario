@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { BlogPost, User } from '../types';
-import { getBlogPosts, getAllUsers } from '../services/dataService';
+import { BlogPost, User, AppCategory } from '../types';
+import { getBlogPosts, getAllUsers, getDicasCategories } from '../services/dataService';
 import { Calendar, ChevronRight, User as UserIcon } from 'lucide-react';
 
 interface BlogProps {
@@ -11,11 +11,13 @@ interface BlogProps {
 export const Blog: React.FC<BlogProps> = ({ onNavigate }) => {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [categories, setCategories] = useState<AppCategory[]>([]);
   const [filter, setFilter] = useState('Todos');
 
   useEffect(() => {
     setPosts(getBlogPosts());
     setUsers(getAllUsers());
+    setCategories(getDicasCategories());
   }, []);
 
   const handlePostClick = (postId: string) => {
@@ -31,7 +33,6 @@ export const Blog: React.FC<BlogProps> = ({ onNavigate }) => {
       }
   };
 
-  const categories = ['Todos', 'Notícia'];
   const displayPosts = filter === 'Todos' ? posts : posts.filter(p => p.category === filter);
 
   // Helper to find author
@@ -48,13 +49,19 @@ export const Blog: React.FC<BlogProps> = ({ onNavigate }) => {
 
         {/* Categories */}
         <div className="flex gap-2 px-4 overflow-x-auto hide-scrollbar mb-6 max-w-7xl mx-auto w-full">
+            <button 
+                onClick={() => setFilter('Todos')}
+                className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filter === 'Todos' ? 'bg-ocean-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}
+            >
+                Todos
+            </button>
             {categories.map(cat => (
                 <button 
-                    key={cat}
-                    onClick={() => setFilter(cat)}
-                    className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filter === cat ? 'bg-ocean-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}
+                    key={cat.id}
+                    onClick={() => setFilter(cat.name)}
+                    className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${filter === cat.name ? 'bg-ocean-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}
                 >
-                    {cat}
+                    {cat.name}
                 </button>
             ))}
         </div>

@@ -153,10 +153,16 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                   onChange={e => setCurrentPost({ ...currentPost, title: e.target.value })}
                 />
                 
-                <div className="flex gap-2 mb-2">
-                    <button onClick={() => applyFormat('b')} className="px-2 py-1 bg-gray-200 rounded text-sm font-bold">B</button>
-                    <button onClick={() => applyFormat('i')} className="px-2 py-1 bg-gray-200 rounded text-sm italic">I</button>
-                    <button onClick={() => applyFormat('u')} className="px-2 py-1 bg-gray-200 rounded text-sm underline">U</button>
+                <div className="flex flex-wrap gap-2 mb-2 bg-gray-50 p-2 rounded-lg">
+                    <button onClick={() => applyFormat('h1')} className="px-2 py-1 bg-white border rounded text-sm font-bold">H1</button>
+                    <button onClick={() => applyFormat('h2')} className="px-2 py-1 bg-white border rounded text-sm font-bold">H2</button>
+                    <button onClick={() => applyFormat('b')} className="px-2 py-1 bg-white border rounded text-sm font-bold">B</button>
+                    <button onClick={() => applyFormat('i')} className="px-2 py-1 bg-white border rounded text-sm italic">I</button>
+                    <button onClick={() => applyFormat('u')} className="px-2 py-1 bg-white border rounded text-sm underline">U</button>
+                    <button onClick={() => {
+                        const url = prompt('URL do link:');
+                        if (url) applyFormat(`a href="${url}"`);
+                    }} className="px-2 py-1 bg-white border rounded text-sm text-blue-600">Link</button>
                 </div>
                 <textarea
                   id="post-content"
@@ -166,9 +172,29 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                   onChange={e => setCurrentPost({ ...currentPost, content: e.target.value })}
                 />
               </div>
-              {/* ... SEO and other fields ... */}
+
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                <h3 className="text-lg font-bold">SEO & Tags</h3>
+                <input type="text" placeholder="Meta Title" className="w-full p-3 border rounded-lg" value={currentPost.metaTitle || ''} onChange={e => setCurrentPost({...currentPost, metaTitle: e.target.value})} />
+                <input type="text" placeholder="Meta Description" className="w-full p-3 border rounded-lg" value={currentPost.metaDescription || ''} onChange={e => setCurrentPost({...currentPost, metaDescription: e.target.value})} />
+                <input type="text" placeholder="Meta Keywords (separadas por vírgula)" className="w-full p-3 border rounded-lg" value={currentPost.metaKeywords || ''} onChange={e => setCurrentPost({...currentPost, metaKeywords: e.target.value})} />
+                <input type="text" placeholder="Tags (separadas por vírgula)" className="w-full p-3 border rounded-lg" value={currentPost.tags?.join(', ') || ''} onChange={e => setCurrentPost({...currentPost, tags: e.target.value.split(',').map(t => t.trim())})} />
+              </div>
             </div>
-            {/* ... Sidebar ... */}
+
+            <div className="space-y-6">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 className="text-lg font-bold mb-4">Categoria</h3>
+                <select className="w-full p-3 border rounded-lg mb-4" value={currentPost.category || ''} onChange={e => setCurrentPost({...currentPost, category: e.target.value})}>
+                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                </select>
+                <select className="w-full p-3 border rounded-lg" value={currentPost.subcategory || ''} onChange={e => setCurrentPost({...currentPost, subcategory: e.target.value})}>
+                    <option value="">Selecione uma subcategoria</option>
+                    {categories.find(c => c.name === currentPost.category)?.subcategories.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select>
+              </div>
+              <ImageUpload currentImage={currentPost.imageUrl} onImageSelect={base64 => setCurrentPost({...currentPost, imageUrl: base64})} label="Imagem de Capa" />
+            </div>
           </div>
         </div>
       </div>

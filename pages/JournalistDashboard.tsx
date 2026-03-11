@@ -14,6 +14,12 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
   const [isEditing, setIsEditing] = useState(false);
   const [currentPost, setCurrentPost] = useState<Partial<BlogPost>>({});
   const [activeTab, setActiveTab] = useState<'posts' | 'settings'>('posts');
+  const [profile, setProfile] = useState<Partial<User>>({
+      avatarUrl: currentUser.avatarUrl,
+      profession: currentUser.profession,
+      bio: currentUser.bio,
+      achievements: currentUser.achievements
+  });
 
   useEffect(() => {
     loadPosts();
@@ -89,6 +95,23 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
     setCurrentPost({ ...currentPost, tags: tagsArray });
   };
 
+  const applyFormat = (tag: string) => {
+    const textarea = document.getElementById('post-content') as HTMLTextAreaElement;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = currentPost.content || '';
+    const selectedText = text.substring(start, end);
+    const newText = text.substring(0, start) + `<${tag}>${selectedText}</${tag}>` + text.substring(end);
+    setCurrentPost({ ...currentPost, content: newText });
+    
+    // Restore focus and selection
+    setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + tag.length + 2, end + tag.length + 2);
+    }, 0);
+  };
+
   if (isEditing) {
     return (
       <div className="min-h-screen bg-gray-50 p-4 md:p-8">
@@ -125,7 +148,13 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                   onChange={e => setCurrentPost({ ...currentPost, title: e.target.value })}
                 />
                 
+                <div className="flex gap-2 mb-2">
+                    <button onClick={() => applyFormat('b')} className="px-2 py-1 bg-gray-200 rounded text-sm font-bold">B</button>
+                    <button onClick={() => applyFormat('i')} className="px-2 py-1 bg-gray-200 rounded text-sm italic">I</button>
+                    <button onClick={() => applyFormat('u')} className="px-2 py-1 bg-gray-200 rounded text-sm underline">U</button>
+                </div>
                 <textarea
+                  id="post-content"
                   placeholder="Escreva sua matéria aqui... (Suporta HTML básico)"
                   className="w-full h-96 border-none focus:ring-0 p-0 resize-none text-gray-700 leading-relaxed"
                   value={currentPost.content || ''}
@@ -356,6 +385,15 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
               <h3 className="text-lg font-medium text-gray-900 mb-4">Perfil do Jornalista</h3>
               <div className="space-y-4 max-w-md">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Foto de Perfil (URL)</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 border border-gray-200 rounded-lg"
+                    value={profile.avatarUrl || ''}
+                    onChange={e => setProfile({...profile, avatarUrl: e.target.value})}
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nome de Exibição</label>
                   <input
                     type="text"
@@ -373,9 +411,41 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                     readOnly
                   />
                 </div>
-                <p className="text-sm text-gray-500 mt-4">
-                  Para alterar suas informações básicas, entre em contato com o administrador.
-                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Profissão</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 border border-gray-200 rounded-lg"
+                    value={profile.profession || ''}
+                    onChange={e => setProfile({...profile, profession: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Descrição (Quem é)</label>
+                  <textarea
+                    className="w-full p-3 border border-gray-200 rounded-lg"
+                    value={profile.bio || ''}
+                    onChange={e => setProfile({...profile, bio: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Feitos (separados por vírgula)</label>
+                  <textarea
+                    className="w-full p-3 border border-gray-200 rounded-lg"
+                    value={profile.achievements?.join(', ') || ''}
+                    onChange={e => setProfile({...profile, achievements: e.target.value.split(',').map(s => s.trim())})}
+                  />
+                </div>
+                <button
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                    onClick={async () => {
+                        const { updateUser } = await import('../services/dataService');
+                        await updateUser({ ...currentUser, ...profile } as User);
+                        alert('Perfil atualizado!');
+                    }}
+                >
+                    Salvar Perfil
+                </button>
               </div>
             </div>
           )}

@@ -5,6 +5,7 @@ import { Home } from './pages/Home';
 import { UserDashboard } from './pages/UserDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { JournalistDashboard } from './pages/JournalistDashboard';
+import { JournalistPublicPage } from './pages/JournalistPublicPage';
 import { SearchPage } from './pages/Search';
 import { BusinessGuide } from './pages/BusinessGuide';
 import { BusinessDetail } from './pages/BusinessDetail';
@@ -28,6 +29,9 @@ const parseUrl = (): { page: string; params: any } => {
 
   const blogMatch = path.match(/^\/blog\/([^/]+)/);
   if (blogMatch) return { page: 'blog-detail', params: { postId: blogMatch[1] } };
+
+  const journalistMatch = path.match(/^\/journalist\/([^/]+)/);
+  if (journalistMatch) return { page: 'journalist-profile', params: { journalistId: journalistMatch[1] } };
 
   const colMatch = path.match(/^\/collection\/([^/]+)/);
   if (colMatch) return { page: 'collection-detail', params: { collectionId: colMatch[1] } };
@@ -66,6 +70,7 @@ const buildUrl = (page: string, params?: any): string => {
     case 'pricing-plans': return '/pricing-plans';
     case 'business-detail': return `/business/${params?.businessId}`;
     case 'blog-detail': return `/blog/${params?.postId}`;
+    case 'journalist-profile': return `/journalist/${params?.journalistId}`;
     case 'collection-detail': return `/collection/${params?.collectionId}`;
     default: return '/';
   }
@@ -155,6 +160,8 @@ export default function App() {
         return <Blog onNavigate={handleNavigate} />;
       case 'blog-detail':
         return <BlogDetail postId={pageParams?.postId} onNavigate={handleNavigate} />;
+      case 'journalist-profile':
+        return <JournalistPublicPage journalistId={pageParams?.journalistId} onNavigate={handleNavigate} />;
       case 'collections':
         return <Collections onNavigate={handleNavigate} />;
       case 'collection-detail':

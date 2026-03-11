@@ -31,7 +31,7 @@ export const Blog: React.FC<BlogProps> = ({ onNavigate }) => {
       }
   };
 
-  const categories = ['Todos', 'Roteiro', 'Dica', 'Notícia'];
+  const categories = ['Todos', 'Notícia'];
   const displayPosts = filter === 'Todos' ? posts : posts.filter(p => p.category === filter);
 
   // Helper to find author

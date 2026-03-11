@@ -64,15 +64,4 @@ export const MOCK_BUSINESSES: BusinessProfile[] = [
 
 export const MOCK_COUPONS: Coupon[] = [];
 
-export const MOCK_POSTS: BlogPost[] = [
-  {
-    id: 'p1',
-    title: 'Bem-vindo ao Conecta Rio',
-    excerpt: 'Explore o melhor da cidade maravilhosa com descontos exclusivos.',
-    content: 'O Conecta Rio nasceu para unir turistas e cariocas aos melhores estabelecimentos da cidade...',
-    imageUrl: 'https://images.unsplash.com/photo-1483729558449-99ef09a8c325?auto=format&fit=crop&q=80&w=1200',
-    category: 'Notícia',
-    date: '01/01/2024',
-    author: 'Equipe Conecta Rio'
-  }
-];
+export const MOCK_POSTS: BlogPost[] = [];

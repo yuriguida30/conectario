@@ -150,10 +150,15 @@ export interface Coupon {
   limitPerUser?: number;
 }
 
+export interface Subcategory {
+  id: string;
+  name: string;
+}
+
 export interface AppCategory {
   id: string;
   name: string;
-  subcategories?: string[];
+  subcategories: Subcategory[];
 }
 
 export interface AppLocation {

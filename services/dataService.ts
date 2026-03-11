@@ -25,7 +25,7 @@ import {
 import { auth, db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, SavingsRecord, 
-    CompanyRequest, AppCategory, DEFAULT_CATEGORIES, 
+    CompanyRequest, AppCategory, Subcategory, DEFAULT_CATEGORIES, 
     DEFAULT_AMENITIES, AppConfig, Collection, PricingPlan, HomeHighlight, City, Neighborhood
 } from '../types';
 import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
@@ -363,10 +363,14 @@ export const saveCategory = async (category: AppCategory) => {
     await setDoc(doc(db, 'app_categories', category.id), cleanObject(category), { merge: true });
 };
 
-export const saveSubcategory = async (categoryId: string, subcategory: string) => {
+export const saveSubcategory = async (categoryId: string, subcategoryName: string) => {
     const cat = _categories.find(c => c.id === categoryId);
     if (cat) {
-        const updatedCat = { ...cat, subcategories: [...(cat.subcategories || []), subcategory] };
+        const newSubcategory: Subcategory = {
+            id: subcategoryName.toLowerCase().replace(/\s+/g, '-'),
+            name: subcategoryName
+        };
+        const updatedCat = { ...cat, subcategories: [...(cat.subcategories || []), newSubcategory] };
         await setDoc(doc(db, 'app_categories', categoryId), cleanObject(updatedCat), { merge: true });
     }
 };

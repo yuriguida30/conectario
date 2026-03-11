@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Search as SearchIcon, X, SlidersHorizontal, Frown, Loader2, Navigation } from 'lucide-react';
-import { Coupon, AppCategory, User } from '../types';
+import { Coupon, AppCategory, User, Subcategory } from '../types';
 import { getCoupons, getCategories, calculateDistance, redeemCoupon, getCurrentUser, getBusinesses } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
@@ -173,13 +173,13 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
                     >
                         Todas
                     </button>
-                    {categories.find(c => c.name === selectedCategory)?.subcategories?.map((sub: string) => (
+                    {categories.find(c => c.name === selectedCategory)?.subcategories?.map((sub: Subcategory) => (
                         <button 
-                            key={sub}
-                            onClick={() => setSelectedSubcategory(sub)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${selectedSubcategory === sub ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-500'}`}
+                            key={sub.id}
+                            onClick={() => setSelectedSubcategory(sub.name)}
+                            className={`px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border ${selectedSubcategory === sub.name ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-500'}`}
                         >
-                            {sub}
+                            {sub.name}
                         </button>
                     ))}
                 </div>

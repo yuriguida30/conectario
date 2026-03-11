@@ -248,8 +248,8 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                       </button>
                   ))}
                   {currentSubcategories.map(sub => (
-                      <button key={sub} onClick={() => setSelectedSubCategory(selectedSubCategory === sub ? 'Todos' : sub)} className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${selectedSubCategory === sub ? 'bg-ocean-600 text-white' : 'bg-white text-slate-600'}`}>
-                          {sub}
+                      <button key={sub.id} onClick={() => setSelectedSubCategory(selectedSubCategory === sub.name ? 'Todos' : sub.name)} className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${selectedSubCategory === sub.name ? 'bg-ocean-600 text-white' : 'bg-white text-slate-600'}`}>
+                          {sub.name}
                       </button>
                   ))}
               </div>

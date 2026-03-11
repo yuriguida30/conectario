@@ -20,7 +20,11 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
       avatarUrl: currentUser.avatarUrl,
       profession: currentUser.profession,
       bio: currentUser.bio,
-      achievements: currentUser.achievements
+      achievements: currentUser.achievements,
+      location: currentUser.location,
+      specialties: currentUser.specialties,
+      instagram: currentUser.instagram,
+      website: currentUser.website
   });
 
   useEffect(() => {
@@ -280,12 +284,23 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Profissão</label>
-                  <input
-                    type="text"
-                    className="w-full p-3 border border-gray-200 rounded-lg"
-                    value={profile.profession || ''}
-                    onChange={e => setProfile({...profile, profession: e.target.value})}
-                  />
+                  <input type="text" className="w-full p-3 border border-gray-200 rounded-lg" value={profile.profession || ''} onChange={e => setProfile({...profile, profession: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Localização</label>
+                  <input type="text" className="w-full p-3 border border-gray-200 rounded-lg" value={profile.location || ''} onChange={e => setProfile({...profile, location: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Especialidades (separadas por vírgula)</label>
+                  <input type="text" className="w-full p-3 border border-gray-200 rounded-lg" value={profile.specialties?.join(', ') || ''} onChange={e => setProfile({...profile, specialties: e.target.value.split(',').map(s => s.trim())})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
+                  <input type="text" className="w-full p-3 border border-gray-200 rounded-lg" value={profile.instagram || ''} onChange={e => setProfile({...profile, instagram: e.target.value})} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+                  <input type="text" className="w-full p-3 border border-gray-200 rounded-lg" value={profile.website || ''} onChange={e => setProfile({...profile, website: e.target.value})} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Descrição (Quem é)</label>
@@ -307,8 +322,27 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                 </button>
               </div>
 
-              <h3 className="text-lg font-medium text-gray-900 mt-8 mb-4">Gerenciar Categorias</h3>
-              <div className="space-y-4 max-w-md">
+              <h3 className="text-lg font-medium text-gray-900 mt-8 mb-4">Gerenciar Categorias e Subcategorias</h3>
+              <div className="space-y-6">
+                  {categories.map(cat => (
+                      <div key={cat.id} className="p-4 border border-gray-200 rounded-lg">
+                          <h4 className="font-bold">{cat.name}</h4>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                              {cat.subcategories.map(sub => <span key={sub.id} className="px-2 py-1 bg-gray-100 rounded text-xs">{sub.name}</span>)}
+                          </div>
+                          <div className="flex gap-2 mt-2">
+                              <input type="text" id={`sub-${cat.id}`} placeholder="Nova Subcategoria" className="flex-1 p-2 border border-gray-200 rounded-lg text-sm" />
+                              <button onClick={async () => {
+                                  const input = document.getElementById(`sub-${cat.id}`) as HTMLInputElement;
+                                  if (!input.value) return;
+                                  await saveSubcategory(cat.id, input.value);
+                                  input.value = '';
+                                  alert('Subcategoria criada!');
+                                  loadData();
+                              }} className="px-3 py-1 bg-gray-600 text-white rounded-lg text-sm">Adicionar</button>
+                          </div>
+                      </div>
+                  ))}
                   <div className="flex gap-2">
                       <input type="text" id="new-cat" placeholder="Nova Categoria" className="w-full p-3 border border-gray-200 rounded-lg" />
                       <button onClick={async () => {
@@ -319,7 +353,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                           input.value = '';
                           alert('Categoria criada!');
                           loadData();
-                      }} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Criar</button>
+                      }} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Criar Categoria</button>
                   </div>
               </div>
             </div>

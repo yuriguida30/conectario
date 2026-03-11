@@ -50,6 +50,8 @@ export interface User {
   bio?: string;
   instagram?: string;
   website?: string;
+  location?: string;
+  specialties?: string[];
   achievements?: string[];
   favorites?: {
       coupons: string[];

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, BlogPost, AppCategory } from '../types';
-import { getBlogPosts, saveBlogPost, deleteBlogPost, getCategories, saveCategory, saveSubcategory } from '../services/dataService';
+import { getBlogPosts, saveBlogPost, deleteBlogPost, getDicasCategories, saveDicasCategory, saveDicasSubcategory } from '../services/dataService';
 import { Pencil, Trash2, Plus, Image as ImageIcon, Tag, Globe, Settings, FileText, CheckCircle, XCircle, LayoutDashboard, FolderPlus } from 'lucide-react';
 import { ImageUpload } from '../components/ImageUpload';
 
@@ -35,7 +35,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
     const allPosts = getBlogPosts();
     const myPosts = allPosts.filter(p => p.authorId === currentUser.id);
     setPosts(myPosts);
-    setCategories(getCategories());
+    setCategories(getDicasCategories());
   };
 
   const handleCreatePost = () => {
@@ -335,7 +335,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                               <button onClick={async () => {
                                   const input = document.getElementById(`sub-${cat.id}`) as HTMLInputElement;
                                   if (!input.value) return;
-                                  await saveSubcategory(cat.id, input.value);
+                                  await saveDicasSubcategory(cat.id, input.value);
                                   input.value = '';
                                   alert('Subcategoria criada!');
                                   loadData();
@@ -348,8 +348,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                       <button onClick={async () => {
                           const input = document.getElementById('new-cat') as HTMLInputElement;
                           if (!input.value) return;
-                          const { saveCategory } = await import('../services/dataService');
-                          await saveCategory({ id: input.value.toLowerCase(), name: input.value, subcategories: [] });
+                          await saveDicasCategory({ id: input.value.toLowerCase(), name: input.value, subcategories: [] });
                           input.value = '';
                           alert('Categoria criada!');
                           loadData();

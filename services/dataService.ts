@@ -36,6 +36,7 @@ let _businesses: BusinessProfile[] = MOCK_BUSINESSES;
 let _coupons: Coupon[] = MOCK_COUPONS;
 let _users: User[] = MOCK_USERS;
 let _categories: AppCategory[] = [];
+let _dicasCategories: AppCategory[] = [];
 let _requests: CompanyRequest[] = [];
 let _plans: PricingPlan[] = [];
 let _highlights: HomeHighlight[] = [];
@@ -98,18 +99,22 @@ export const initFirebaseData = () => {
         notifyListeners();
     });
 
-    onSnapshot(collection(db, 'app_categories'), async (snapshot) => {
+    onSnapshot(collection(db, 'app_categories_guia'), async (snapshot) => {
         if (snapshot.empty) {
-            // One-time setup: if no categories, create them from default
             for (const catName of DEFAULT_CATEGORIES) {
                 const catId = catName.toLowerCase().replace(/ç/g, 'c').replace(/ã/g, 'a');
                 const newCat: AppCategory = { id: catId, name: catName, subcategories: [] };
-                await setDoc(doc(db, 'app_categories', catId), newCat);
+                await setDoc(doc(db, 'app_categories_guia', catId), newCat);
             }
         } else {
             _categories = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppCategory));
             notifyListeners();
         }
+    });
+
+    onSnapshot(collection(db, 'app_categories_dicas'), (snapshot) => {
+        _dicasCategories = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppCategory));
+        notifyListeners();
     });
 
     onSnapshot(collection(db, 'companyRequests'), (snapshot) => {
@@ -357,10 +362,15 @@ export const updateUser = async (user: User) => {
 };
 
 export const getCategories = () => _categories;
+export const getDicasCategories = () => _dicasCategories;
 export const getAllUsers = () => _users;
 
 export const saveCategory = async (category: AppCategory) => {
-    await setDoc(doc(db, 'app_categories', category.id), cleanObject(category), { merge: true });
+    await setDoc(doc(db, 'app_categories_guia', category.id), cleanObject(category), { merge: true });
+};
+
+export const saveDicasCategory = async (category: AppCategory) => {
+    await setDoc(doc(db, 'app_categories_dicas', category.id), cleanObject(category), { merge: true });
 };
 
 export const saveSubcategory = async (categoryId: string, subcategoryName: string) => {
@@ -371,7 +381,19 @@ export const saveSubcategory = async (categoryId: string, subcategoryName: strin
             name: subcategoryName
         };
         const updatedCat = { ...cat, subcategories: [...(cat.subcategories || []), newSubcategory] };
-        await setDoc(doc(db, 'app_categories', categoryId), cleanObject(updatedCat), { merge: true });
+        await setDoc(doc(db, 'app_categories_guia', categoryId), cleanObject(updatedCat), { merge: true });
+    }
+};
+
+export const saveDicasSubcategory = async (categoryId: string, subcategoryName: string) => {
+    const cat = _dicasCategories.find(c => c.id === categoryId);
+    if (cat) {
+        const newSubcategory: Subcategory = {
+            id: subcategoryName.toLowerCase().replace(/\s+/g, '-'),
+            name: subcategoryName
+        };
+        const updatedCat = { ...cat, subcategories: [...(cat.subcategories || []), newSubcategory] };
+        await setDoc(doc(db, 'app_categories_dicas', categoryId), cleanObject(updatedCat), { merge: true });
     }
 };
 

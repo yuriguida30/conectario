@@ -286,14 +286,9 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                             )}
                         </button>
                         <button 
-                            onClick={() => setView('BUSINESSES')}
+                            onClick={() => setView('BUSINESSES')} 
                             className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'BUSINESSES' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-blue-600 shadow-sm'}`}>
                             <Store size={18} /> EMPRESAS
-                        </button>
-                        <button 
-                            onClick={() => setView('USERS')}
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'USERS' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-indigo-600 shadow-sm'}`}>
-                            <UserIcon size={18} /> USUÁRIOS
                         </button>
                         <button 
                             onClick={() => setView('CATEGORIES')} 
@@ -1219,150 +1214,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               ))
             )}
           </div>
-        </div>
-      )}
-
-      {view === 'USERS' && (
-        <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
-            <div className="flex justify-between items-center">
-                <h2 className="text-3xl font-black text-ocean-950">Gestão de Usuários</h2>
-                <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
-                    <ChevronLeft size={16} /> Voltar
-                </button>
-            </div>
-            
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-8">
-                <h3 className="text-lg font-black text-ocean-950 mb-4">Criar Novo Jornalista</h3>
-                <p className="text-sm text-slate-500 mb-6">Crie um novo usuário com acesso direto ao Painel do Jornalista.</p>
-                
-                <form 
-                    onSubmit={async (e) => {
-                        e.preventDefault();
-                        if (!newJournalist.name || !newJournalist.email || !newJournalist.password) {
-                            alert('Preencha todos os campos.');
-                            return;
-                        }
-                        setIsSaving(true);
-                        try {
-                            const { createJournalistUser } = await import('../services/dataService');
-                            await createJournalistUser(newJournalist.name, newJournalist.email, newJournalist.password);
-                            alert('Jornalista criado com sucesso!');
-                            setNewJournalist({ name: '', email: '', password: '' });
-                            refreshData();
-                        } catch (error: any) {
-                            alert('Erro ao criar jornalista: ' + error.message);
-                        } finally {
-                            setIsSaving(false);
-                        }
-                    }}
-                    className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end"
-                >
-                    <div>
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Nome</label>
-                        <input 
-                            required 
-                            className="w-full bg-white p-3 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-ocean-500" 
-                            value={newJournalist.name} 
-                            onChange={e => setNewJournalist({...newJournalist, name: e.target.value})} 
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Email</label>
-                        <input 
-                            required 
-                            type="email"
-                            className="w-full bg-white p-3 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-ocean-500" 
-                            value={newJournalist.email} 
-                            onChange={e => setNewJournalist({...newJournalist, email: e.target.value})} 
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Senha</label>
-                        <input 
-                            required 
-                            type="password"
-                            className="w-full bg-white p-3 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-ocean-500" 
-                            value={newJournalist.password} 
-                            onChange={e => setNewJournalist({...newJournalist, password: e.target.value})} 
-                        />
-                    </div>
-                    <button 
-                        type="submit" 
-                        disabled={isSaving}
-                        className="bg-indigo-600 text-white p-3 rounded-xl font-bold text-sm shadow-md hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                    >
-                        {isSaving ? 'Criando...' : 'Criar Jornalista'}
-                    </button>
-                </form>
-            </div>
-
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                <h3 className="text-lg font-black text-ocean-950 mb-4">Transformar Usuário em Jornalista</h3>
-                <p className="text-sm text-slate-500 mb-6">Selecione um usuário existente para dar a ele acesso ao Painel do Jornalista.</p>
-                
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-slate-200">
-                                <th className="p-4 font-black text-xs text-slate-400 uppercase tracking-widest">Nome</th>
-                                <th className="p-4 font-black text-xs text-slate-400 uppercase tracking-widest">Email</th>
-                                <th className="p-4 font-black text-xs text-slate-400 uppercase tracking-widest">Papel Atual</th>
-                                <th className="p-4 font-black text-xs text-slate-400 uppercase tracking-widest text-right">Ação</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {users.map(u => (
-                                <tr key={u.id} className="border-b border-slate-100 hover:bg-white transition-colors">
-                                    <td className="p-4 font-bold text-sm text-ocean-950">{u.name}</td>
-                                    <td className="p-4 text-sm text-slate-600">{u.email}</td>
-                                    <td className="p-4">
-                                        <span className={`px-2 py-1 text-[10px] font-black uppercase tracking-widest rounded-md ${
-                                            u.role === UserRole.SUPER_ADMIN ? 'bg-red-100 text-red-700' :
-                                            u.role === UserRole.COMPANY ? 'bg-blue-100 text-blue-700' :
-                                            u.role === UserRole.JOURNALIST ? 'bg-indigo-100 text-indigo-700' :
-                                            'bg-slate-200 text-slate-700'
-                                        }`}>
-                                            {u.role === UserRole.JOURNALIST ? 'JORNALISTA' : u.role}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        {u.role !== UserRole.SUPER_ADMIN && u.role !== UserRole.JOURNALIST && (
-                                            <button 
-                                                onClick={async () => {
-                                                    if (confirm(`Deseja transformar ${u.name} em Jornalista?`)) {
-                                                        const { updateUser } = await import('../services/dataService');
-                                                        await updateUser({ ...u, role: UserRole.JOURNALIST });
-                                                        alert(`${u.name} agora é um Jornalista!`);
-                                                        refreshData();
-                                                    }
-                                                }}
-                                                className="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white rounded-xl font-bold text-xs transition-colors"
-                                            >
-                                                Tornar Jornalista
-                                            </button>
-                                        )}
-                                        {u.role === UserRole.JOURNALIST && (
-                                            <button 
-                                                onClick={async () => {
-                                                    if (confirm(`Deseja remover o acesso de Jornalista de ${u.name}?`)) {
-                                                        const { updateUser } = await import('../services/dataService');
-                                                        await updateUser({ ...u, role: UserRole.CUSTOMER });
-                                                        alert(`${u.name} agora é um Cliente comum.`);
-                                                        refreshData();
-                                                    }
-                                                }}
-                                                className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl font-bold text-xs transition-colors"
-                                            >
-                                                Remover Acesso
-                                            </button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
       )}
 

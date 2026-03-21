@@ -4,8 +4,9 @@ import { User, SavingsRecord, Coupon, BusinessProfile, UserRole } from '../types
 import { Tag, LogOut, ChevronRight, HelpCircle, Trophy, TrendingUp, Wallet, Star, Heart, Store, Ticket, Send, Camera, Loader2, ShieldCheck, Zap, Bell, Clock, ShoppingBag } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 // Fix: Removed non-existent export 'sendSupportMessage' from dataService
-import { getCoupons, getBusinesses, getBusinessById, updateUser, logout } from '../services/dataService';
+import { getCoupons, getBusinesses, getBusinessById, updateUser, logout, redeemCoupon } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
+import { CouponModal } from '../components/CouponModal';
 import { ImageUpload } from '../components/ImageUpload';
 import { useNotification } from '../components/NotificationSystem';
 import { X, AlertTriangle } from 'lucide-react';
@@ -80,7 +81,7 @@ const CouponReceiptModal: React.FC<CouponReceiptModalProps> = ({ record, onClose
 interface UserDashboardProps {
   currentUser: User;
   onLogout: () => void;
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, params?: any) => void;
 }
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLogout, onNavigate }) => {
@@ -89,6 +90,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
   const [favCoupons, setFavCoupons] = useState<Coupon[]>([]);
   const [favBusinesses, setFavBusinesses] = useState<BusinessProfile[]>([]);
   const [selectedReceipt, setSelectedReceipt] = useState<SavingsRecord | null>(null);
+  const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [showFullHistory, setShowFullHistory] = useState(false);
   
   const [showSupport, setShowSupport] = useState(false);
@@ -374,7 +376,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                       ) : (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {favCoupons.map(coupon => (
-                                  <CouponCard key={coupon.id} coupon={coupon} onGetCoupon={() => {}} isRedeemed={false} />
+                                  <CouponCard key={coupon.id} coupon={coupon} onGetCoupon={setSelectedCoupon} isRedeemed={false} />
                               ))}
                           </div>
                       )}
@@ -392,7 +394,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                               {favBusinesses.map(biz => (
                                   <div 
                                     key={biz.id} 
-                                    onClick={() => onNavigate(`business/${biz.id}`)}
+                                    onClick={() => onNavigate('business-detail', { businessId: biz.id })}
                                     className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer"
                                   >
                                       <img src={biz.coverImage} className="w-12 h-12 rounded-xl object-cover" />
@@ -419,6 +421,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
 
       {/* MODALS */}
       {selectedReceipt && <CouponReceiptModal record={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
+      {selectedCoupon && <CouponModal coupon={selectedCoupon} onClose={() => setSelectedCoupon(null)} onRedeem={async (c) => { await redeemCoupon(currentUser.id, c); }} isRedeemed={false} />}
 
       {editAvatar && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">

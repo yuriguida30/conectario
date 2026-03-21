@@ -3,7 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { 
   ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, 
   MessageCircle, Share2, Loader2, Ticket, 
-  Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2, ShoppingBag
+  Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2, ShoppingBag,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, PricingPlan } from '../types';
@@ -23,6 +24,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
   const [loading, setLoading] = useState(true);
   const [showMenuOverlay, setShowMenuOverlay] = useState(false);
   const [isOpen, setIsOpen] = useState<boolean | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const refreshData = async () => {
@@ -48,6 +50,17 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
     };
     refreshData();
   }, [businessId]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (lightboxIndex === null || !business?.gallery) return;
+        if (e.key === 'Escape') setLightboxIndex(null);
+        if (e.key === 'ArrowLeft') setLightboxIndex(prev => prev !== null && prev > 0 ? prev - 1 : business.gallery!.length - 1);
+        if (e.key === 'ArrowRight') setLightboxIndex(prev => prev !== null && prev < business.gallery!.length - 1 ? prev + 1 : 0);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxIndex, business?.gallery]);
 
   const handleAction = (type: 'menu' | 'social' | 'map' | 'share' | 'phone' | 'website' | 'delivery' | 'booking') => {
       if (!business) return;
@@ -126,15 +139,19 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             {/* RÉGUA DE BOTÕES DINÂMICA */}
             <div className="overflow-x-auto hide-scrollbar -mx-6 px-6">
                 <div className="flex gap-4 min-w-max pb-2">
-                    <button onClick={() => handleAction('phone')} className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-md border border-slate-50 group-active:scale-95 transition-all"><Phone size={24}/></div>
-                        <span className="text-[9px] font-black uppercase text-slate-400">Ligar</span>
-                    </button>
+                    {business.phone && (
+                        <button onClick={() => handleAction('phone')} className="flex flex-col items-center gap-2 group">
+                            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-md border border-slate-50 group-active:scale-95 transition-all"><Phone size={24}/></div>
+                            <span className="text-[9px] font-black uppercase text-slate-400">Ligar</span>
+                        </button>
+                    )}
                     
-                    <button onClick={() => handleAction('map')} className="flex flex-col items-center gap-2 group">
-                        <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-md border border-slate-50 group-active:scale-95 transition-all"><Navigation size={24}/></div>
-                        <span className="text-[9px] font-black uppercase text-slate-400">Rota</span>
-                    </button>
+                    {business.address && (
+                        <button onClick={() => handleAction('map')} className="flex flex-col items-center gap-2 group">
+                            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-ocean-600 shadow-md border border-slate-50 group-active:scale-95 transition-all"><Navigation size={24}/></div>
+                            <span className="text-[9px] font-black uppercase text-slate-400">Rota</span>
+                        </button>
+                    )}
 
                     {business.instagram && (plan?.showSocialMedia !== false) && (
                         <button onClick={() => handleAction('social')} className="flex flex-col items-center gap-2 group">
@@ -164,7 +181,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                         </button>
                     )}
 
-                    {(plan?.showMenu !== false) && (
+                    {(plan?.showMenu !== false) && business.menu && business.menu.length > 0 && (
                         <button onClick={() => handleAction('menu')} className="flex flex-col items-center gap-2 group">
                             <div className="w-14 h-14 bg-ocean-600 rounded-2xl flex items-center justify-center text-white shadow-lg group-active:scale-95 transition-all"><Utensils size={24}/></div>
                             <span className="text-[9px] font-black uppercase text-ocean-600 font-bold">Cardápio</span>
@@ -177,6 +194,18 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                 <h3 className="text-xl font-black text-ocean-950">Sobre o Local</h3>
                 <p className="text-slate-600 leading-relaxed text-sm">{business.description}</p>
             </div>
+
+            {/* COMODIDADES VISUAIS */}
+            {business.amenities && business.amenities.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {business.amenities.map(am => (
+                        <div key={am} className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                            <div className="w-2 h-2 rounded-full bg-ocean-500" />
+                            <span className="text-xs font-bold text-slate-600">{AMENITIES_LABELS[am] || am}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {!business.isClaimed && business.canBeClaimed !== false && (
                 <div className="bg-amber-50 p-8 rounded-[2rem] border border-amber-100 space-y-4">
@@ -236,7 +265,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                     <div className="overflow-x-auto hide-scrollbar -mx-6 px-6">
                         <div className="flex gap-4 pb-2">
                             {business.gallery.map((img, idx) => (
-                                <div key={idx} className="w-72 h-48 flex-shrink-0 rounded-2xl overflow-hidden shadow-md border border-slate-100">
+                                <div key={idx} onClick={() => setLightboxIndex(idx)} className="w-72 h-48 flex-shrink-0 rounded-2xl overflow-hidden shadow-md border border-slate-100 cursor-pointer hover:opacity-90 transition-opacity">
                                     <img src={img} className="w-full h-full object-cover" alt={`${business.name} gallery ${idx}`} />
                                 </div>
                             ))}
@@ -244,16 +273,6 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                     </div>
                 </div>
             )}
-
-            {/* COMODIDADES VISUAIS */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {business.amenities?.map(am => (
-                    <div key={am} className="flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                        <div className="w-2 h-2 rounded-full bg-ocean-500" />
-                        <span className="text-xs font-bold text-slate-600">{AMENITIES_LABELS[am] || am}</span>
-                    </div>
-                ))}
-            </div>
 
             {coupons.length > 0 && (
                 <div className="space-y-6">
@@ -292,6 +311,44 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
         )}
 
         {selectedCoupon && <CouponModal coupon={selectedCoupon} onClose={() => setSelectedCoupon(null)} onRedeem={async (c) => { await redeemCoupon(currentUser?.id || '', c); }} isRedeemed={false} />}
+
+        {/* LIGHTBOX GALERIA */}
+        {lightboxIndex !== null && business.gallery && (
+            <div className="fixed inset-0 z-[200] bg-black/95 flex items-center justify-center animate-in fade-in">
+                <button 
+                    onClick={() => setLightboxIndex(null)} 
+                    className="absolute top-6 right-6 text-white/70 hover:text-white bg-black/50 p-3 rounded-full backdrop-blur-md transition-all z-50"
+                >
+                    <X size={24} />
+                </button>
+                
+                <button 
+                    onClick={() => setLightboxIndex(prev => prev !== null && prev > 0 ? prev - 1 : business.gallery!.length - 1)}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white bg-black/50 p-3 rounded-full backdrop-blur-md transition-all z-50"
+                >
+                    <ChevronLeft size={32} />
+                </button>
+
+                <div className="w-full max-w-5xl px-4 md:px-16 flex items-center justify-center h-full">
+                    <img 
+                        src={business.gallery[lightboxIndex]} 
+                        alt={`Galeria ${lightboxIndex + 1}`} 
+                        className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl animate-in zoom-in-95 duration-300"
+                    />
+                </div>
+
+                <button 
+                    onClick={() => setLightboxIndex(prev => prev !== null && prev < business.gallery!.length - 1 ? prev + 1 : 0)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white bg-black/50 p-3 rounded-full backdrop-blur-md transition-all z-50"
+                >
+                    <ChevronRight size={32} />
+                </button>
+
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/70 font-bold text-sm bg-black/50 px-4 py-2 rounded-full backdrop-blur-md">
+                    {lightboxIndex + 1} / {business.gallery.length}
+                </div>
+            </div>
+        )}
     </div>
   );
 };

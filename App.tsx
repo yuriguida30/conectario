@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { NotificationProvider } from './components/NotificationSystem';
 import { NavBar } from './components/NavBar';
 import { Home } from './pages/Home';
 import { UserDashboard } from './pages/UserDashboard';
@@ -77,6 +78,14 @@ const buildUrl = (page: string, params?: any): string => {
 };
 
 export default function App() {
+  return (
+    <NotificationProvider>
+      <AppContent />
+    </NotificationProvider>
+  );
+}
+
+function AppContent() {
   const [page, setPage] = useState('home');
   const [pageParams, setPageParams] = useState<any>(null);
   const [user, setUser] = useState<User | null>(getCurrentUser());

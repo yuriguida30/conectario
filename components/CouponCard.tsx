@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Star, Heart, Flame } from 'lucide-react';
 import { Coupon, User } from '../types';
 import { getCurrentUser, toggleFavorite } from '../services/dataService';
+import { useNotification } from './NotificationSystem';
 
 interface CouponCardProps {
   coupon: Coupon;
@@ -11,6 +12,7 @@ interface CouponCardProps {
 }
 
 export const CouponCard: React.FC<CouponCardProps> = ({ coupon, onGetCoupon, isRedeemed = false }) => {
+  const { notify } = useNotification();
   // Use local state for immediate feedback, synced with localStorage via service
   const user = getCurrentUser();
   const [isFav, setIsFav] = useState(user?.favorites?.coupons.includes(coupon.id) || false);
@@ -18,7 +20,7 @@ export const CouponCard: React.FC<CouponCardProps> = ({ coupon, onGetCoupon, isR
   const handleToggleFavorite = (e: React.MouseEvent) => {
       e.stopPropagation(); // Don't open modal
       if (!user) {
-          alert("Você precisa estar logado.");
+          notify('warning', "Você precisa estar logado.");
           return;
       }
       toggleFavorite('coupon', coupon.id);

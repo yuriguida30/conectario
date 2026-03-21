@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { getCoupons, getBusinesses, getBusinessById, updateUser, logout } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { ImageUpload } from '../components/ImageUpload';
+import { useNotification } from '../components/NotificationSystem';
 import { X, AlertTriangle } from 'lucide-react';
 
 interface CouponReceiptModalProps {
@@ -83,6 +84,7 @@ interface UserDashboardProps {
 }
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLogout, onNavigate }) => {
+  const { notify } = useNotification();
   const [activeTab, setActiveTab] = useState<'overview' | 'favorites' | 'coupons'>('overview');
   const [favCoupons, setFavCoupons] = useState<Coupon[]>([]);
   const [favBusinesses, setFavBusinesses] = useState<BusinessProfile[]>([]);
@@ -124,7 +126,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
           setEditAvatar(false);
           setNewAvatarUrl('');
       } catch (error) {
-          alert("Erro ao salvar a foto.");
+          notify('error', "Erro ao salvar a foto.");
       } finally {
           setIsSavingAvatar(false);
       }
@@ -478,7 +480,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
 
                       <button 
                           onClick={() => {
-                              alert("Mensagem enviada com sucesso! Entraremos em contato em breve.");
+                              notify('success', "Mensagem enviada com sucesso! Entraremos em contato em breve.");
                               setShowSupport(false);
                               setSupportMsg('');
                           }}

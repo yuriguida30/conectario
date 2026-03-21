@@ -9,8 +9,10 @@ import { BusinessProfile, AMENITIES_LABELS, Coupon, User, PricingPlan } from '..
 import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest, getPricingPlans } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
+import { useNotification } from '../components/NotificationSystem';
 
 export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: string, params?: any) => void }> = ({ businessId, onNavigate }) => {
+  const { notify } = useNotification();
   const [business, setBusiness] = useState<BusinessProfile | undefined>(undefined);
   const [plan, setPlan] = useState<PricingPlan | undefined>(undefined);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -63,14 +65,14 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                 navigator.share({ title: business.name, url: window.location.href }).catch(() => {});
             } else {
                 navigator.clipboard.writeText(window.location.href);
-                alert("Link copiado!");
+                notify('success', "Link copiado!");
             }
             break;
       }
   };
 
   const handleToggleFavorite = () => {
-    if (!currentUser) return alert("Faça login para favoritar.");
+    if (!currentUser) return notify('warning', "Faça login para favoritar.");
     toggleFavorite('business', businessId);
     setIsFav(!isFav);
   };
@@ -179,7 +181,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                     </p>
                     <button 
                         onClick={() => {
-                            if (!currentUser) return alert("Faça login para reivindicar esta empresa.");
+                            if (!currentUser) return notify('warning', "Faça login para reivindicar esta empresa.");
                             const claimRequest = {
                                 companyId: business.id,
                                 companyName: business.name,
@@ -191,7 +193,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                                 description: `Reivindicação da empresa ${business.name}`
                             };
                             createCompanyRequest(claimRequest, 'CLAIM');
-                            alert("Sua solicitação de reivindicação foi enviada para análise!");
+                            notify('success', "Sua solicitação de reivindicação foi enviada para análise!");
                         }}
                         className="bg-amber-500 text-white font-black px-6 py-3 rounded-xl shadow-lg shadow-amber-500/20 hover:bg-amber-600 transition-all text-xs uppercase tracking-widest"
                     >

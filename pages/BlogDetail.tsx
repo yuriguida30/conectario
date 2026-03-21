@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Calendar, Share2, Clock, Check, X, Instagram, Globe, Award, User, ChevronRight } from 'lucide-react';
 import { BlogPost, User as UserType } from '../types';
 import { getBlogPostById, getAllUsers } from '../services/dataService';
+import { useNotification } from '../components/NotificationSystem';
 
 interface BlogDetailProps {
   postId: string;
@@ -10,6 +11,7 @@ interface BlogDetailProps {
 }
 
 export const BlogDetail: React.FC<BlogDetailProps> = ({ postId, onNavigate }) => {
+  const { notify } = useNotification();
   const [post, setPost] = useState<BlogPost | undefined>(undefined);
   const [author, setAuthor] = useState<UserType | undefined>(undefined);
   const [showAuthorModal, setShowAuthorModal] = useState(false);
@@ -42,7 +44,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ postId, onNavigate }) =>
           try { await navigator.share(shareData); } catch (err) { /* ignore */ }
       } else {
           navigator.clipboard.writeText(window.location.href);
-          alert("Link copiado!");
+          notify('success', "Link copiado!");
       }
   };
 

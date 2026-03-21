@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Upload, X, Image as ImageIcon, Loader2, Plus } from 'lucide-react';
+import { useNotification } from './NotificationSystem';
 
 interface ImageUploadProps {
   currentImage?: string;
@@ -19,6 +20,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     label = "Upload de Imagem", 
     className = "" 
 }) => {
+  const { notify } = useNotification();
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -90,7 +92,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         }
     } catch (error) {
         console.error("Upload error:", error);
-        alert("Erro ao processar imagem. Tente um arquivo diferente (JPG/PNG).");
+        notify('error', "Erro ao processar imagem. Tente um arquivo diferente (JPG/PNG).");
     } finally {
         setLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = '';

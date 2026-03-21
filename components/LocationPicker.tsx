@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Navigation, Search, Loader2 } from 'lucide-react';
+import { useNotification } from './NotificationSystem';
 
 interface LocationPickerProps {
   initialLat?: number;
@@ -12,6 +13,7 @@ interface LocationPickerProps {
 declare const L: any;
 
 export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, initialLng, onLocationSelect }) => {
+  const { notify } = useNotification();
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -124,11 +126,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({ initialLat, init
                   onLocationSelect(newLat, newLng);
               }
           } else {
-              alert("Local não encontrado. Tente digitar o nome do bairro seguido de 'RJ'. Ex: 'Sepetiba RJ'");
+              notify('warning', "Local não encontrado. Tente digitar o nome do bairro seguido de 'RJ'. Ex: 'Sepetiba RJ'");
           }
       } catch (err) {
           console.error("Geocoding error:", err);
-          alert("Erro ao buscar local.");
+          notify('error', "Erro ao buscar local.");
       } finally {
           setIsSearching(false);
       }

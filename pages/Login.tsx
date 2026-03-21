@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { UserRole, AppCategory, AppConfig } from '../types';
 import { login, registerUser, createCompanyRequest, getCategories, getAppConfig, loginWithGoogle, resetUserPassword } from '../services/dataService';
 import { Building2, User, ChevronLeft, CheckCircle2, Loader2, Instagram, Globe, Phone, Mail, Lock, UserPlus, LogIn, Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
+import { useNotification } from '../components/NotificationSystem';
 
 interface LoginProps {
   onLogin: () => void;
@@ -10,6 +11,7 @@ interface LoginProps {
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
+  const { notify } = useNotification();
   const [mode, setMode] = useState<'LOGIN' | 'REGISTER_USER' | 'REGISTER_COMPANY'>('LOGIN');
   
   // Login State
@@ -216,7 +218,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
                                     try {
                                         setLoading(true);
                                         await resetUserPassword(email);
-                                        alert(`E-mail de recuperação enviado para ${email}`);
+                                        notify('success', `E-mail de recuperação enviado para ${email}`);
                                     } catch (err: any) {
                                         setError(err.message || "Erro ao enviar e-mail de recuperação.");
                                     } finally {

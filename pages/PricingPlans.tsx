@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, PricingPlan } from '../types';
 import { getPricingPlans, updateUser } from '../services/dataService';
 import { Check, ArrowRight, Star, Shield, Zap, Loader2 } from 'lucide-react';
+import { useNotification } from '../components/NotificationSystem';
 
 interface PricingPlansProps {
     currentUser: User | null;
@@ -10,6 +11,7 @@ interface PricingPlansProps {
 }
 
 export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavigate }) => {
+    const { notify } = useNotification();
     const [plans, setPlans] = useState<PricingPlan[]>([]);
     const [loading, setLoading] = useState(true);
     const [selecting, setSelecting] = useState<string | null>(null);
@@ -42,10 +44,10 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
                 maxCoupons: plan.maxCoupons
             };
             await updateUser(updatedUser);
-            alert(`Plano ${plan.name} selecionado com sucesso!`);
+            notify('success', `Plano ${plan.name} selecionado com sucesso!`);
             onNavigate('admin-dashboard');
         } catch (error) {
-            alert("Erro ao selecionar plano.");
+            notify('error', "Erro ao selecionar plano.");
         } finally {
             setSelecting(null);
         }

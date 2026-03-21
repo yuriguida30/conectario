@@ -4,6 +4,7 @@ import { Collection, BusinessProfile } from '../types';
 import { getCollectionById, getBusinessById, checkIfOpen } from '../services/dataService';
 import { ArrowLeft, Star, Heart, Clock, ShoppingBag } from 'lucide-react';
 import { toggleFavorite, getCurrentUser } from '../services/dataService';
+import { useNotification } from '../components/NotificationSystem';
 
 interface CollectionDetailProps {
   collectionId: string;
@@ -11,6 +12,7 @@ interface CollectionDetailProps {
 }
 
 export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId, onNavigate }) => {
+  const { notify } = useNotification();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
   const user = getCurrentUser();
@@ -31,7 +33,7 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
   const handleToggleFavorite = (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
       if (!user) {
-          alert("Você precisa estar logado.");
+          notify('warning', "Você precisa estar logado.");
           return;
       }
       toggleFavorite('business', id);

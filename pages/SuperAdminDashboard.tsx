@@ -13,10 +13,12 @@ import {
   PieChart as PieIcon, DollarSign, Mail, X, Save, CheckCircle2, PenTool
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'recharts';
+import { useNotification } from '../components/NotificationSystem';
 
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void; currentUser: User; onLogout: () => void }> = ({ onNavigate, currentUser, onLogout }) => {
+  const { notify, confirm } = useNotification();
   const [view, setView] = useState<'HOME' | 'REQUESTS' | 'USERS' | 'COMPANIES'>('HOME');
   const [requests, setRequests] = useState<CompanyRequest[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -69,8 +71,9 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
           await updateUser(updated);
           await loadData();
           setEditingUser(null);
+          notify('success', "Dados do usuário atualizados com sucesso!");
       } catch (e) {
-          alert("Erro ao atualizar dados do usuário.");
+          notify('error', "Erro ao atualizar dados do usuário.");
       } finally {
           setActionLoading(null);
       }
@@ -78,51 +81,53 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
 
   const handleResetPassword = async (user: User) => {
     if (!user?.email) {
-        alert("Este usuário não possui um e-mail cadastrado.");
+        notify('warning', "Este usuário não possui um e-mail cadastrado.");
         return;
     }
-    if (!window.confirm(`Deseja enviar um e-mail de redefinição de senha para ${user.name || 'Usuário'} (${user.email})?`)) return;
+    if (!await confirm({ title: 'Redefinir Senha', message: `Deseja enviar um e-mail de redefinição de senha para ${user.name || 'Usuário'} (${user.email})?` })) return;
     
     setActionLoading(user.id);
     try {
         await resetUserPassword(user.email);
-        alert(`E-mail de redefinição enviado com sucesso para ${user.email}`);
+        notify('success', `E-mail de redefinição enviado com sucesso para ${user.email}`);
     } catch (e: any) {
-        alert(e.message || "Erro ao solicitar redefinição de senha. Verifique se o e-mail existe no Firebase Auth.");
+        notify('error', e.message || "Erro ao solicitar redefinição de senha.");
     } finally {
         setActionLoading(null);
     }
   };
 
   const handleDeleteBiz = async (id: string, name: string) => {
-      if (!window.confirm(`TEM CERTEZA que deseja EXCLUIR permanentemente a empresa "${name}"? Esta ação não pode ser desfeita.`)) return;
+      if (!await confirm({ title: 'Excluir Empresa', message: `TEM CERTEZA que deseja EXCLUIR permanentemente a empresa "${name}"? Esta ação não pode ser desfeita.` })) return;
       setActionLoading(id);
       try {
           await deleteBusiness(id);
+          notify('success', "Empresa excluída com sucesso!");
           await loadData();
       } catch (e) {
-          alert("Erro ao deletar empresa.");
+          notify('error', "Erro ao deletar empresa.");
       } finally {
           setActionLoading(null);
       }
   };
 
   const handleDeleteUser = async (id: string, name: string) => {
-      if (id === currentUser.id) return alert("Você não pode excluir a si mesmo.");
-      if (!window.confirm(`TEM CERTEZA que deseja EXCLUIR o usuário "${name}"?`)) return;
+      if (id === currentUser.id) return notify('warning', "Você não pode excluir a si mesmo.");
+      if (!await confirm({ title: 'Excluir Usuário', message: `TEM CERTEZA que deseja EXCLUIR o usuário "${name}"?` })) return;
       setActionLoading(id);
       try {
           await deleteUser(id);
+          notify('success', "Usuário excluído com sucesso!");
           await loadData();
       } catch (e) {
-          alert("Erro ao deletar usuário.");
+          notify('error', "Erro ao deletar usuário.");
       } finally {
           setActionLoading(null);
       }
   };
 
   const handleGrantBusinessPermission = async (user: User) => {
-      if (!window.confirm(`Deseja dar permissão para ${user.name} criar uma empresa?`)) return;
+      if (!await confirm({ title: 'Conceder Permissão', message: `Deseja dar permissão para ${user.name} criar uma empresa?` })) return;
       
       setActionLoading(user.id);
       try {
@@ -134,11 +139,11 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
               } 
           };
           await updateUser(updatedUser);
-          alert(`Permissão concedida para ${user.name}! O usuário agora verá um aviso em seu painel para criar a empresa.`);
+          notify('success', `Permissão concedida para ${user.name}! O usuário agora verá um aviso em seu painel para criar a empresa.`);
           await loadData();
       } catch (e) {
           console.error("Erro ao conceder permissão:", e);
-          alert("Erro ao conceder permissão.");
+          notify('error', "Erro ao conceder permissão.");
       } finally {
           setActionLoading(null);
       }
@@ -256,18 +261,18 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                               onSubmit={async (e) => {
                                   e.preventDefault();
                                   if (!newJournalist.name || !newJournalist.email || !newJournalist.password) {
-                                      alert('Preencha todos os campos.');
+                                      notify('warning', 'Preencha todos os campos.');
                                       return;
                                   }
                                   setIsSaving(true);
                                   try {
                                       const { createJournalistUser } = await import('../services/dataService');
                                       await createJournalistUser(newJournalist.name, newJournalist.email, newJournalist.password);
-                                      alert('Jornalista criado com sucesso!');
+                                       notify('success', 'Jornalista criado com sucesso!');
                                       setNewJournalist({ name: '', email: '', password: '' });
                                       loadData();
                                   } catch (error: any) {
-                                      alert('Erro ao criar jornalista: ' + error.message);
+                                       notify('error', 'Erro ao criar jornalista: ' + error.message);
                                   } finally {
                                       setIsSaving(false);
                                   }
@@ -353,10 +358,10 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                               {u.role !== UserRole.SUPER_ADMIN && u.role !== UserRole.JOURNALIST && (
                                                   <button 
                                                       onClick={async () => {
-                                                          if (confirm(`Deseja transformar ${u.name} em Jornalista?`)) {
+                                                          if (await confirm({ title: 'Promover a Jornalista', message: `Deseja transformar ${u.name} em Jornalista?` })) {
                                                               const { updateUser } = await import('../services/dataService');
                                                               await updateUser({ ...u, role: UserRole.JOURNALIST });
-                                                              alert(`${u.name} agora é um Jornalista!`);
+                                                               notify('success', `${u.name} agora é um Jornalista!`);
                                                               loadData();
                                                           }
                                                       }}
@@ -369,10 +374,10 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                               {u.role === UserRole.JOURNALIST && (
                                                   <button 
                                                       onClick={async () => {
-                                                          if (confirm(`Deseja remover o acesso de Jornalista de ${u.name}?`)) {
+                                                          if (await confirm({ title: 'Remover Jornalista', message: `Deseja remover o acesso de Jornalista de ${u.name}?` })) {
                                                               const { updateUser } = await import('../services/dataService');
                                                               await updateUser({ ...u, role: UserRole.CUSTOMER });
-                                                              alert(`${u.name} agora é um Cliente comum.`);
+                                                               notify('success', `${u.name} agora é um Cliente comum.`);
                                                               loadData();
                                                           }
                                                       }}
@@ -506,7 +511,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                         onClick={async () => { 
                                             setActionLoading(req.id); 
                                             await approveCompanyRequest(req.id); 
-                                            alert(`Solicitação de "${req.companyName}" aprovada! O usuário recebeu permissão para publicar a empresa no seu próprio painel.`);
+                                             notify('success', `Solicitação de "${req.companyName}" aprovada! O usuário recebeu permissão para publicar a empresa no seu próprio painel.`);
                                             await loadData(); 
                                             setActionLoading(null); 
                                         }}

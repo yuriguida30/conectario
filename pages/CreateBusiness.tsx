@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User, UserRole, BusinessProfile } from '../types';
 import { getCategories, saveBusiness, updateUser, getCities, getNeighborhoods, getPricingPlans } from '../services/dataService';
 import { Store, ArrowLeft, Loader2, CheckCircle2, Camera, MapPin, Phone, Info } from 'lucide-react';
+import { useNotification } from '../components/NotificationSystem';
 
 interface CreateBusinessProps {
     currentUser: User;
@@ -10,6 +11,7 @@ interface CreateBusinessProps {
 }
 
 export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onNavigate }) => {
+    const { notify } = useNotification();
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [, setTick] = useState(0);
@@ -37,7 +39,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name.trim()) return alert("Por favor, insira o nome da empresa.");
+        if (!formData.name.trim()) return notify('warning', "Por favor, insira o nome da empresa.");
         
         setLoading(true);
         try {
@@ -86,7 +88,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
             }, 2000);
         } catch (error) {
             console.error("Erro ao criar empresa:", error);
-            alert("Erro ao criar empresa. Tente novamente.");
+            notify('error', "Erro ao criar empresa. Tente novamente.");
         } finally {
             setLoading(false);
         }

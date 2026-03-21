@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon, X, ChevronDown, ListFilter, ShoppingBag } from 'lucide-react';
 import { BusinessProfile, AppCategory, AppAmenity, User, City, Neighborhood } from '../types';
 import { getBusinesses, getCategories, getAmenities, toggleFavorite, calculateDistance, getCities, getNeighborhoods, identifyNeighborhood, checkIfOpen } from '../services/dataService';
+import { useNotification } from '../components/NotificationSystem';
 
 interface BusinessGuideProps {
   currentUser: User | null;
@@ -23,6 +24,7 @@ const GuideSplash = () => (
 );
 
 export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNavigate }) => {
+  const { notify } = useNotification();
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
   const [filtered, setFiltered] = useState<BusinessProfile[]>([]);
   const [isLoadingDB, setIsLoadingDB] = useState(true);
@@ -144,7 +146,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
 
   const handleToggleFavorite = (e: React.MouseEvent, id: string) => {
       e.stopPropagation();
-      if (!currentUser) return alert("Faça login para favoritar.");
+      if (!currentUser) return notify('warning', "Faça login para favoritar.");
       toggleFavorite('business', id);
       setFavorites(prev => prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]);
   };
@@ -162,7 +164,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
               setNearby(true);
               setCurrentLocationName(identifyNeighborhood(pos.coords.latitude, pos.coords.longitude));
           },
-          () => { setLocating(false); alert("GPS não autorizado."); }
+          () => { setLocating(false); notify('error', "GPS não autorizado."); }
       );
   };
 

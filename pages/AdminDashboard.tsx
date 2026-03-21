@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNotification } from '../components/NotificationSystem';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood } from '../types';
 import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan } from '../services/dataService';
 import { 
@@ -13,10 +14,13 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { ImageUpload } from '../components/ImageUpload';
 import { LocationPicker } from '../components/LocationPicker';
 import { BusinessHoursEditor } from '../components/BusinessHoursEditor';
+import { AdminStats } from '../components/admin/AdminStats';
+import { AdminSidebar } from '../components/admin/AdminSidebar';
 
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
+  const { notify, confirm } = useNotification();
   const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
@@ -36,6 +40,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const [editBusiness, setEditBusiness] = useState<Partial<BusinessProfile>>({});
   const [newPassword, setNewPassword] = useState('');
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordPrompt, setPasswordPrompt] = useState<{ businessId: string, businessName: string } | null>(null);
+  const [manualPass, setManualPass] = useState('');
 
   const [newCoupon, setNewCoupon] = useState<Partial<Coupon>>({
     title: '',
@@ -131,11 +137,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     setIsSaving(true);
     try {
         await saveBusiness({ ...myBusiness, ...editBusiness } as BusinessProfile);
-        alert("Alterações salvas com sucesso!");
+        notify('success', "Alterações salvas com sucesso!");
         setView('HOME');
         refreshData();
     } catch (error) {
-        alert("Erro ao salvar alterações. Tente novamente.");
+        notify('error', "Erro ao salvar alterações. Tente novamente.");
     } finally {
         setIsSaving(false);
     }
@@ -207,7 +213,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     setIsSaving(true);
     try {
         await createAdminPlace(newPlace);
-        alert("Lugar cadastrado com sucesso no guia!");
+        notify('success', "Lugar cadastrado com sucesso no guia!");
         setView('BUSINESSES');
         setNewPlace({
             name: '',
@@ -221,7 +227,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
         });
         refreshData();
     } catch (err) {
-        alert("Erro ao cadastrar lugar.");
+        notify('error', "Erro ao cadastrar lugar.");
     } finally {
         setIsSaving(false);
     }
@@ -232,7 +238,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     setIsSaving(true);
     try {
         await savePricingPlan(newPlan);
-        alert("Plano salvo com sucesso!");
+        notify('success', "Plano salvo com sucesso!");
         setNewPlan({
             name: '',
             price: 0,
@@ -248,14 +254,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
         });
         refreshData();
     } catch (err) {
-        alert("Erro ao salvar plano.");
+        notify('error', "Erro ao salvar plano.");
     } finally {
         setIsSaving(false);
     }
   };
 
   const handleDeletePlan = async (id: string) => {
-    if (confirm("Deseja excluir este plano?")) {
+    if (await confirm({ title: 'Excluir Plano', message: "Deseja excluir este plano?" })) {
         await deletePricingPlan(id);
         refreshData();
     }
@@ -275,7 +281,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
       <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-6">
               <div className="w-20 h-20 bg-ocean-600 rounded-3xl overflow-hidden shadow-xl">
-                  {(editBusiness.coverImage || myBusiness?.coverImage) && <img src={editBusiness.coverImage || myBusiness?.coverImage} className="w-full h-full object-cover" />}
+                  {(editBusiness.coverImage || myBusiness?.coverImage) && <img src={editBusiness.coverImage || myBusiness?.coverImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />}
               </div>
               <div>
                   <h1 className="text-3xl font-black text-ocean-950 tracking-tight">
@@ -291,77 +297,13 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   </div>
               </div>
           </div>
-          <div className="flex flex-wrap gap-3 justify-center">
-                {currentUser.role === UserRole.SUPER_ADMIN ? (
-                    <>
-                        <button 
-                            onClick={() => setView('REQUESTS')}
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 relative ${view === 'REQUESTS' ? 'bg-amber-500 text-white shadow-lg' : 'bg-white border border-slate-100 text-amber-600 shadow-sm'}`}>
-                            <Layers size={18} /> SOLICITAÇÕES
-                            {requests.length > 0 && (
-                                <span className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] border-2 border-white animate-bounce">
-                                    {requests.length}
-                                </span>
-                            )}
-                        </button>
-                        <button 
-                            onClick={() => setView('BUSINESSES')} 
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'BUSINESSES' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-blue-600 shadow-sm'}`}>
-                            <Store size={18} /> EMPRESAS
-                        </button>
-                        <button 
-                            onClick={() => setView('CATEGORIES')} 
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'CATEGORIES' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}>
-                            <Layers size={18} /> CATEGORIAS
-                        </button>
-                        <button 
-                            onClick={() => setView('PLANS')} 
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'PLANS' ? 'bg-purple-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-purple-600 shadow-sm'}`}>
-                            <Zap size={18} /> PLANOS
-                        </button>
-                        <button 
-                            onClick={() => setView('HIGHLIGHTS')} 
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'HIGHLIGHTS' ? 'bg-pink-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-pink-600 shadow-sm'}`}>
-                            <Layout size={18} /> DESTAQUES
-                        </button>
-                        <button 
-                            onClick={() => setView('USERS')} 
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'USERS' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-indigo-600 shadow-sm'}`}>
-                            <Users size={18} /> USUÁRIOS
-                        </button>
-                        <button 
-                            onClick={() => setView('LOCATIONS')} 
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'LOCATIONS' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-emerald-600 shadow-sm'}`}>
-                            <MapPin size={18} /> LOCAIS
-                        </button>
-                    </>
-                ) : (
-                    <>
-                        <button 
-                            onClick={() => setView('MENU')} 
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'MENU' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
-                        >
-                            <Utensils size={18} /> CARDÁPIO
-                        </button>
-                        <button 
-                            onClick={() => onNavigate('pricing-plans')} 
-                            className="bg-gradient-to-tr from-gold-500 to-gold-400 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-gold-500/20 active:scale-95 transition-all flex items-center gap-2"
-                        >
-                            <Star size={18} /> MEU PLANO
-                        </button>
-                        <button 
-                            onClick={() => setView(view === 'PROFILE' ? 'HOME' : 'PROFILE')} 
-                            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'PROFILE' ? 'bg-slate-200 text-slate-700' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
-                        >
-                            <Settings size={18} /> {view === 'PROFILE' ? 'VOLTAR' : 'CONFIGURAR PERFIL'}
-                        </button>
-                        <button onClick={() => setView('CREATE_COUPON')} className="bg-ocean-600 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-ocean-600/20 active:scale-95 transition-all">
-                            + NOVO CUPOM
-                        </button>
-                    </>
-                )}
-                <button onClick={onLogout} className="px-6 py-4 bg-red-50 text-red-500 rounded-2xl font-black text-xs">SAIR</button>
-          </div>
+          <AdminSidebar 
+            view={view} 
+            setView={setView} 
+            currentUser={currentUser} 
+            onNavigate={onNavigate} 
+            onLogout={onLogout} 
+          />
       </div>
 
       {view === 'HOME' && stats && (
@@ -559,18 +501,18 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                       onSubmit={async (e) => {
                           e.preventDefault();
                           if (!newJournalist.name || !newJournalist.email || !newJournalist.password) {
-                              alert('Preencha todos os campos.');
+                              notify('warning', 'Preencha todos os campos.');
                               return;
                           }
                           setIsSaving(true);
                           try {
                               const { createJournalistUser } = await import('../services/dataService');
                               await createJournalistUser(newJournalist.name, newJournalist.email, newJournalist.password);
-                              alert('Jornalista criado com sucesso!');
+                              notify('success', 'Jornalista criado com sucesso!');
                               setNewJournalist({ name: '', email: '', password: '' });
                               refreshData();
                           } catch (error: any) {
-                              alert('Erro ao criar jornalista: ' + error.message);
+                              notify('error', 'Erro ao criar jornalista: ' + error.message);
                           } finally {
                               setIsSaving(false);
                           }
@@ -651,10 +593,10 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                       {u.role !== UserRole.SUPER_ADMIN && u.role !== UserRole.JOURNALIST && (
                                           <button 
                                               onClick={async () => {
-                                                  if (confirm(`Deseja transformar ${u.name} em Jornalista?`)) {
+                                                  if (await confirm({ title: 'Promover a Jornalista', message: `Deseja transformar ${u.name} em Jornalista?` })) {
                                                       const { updateUser } = await import('../services/dataService');
                                                       await updateUser({ ...u, role: UserRole.JOURNALIST });
-                                                      alert(`${u.name} agora é um Jornalista!`);
+                                                      notify('success', `${u.name} agora é um Jornalista!`);
                                                       refreshData();
                                                   }
                                               }}
@@ -667,10 +609,10 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                       {u.role === UserRole.JOURNALIST && (
                                           <button 
                                               onClick={async () => {
-                                                  if (confirm(`Deseja remover o acesso de Jornalista de ${u.name}?`)) {
+                                                  if (await confirm({ title: 'Remover Jornalista', message: `Deseja remover o acesso de Jornalista de ${u.name}?` })) {
                                                       const { updateUser } = await import('../services/dataService');
                                                       await updateUser({ ...u, role: UserRole.CUSTOMER });
-                                                      alert(`${u.name} agora é um Cliente comum.`);
+                                                      notify('success', `${u.name} agora é um Cliente comum.`);
                                                       refreshData();
                                                   }
                                               }}
@@ -784,14 +726,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                         type="button"
                                         disabled={!newPassword || isChangingPassword}
                                         onClick={async () => {
-                                            if (!confirm("Deseja alterar sua senha de acesso?")) return;
+                                            if (!await confirm({ title: 'Alterar Senha', message: "Deseja alterar sua senha de acesso?" })) return;
                                             setIsChangingPassword(true);
                                             try {
                                                 await setManualPassword(currentUser.id, newPassword);
-                                                alert("Senha alterada com sucesso! Use a nova senha no próximo login.");
+                                                notify('success', "Senha alterada com sucesso! Use a nova senha no próximo login.");
                                                 setNewPassword('');
                                             } catch (err) {
-                                                alert("Erro ao alterar senha.");
+                                                notify('error', "Erro ao alterar senha.");
                                             } finally {
                                                 setIsChangingPassword(false);
                                             }
@@ -1053,7 +995,10 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
               <form onSubmit={async (e) => { 
                   e.preventDefault(); 
-                  if (!newCoupon.imageUrl) return alert("Por favor, adicione uma imagem para a oferta.");
+                  if (!newCoupon.imageUrl) {
+                      notify('warning', "Por favor, adicione uma imagem para a oferta.");
+                      return;
+                  }
                   setIsSaving(true); 
                   const couponData = {
                       ...newCoupon, 
@@ -1232,7 +1177,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                     <div className="flex gap-2 w-full md:w-auto">
                         <button 
                             onClick={async () => {
-                                if (confirm(`Deseja ${biz.isBlocked ? 'ativar' : 'inativar'} esta empresa e seu usuário?`)) {
+                                if (await confirm({ title: 'Alterar Status', message: `Deseja ${biz.isBlocked ? 'ativar' : 'inativar'} esta empresa e seu usuário?` })) {
                                     await toggleBusinessStatus(biz.id, !biz.isBlocked);
                                     refreshData();
                                 }
@@ -1245,7 +1190,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
                         <button 
                             onClick={async () => {
-                                if (confirm(`Deseja ${biz.canBeClaimed ? 'desativar' : 'ativar'} a possibilidade de reivindicação para este lugar?`)) {
+                                if (await confirm({ title: 'Alterar Reivindicação', message: `Deseja ${biz.canBeClaimed ? 'desativar' : 'ativar'} a possibilidade de reivindicação para este lugar?` })) {
                                     await updateClaimableStatus(biz.id, !biz.canBeClaimed);
                                     refreshData();
                                 }
@@ -1263,7 +1208,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                 value={biz.plan || ''}
                                 onChange={async (e) => {
                                     const newPlanId = e.target.value;
-                                    if (confirm(`Deseja alterar o plano de "${biz.name}" para "${newPlanId}"?`)) {
+                                    if (await confirm({ title: 'Alterar Plano', message: `Deseja alterar o plano de "${biz.name}" para "${newPlanId}"?` })) {
                                         await updateBusinessPlan(biz.id, newPlanId);
                                         refreshData();
                                     }
@@ -1277,13 +1222,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                         </div>
 
                         <button 
-                            onClick={async () => {
-                                const pass = prompt(`Definir nova senha manual para "${biz.name}":`);
-                                if (pass) {
-                                    await setManualPassword(biz.id, pass);
-                                    alert("Senha manual definida com sucesso!");
-                                }
-                            }}
+                            onClick={() => setPasswordPrompt({ businessId: biz.id, businessName: biz.name })}
                             className="flex-1 md:flex-none bg-white border border-ocean-100 text-ocean-600 px-4 py-3 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 hover:bg-ocean-50 transition-all"
                         >
                             <Key size={16} /> SENHA
@@ -1291,7 +1230,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                         
                         <button 
                             onClick={async () => {
-                                if (confirm("ATENÇÃO: Esta ação é permanente e excluirá a empresa, o usuário e todos os seus cupons. Deseja continuar?")) {
+                                if (await confirm({ title: 'EXCLUSÃO PERMANENTE', message: "ATENÇÃO: Esta ação é permanente e excluirá a empresa, o usuário e todos os seus cupons. Deseja continuar?" })) {
                                     await deleteBusinessPermanently(biz.id);
                                     refreshData();
                                 }
@@ -1305,6 +1244,61 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                 );
               })
             )}
+          </div>
+        </div>
+      )}
+
+      {passwordPrompt && (
+        <div className="fixed inset-0 bg-ocean-950/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-black text-ocean-950">Nova Senha Manual</h3>
+              <button onClick={() => { setPasswordPrompt(null); setManualPass(''); }} className="text-slate-400 hover:text-ocean-600">
+                <X size={24} />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 font-bold">
+              Definir nova senha para <span className="text-ocean-600">{passwordPrompt.businessName}</span>
+            </p>
+            <div className="space-y-4">
+              <input 
+                type="text"
+                autoFocus
+                className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none focus:ring-2 focus:ring-ocean-500" 
+                placeholder="Digite a nova senha..." 
+                value={manualPass} 
+                onChange={e => setManualPass(e.target.value)} 
+              />
+              <div className="flex gap-4">
+                <button 
+                  type="button" 
+                  onClick={() => { setPasswordPrompt(null); setManualPass(''); }} 
+                  className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-slate-500 bg-slate-100"
+                >
+                  CANCELAR
+                </button>
+                <button 
+                  type="button"
+                  disabled={!manualPass || isSaving}
+                  onClick={async () => {
+                    setIsSaving(true);
+                    try {
+                      await setManualPassword(passwordPrompt.businessId, manualPass);
+                      notify('success', "Senha manual definida com sucesso!");
+                      setPasswordPrompt(null);
+                      setManualPass('');
+                    } catch (err) {
+                      notify('error', "Erro ao definir senha.");
+                    } finally {
+                      setIsSaving(false);
+                    }
+                  }}
+                  className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-white bg-ocean-600 shadow-lg shadow-ocean-600/20 disabled:opacity-50"
+                >
+                  {isSaving ? <Loader2 className="animate-spin mx-auto" size={18} /> : "DEFINIR SENHA"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1695,6 +1689,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 const HighlightsManager: React.FC<{ highlights: HomeHighlight[]; onBack: () => void; onRefresh: () => void }> = ({ highlights, onBack, onRefresh }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [editingHighlight, setEditingHighlight] = useState<Partial<HomeHighlight> | null>(null);
+    const { notify, confirm } = useNotification();
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1702,18 +1697,18 @@ const HighlightsManager: React.FC<{ highlights: HomeHighlight[]; onBack: () => v
         setIsSaving(true);
         try {
             await saveHomeHighlight(editingHighlight);
-            alert("Destaque salvo com sucesso!");
+            notify('success', "Destaque salvo com sucesso!");
             setEditingHighlight(null);
             onRefresh();
         } catch (err) {
-            alert("Erro ao salvar destaque.");
+            notify('error', "Erro ao salvar destaque.");
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleDelete = async (id: string) => {
-        if (confirm("Deseja excluir este destaque?")) {
+        if (await confirm({ title: 'Excluir Destaque', message: "Deseja excluir este destaque?" })) {
             await deleteHomeHighlight(id);
             onRefresh();
         }
@@ -1870,6 +1865,7 @@ const LocationsManager: React.FC<{ cities: City[]; neighborhoods: Neighborhood[]
     const [isSaving, setIsSaving] = useState(false);
     const [editingCity, setEditingCity] = useState<Partial<City> | null>(null);
     const [editingNeighborhood, setEditingNeighborhood] = useState<Partial<Neighborhood> | null>(null);
+    const { notify, confirm } = useNotification();
 
     const handleSaveCity = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1877,11 +1873,11 @@ const LocationsManager: React.FC<{ cities: City[]; neighborhoods: Neighborhood[]
         setIsSaving(true);
         try {
             await saveCity(editingCity as City);
-            alert("Cidade salva com sucesso!");
+            notify('success', "Cidade salva com sucesso!");
             setEditingCity(null);
             onRefresh();
         } catch (err) {
-            alert("Erro ao salvar cidade.");
+            notify('error', "Erro ao salvar cidade.");
         } finally {
             setIsSaving(false);
         }
@@ -1893,25 +1889,25 @@ const LocationsManager: React.FC<{ cities: City[]; neighborhoods: Neighborhood[]
         setIsSaving(true);
         try {
             await saveNeighborhood(editingNeighborhood as Neighborhood);
-            alert("Bairro salvo com sucesso!");
+            notify('success', "Bairro salvo com sucesso!");
             setEditingNeighborhood(null);
             onRefresh();
         } catch (err) {
-            alert("Erro ao salvar bairro.");
+            notify('error', "Erro ao salvar bairro.");
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleDeleteCity = async (id: string) => {
-        if (confirm("Deseja excluir esta cidade?")) {
+        if (await confirm({ title: 'Excluir Cidade', message: "Deseja excluir esta cidade?" })) {
             await deleteCity(id);
             onRefresh();
         }
     };
 
     const handleDeleteNeighborhood = async (id: string) => {
-        if (confirm("Deseja excluir este bairro?")) {
+        if (await confirm({ title: 'Excluir Bairro', message: "Deseja excluir este bairro?" })) {
             await deleteNeighborhood(id);
             onRefresh();
         }

@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Search as SearchIcon, X, SlidersHorizontal, Frown, Loader2, Navigation } from 'lucide-react';
 import { Coupon, AppCategory, User, Subcategory } from '../types';
 import { getCoupons, getCategories, calculateDistance, redeemCoupon, getCurrentUser, getBusinesses } from '../services/dataService';
+import { useNotification } from '../components/NotificationSystem';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 
@@ -11,6 +12,7 @@ interface SearchPageProps {
 }
 
 export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
+  const { notify } = useNotification();
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('Todos');
@@ -100,7 +102,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
               },
               (err) => {
                   setLocating(false);
-                  alert("Não conseguimos obter sua localização.");
+                  notify('error', "Não conseguimos obter sua localização.");
               }
           );
       }

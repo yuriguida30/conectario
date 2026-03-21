@@ -23,18 +23,18 @@ import {
     updatePassword
 } from 'firebase/auth';
 import { auth, db } from './firebase';
+import { MOCK_POSTS } from './mockData';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, SavingsRecord, 
     CompanyRequest, AppCategory, Subcategory, DEFAULT_CATEGORIES, 
     DEFAULT_AMENITIES, AppConfig, Collection, PricingPlan, HomeHighlight, City, Neighborhood
 } from '../types';
-import { MOCK_COUPONS, MOCK_BUSINESSES, MOCK_POSTS, MOCK_USERS } from './mockData';
 
 const SESSION_KEY = 'cr_session_v4';
 
-let _businesses: BusinessProfile[] = MOCK_BUSINESSES;
-let _coupons: Coupon[] = MOCK_COUPONS;
-let _users: User[] = MOCK_USERS;
+let _businesses: BusinessProfile[] = [];
+let _coupons: Coupon[] = [];
+let _users: User[] = [];
 let _categories: AppCategory[] = [];
 let _dicasCategories: AppCategory[] = [];
 let _requests: CompanyRequest[] = [];
@@ -132,26 +132,14 @@ export const initFirebaseData = () => {
         notifyListeners();
     });
 
-    onSnapshot(collection(db, 'cities'), async (snapshot) => {
-        if (snapshot.empty) {
-            const cityId = doc(collection(db, 'cities')).id;
-            const newCity: City = { id: cityId, name: 'Rio de Janeiro', active: true };
-            await setDoc(doc(db, 'cities', cityId), newCity);
-            
-            const nId = doc(collection(db, 'neighborhoods')).id;
-            const newN: Neighborhood = { id: nId, cityId, name: 'Centro', active: true };
-            await setDoc(doc(db, 'neighborhoods', nId), newN);
-        } else {
-            _cities = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as City));
-            notifyListeners();
-        }
+    onSnapshot(collection(db, 'cities'), (snapshot) => {
+        _cities = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as City));
+        notifyListeners();
     });
 
     onSnapshot(collection(db, 'neighborhoods'), (snapshot) => {
-        if (!snapshot.empty) {
-            _neighborhoods = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Neighborhood));
-            notifyListeners();
-        }
+        _neighborhoods = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Neighborhood));
+        notifyListeners();
     });
 
     onSnapshot(collection(db, 'blog_posts'), (snapshot) => {
@@ -165,48 +153,6 @@ export const initFirebaseData = () => {
         _posts = merged;
         notifyListeners();
     });
-};
-
-export const updateBusinessesWithLocation = async () => {
-    try {
-        // Find or create Rio de Janeiro
-        let rioCity = _cities.find(c => c.name.toLowerCase() === 'rio de janeiro');
-        if (!rioCity) {
-            const cityId = doc(collection(db, 'cities')).id;
-            rioCity = { id: cityId, name: 'Rio de Janeiro', active: true };
-            await setDoc(doc(db, 'cities', cityId), rioCity);
-            _cities.push(rioCity);
-        }
-
-        // Find or create Sepetiba
-        let sepetibaNeighborhood = _neighborhoods.find(n => n.name.toLowerCase() === 'sepetiba' && n.cityId === rioCity!.id);
-        if (!sepetibaNeighborhood) {
-            const nId = doc(collection(db, 'neighborhoods')).id;
-            sepetibaNeighborhood = { id: nId, cityId: rioCity.id, name: 'Sepetiba', active: true };
-            await setDoc(doc(db, 'neighborhoods', nId), sepetibaNeighborhood);
-            _neighborhoods.push(sepetibaNeighborhood);
-        }
-
-        // Update businesses
-        const businessesSnap = await getDocs(collection(db, 'businesses'));
-        let updatedCount = 0;
-        
-        for (const d of businessesSnap.docs) {
-            const bizData = d.data() as BusinessProfile;
-            if (!bizData.cityId || !bizData.neighborhoodId) {
-                await updateDoc(doc(db, 'businesses', d.id), {
-                    cityId: rioCity.id,
-                    neighborhoodId: sepetibaNeighborhood.id
-                });
-                updatedCount++;
-            }
-        }
-        
-        return { success: true, updatedCount };
-    } catch (error) {
-        console.error("Error updating businesses with location:", error);
-        return { success: false, error };
-    }
 };
 
 initFirebaseData();
@@ -483,7 +429,14 @@ export const getAdminStats = async () => {
 };
 
 export const getAppConfig = () => _appConfig;
-export const getLocations = () => [{ id: 'sepetiba', name: 'Sepetiba', active: true }, { id: 'centro', name: 'Centro', active: true }];
+export const getLocations = () => {
+    // Return all active neighborhoods as locations
+    return _neighborhoods.filter(n => n.active).map(n => ({
+        id: n.id,
+        name: n.name,
+        active: true
+    }));
+};
 export const getAmenities = () => DEFAULT_AMENITIES;
 let _posts: BlogPost[] = [...MOCK_POSTS];
 

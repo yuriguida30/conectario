@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { User, BlogPost, AppCategory } from '../types';
 import { getBlogPosts, saveBlogPost, deleteBlogPost, getDicasCategories, saveDicasCategory, saveDicasSubcategory } from '../services/dataService';
-import { Pencil, Trash2, Plus, Image as ImageIcon, Tag, Globe, Settings, FileText, CheckCircle, XCircle, LayoutDashboard, FolderPlus } from 'lucide-react';
+import { Pencil, Trash2, Plus, Image as ImageIcon, Tag, Globe, Settings, FileText, CheckCircle, XCircle, LayoutDashboard, FolderPlus, Link as LinkIcon, X, Loader2 } from 'lucide-react';
 import { ImageUpload } from '../components/ImageUpload';
+import { useNotification } from '../components/NotificationSystem';
 
 interface JournalistDashboardProps {
   currentUser: User;
@@ -11,11 +12,14 @@ interface JournalistDashboardProps {
 }
 
 export function JournalistDashboard({ currentUser, onNavigate, onLogout }: JournalistDashboardProps) {
+  const { notify, confirm } = useNotification();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [categories, setCategories] = useState<AppCategory[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [currentPost, setCurrentPost] = useState<Partial<BlogPost>>({});
   const [activeTab, setActiveTab] = useState<'dashboard' | 'posts' | 'settings'>('dashboard');
+  const [linkPrompt, setLinkPrompt] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
   const [profile, setProfile] = useState<Partial<User>>({
       avatarUrl: currentUser.avatarUrl,
       profession: currentUser.profession,
@@ -61,8 +65,8 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
     setIsEditing(true);
   };
 
-  const handleDeletePost = (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta matéria?')) {
+  const handleDeletePost = async (id: string) => {
+    if (await confirm({ title: 'Excluir Matéria', message: 'Tem certeza que deseja excluir esta matéria?' })) {
       deleteBlogPost(id);
       loadData();
     }
@@ -71,7 +75,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
   const handleSavePost = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPost.title || !currentPost.content) {
-      alert('Título e conteúdo são obrigatórios.');
+      notify('error', 'Título e conteúdo são obrigatórios.');
       return;
     }
     
@@ -159,10 +163,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                     <button onClick={() => applyFormat('b')} className="px-2 py-1 bg-white border rounded text-sm font-bold">B</button>
                     <button onClick={() => applyFormat('i')} className="px-2 py-1 bg-white border rounded text-sm italic">I</button>
                     <button onClick={() => applyFormat('u')} className="px-2 py-1 bg-white border rounded text-sm underline">U</button>
-                    <button onClick={() => {
-                        const url = prompt('URL do link:');
-                        if (url) applyFormat(`a href="${url}"`);
-                    }} className="px-2 py-1 bg-white border rounded text-sm text-blue-600">Link</button>
+                    <button onClick={() => setLinkPrompt(true)} className="px-2 py-1 bg-white border rounded text-sm text-blue-600">Link</button>
                 </div>
                 <textarea
                   id="post-content"
@@ -341,7 +342,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                     onClick={async () => {
                         const { updateUser } = await import('../services/dataService');
                         await updateUser({ ...currentUser, ...profile } as User);
-                        alert('Perfil atualizado!');
+                        notify('success', 'Perfil atualizado!');
                     }}
                 >
                     Salvar Perfil
@@ -363,7 +364,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                                   if (!input.value) return;
                                   await saveDicasSubcategory(cat.id, input.value);
                                   input.value = '';
-                                  alert('Subcategoria criada!');
+                                  notify('success', 'Subcategoria criada!');
                                   loadData();
                               }} className="px-3 py-1 bg-gray-600 text-white rounded-lg text-sm">Adicionar</button>
                           </div>
@@ -376,7 +377,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                           if (!input.value) return;
                           await saveDicasCategory({ id: input.value.toLowerCase(), name: input.value, subcategories: [] });
                           input.value = '';
-                          alert('Categoria criada!');
+                          notify('success', 'Categoria criada!');
                           loadData();
                       }} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Criar Categoria</button>
                   </div>
@@ -384,6 +385,44 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
             </div>
           )}
       </div>
+      {linkPrompt && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold">Inserir Link</h3>
+              <button onClick={() => { setLinkPrompt(false); setLinkUrl(''); }} className="text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <input 
+              type="text"
+              autoFocus
+              className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500" 
+              placeholder="https://exemplo.com" 
+              value={linkUrl} 
+              onChange={e => setLinkUrl(e.target.value)} 
+            />
+            <div className="flex gap-3">
+              <button 
+                onClick={() => { setLinkPrompt(false); setLinkUrl(''); }} 
+                className="flex-1 px-4 py-2 rounded-lg font-bold text-gray-500 bg-gray-100"
+              >
+                CANCELAR
+              </button>
+              <button 
+                onClick={() => {
+                  if (linkUrl) applyFormat(`a href="${linkUrl}"`);
+                  setLinkPrompt(false);
+                  setLinkUrl('');
+                }}
+                className="flex-1 px-4 py-2 rounded-lg font-bold text-white bg-blue-600"
+              >
+                INSERIR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

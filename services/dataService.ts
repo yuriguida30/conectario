@@ -26,7 +26,7 @@ import { auth, db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, SavingsRecord, 
     CompanyRequest, AppCategory, Subcategory, DEFAULT_CATEGORIES, 
-    DEFAULT_AMENITIES, AppConfig, Collection, PricingPlan, HomeHighlight, City, Neighborhood
+    DEFAULT_AMENITIES, AppConfig, Collection, PricingPlan, HomeHighlight, City, Neighborhood, Review
 } from '../types';
 
 const SESSION_KEY = 'cr_session_v4';
@@ -43,7 +43,7 @@ let _cities: City[] = [];
 let _neighborhoods: Neighborhood[] = [];
 let _isInitialized = false;
 
-const _collections: Collection[] = [];
+let _collections: Collection[] = [];
 const _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
 
 const notifyListeners = () => {
@@ -310,6 +310,29 @@ export const updateUser = async (user: User) => {
 };
 
 export const getCategories = () => _categories;
+
+export const addReview = async (businessId: string, review: Omit<Review, 'id' | 'date'>) => {
+    const business = _businesses.find(b => b.id === businessId);
+    if (!business) throw new Error('Business not found');
+
+    const newReview: Review = {
+        ...review,
+        id: Math.random().toString(36).substring(2, 9),
+        date: new Date().toISOString()
+    };
+
+    const updatedReviews = [newReview, ...(business.reviews || [])];
+    const newCount = updatedReviews.length;
+    const newRating = updatedReviews.reduce((acc, r) => acc + r.rating, 0) / newCount;
+
+    business.reviews = updatedReviews;
+    business.reviewCount = newCount;
+    business.rating = newRating;
+
+    await setDoc(doc(db, 'businesses', businessId), cleanObject(business), { merge: true });
+    notifyListeners();
+    return newReview;
+};
 export const getDicasCategories = () => _dicasCategories;
 export const getAllUsers = () => _users;
 
@@ -453,6 +476,36 @@ export const deleteBlogPost = async (id: string) => {
     notifyListeners();
 };
 export const getCollections = (): Collection[] => _collections;
+
+export const saveCollection = async (col: Partial<Collection>) => {
+    const id = col.id || doc(collection(db, 'collections')).id;
+    const newCol: Collection = {
+        id,
+        title: col.title || '',
+        description: col.description || '',
+        coverImage: col.coverImage || '',
+        businessIds: col.businessIds || [],
+        order: col.order || 0,
+        active: col.active ?? true,
+        ...col
+    } as Collection;
+    
+    const idx = _collections.findIndex(c => c.id === id);
+    if (idx >= 0) {
+        _collections[idx] = newCol;
+    } else {
+        _collections.push(newCol);
+    }
+    await setDoc(doc(db, 'collections', id), cleanObject(newCol), { merge: true });
+    notifyListeners();
+    return newCol;
+};
+
+export const deleteCollection = async (id: string) => {
+    _collections = _collections.filter(c => c.id !== id);
+    await deleteDoc(doc(db, 'collections', id));
+    notifyListeners();
+};
 
 // Fix: Added missing getCollectionById function export to resolve the import error in CollectionDetail.tsx
 export const getCollectionById = (id: string) => _collections.find(c => c.id === id);

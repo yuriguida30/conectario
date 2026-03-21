@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNotification } from '../components/NotificationSystem';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers, Zap,
-  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool, Users
+  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool, Users, Image as ImageIcon
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -21,7 +21,7 @@ const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
   const { notify, confirm } = useNotification();
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS' | 'COLLECTIONS'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -32,6 +32,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const [requests, setRequests] = useState<CompanyRequest[]>([]);
   const [plans, setPlans] = useState<PricingPlan[]>([]);
   const [highlights, setHighlights] = useState<HomeHighlight[]>([]);
+  const [collections, setCollections] = useState<any[]>([]);
   const [cities, setCities] = useState<City[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -119,6 +120,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
         setRequests(allRequests.filter(r => r.status === 'PENDING'));
         setPlans(getPricingPlans());
         setHighlights(getAllHomeHighlights());
+        setCollections(getCollections());
         setUsers(getAllUsers());
     }
     setLoading(false);
@@ -1682,6 +1684,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
             onRefresh={refreshData} 
           />
       )}
+      {view === 'COLLECTIONS' && currentUser.role === UserRole.SUPER_ADMIN && (
+          <CollectionsManager 
+            collections={collections}
+            businesses={allBusinesses}
+            onBack={() => setView('HOME')} 
+            onRefresh={refreshData} 
+          />
+      )}
     </div>
   );
 };
@@ -1984,29 +1994,175 @@ const LocationsManager: React.FC<{ cities: City[]; neighborhoods: Neighborhood[]
                     </div>
                 </div>
             )}
-            {editingNeighborhood && (
-                <div className="fixed inset-0 bg-ocean-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 space-y-6">
-                        <h3 className="text-xl font-black text-ocean-950">Configurar Bairro</h3>
-                        <form onSubmit={handleSaveNeighborhood} className="space-y-4">
-                            <input required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm" placeholder="Nome do Bairro" value={editingNeighborhood.name} onChange={e => setEditingNeighborhood({...editingNeighborhood, name: e.target.value})} />
-                            <select required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm" value={editingNeighborhood.cityId} onChange={e => setEditingNeighborhood({...editingNeighborhood, cityId: e.target.value})}>
-                                <option value="">Selecione a Cidade</option>
-                                {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                            <div className="h-48 rounded-xl overflow-hidden border border-slate-100 shadow-inner">
-                                <LocationPicker 
-                                    initialLat={editingNeighborhood.lat} 
-                                    initialLng={editingNeighborhood.lng} 
-                                    onLocationSelect={(lat, lng) => setEditingNeighborhood({...editingNeighborhood, lat, lng})} 
-                                />
-                            </div>
-                            <div className="flex gap-4">
-                                <button type="button" onClick={() => setEditingNeighborhood(null)} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-slate-500 bg-slate-100">CANCELAR</button>
-                                <button type="submit" disabled={isSaving} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-white bg-emerald-600">SALVAR</button>
-                            </div>
-                        </form>
+        </div>
+    );
+};
+
+const CollectionsManager: React.FC<{ collections: any[]; businesses: BusinessProfile[]; onBack: () => void; onRefresh: () => void }> = ({ collections, businesses, onBack, onRefresh }) => {
+    const [isSaving, setIsSaving] = useState(false);
+    const [editingCollection, setEditingCollection] = useState<any | null>(null);
+    const { notify, confirm } = useNotification();
+
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingCollection) return;
+        setIsSaving(true);
+        try {
+            await saveCollection(editingCollection);
+            notify('success', 'Coleção salva com sucesso!');
+            setEditingCollection(null);
+            onRefresh();
+        } catch (error) {
+            notify('error', 'Erro ao salvar coleção.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (await confirm({title: 'Excluir Coleção', message: 'Tem certeza que deseja excluir esta coleção?', type: 'danger'})) {
+            try {
+                await deleteCollection(id);
+                notify('success', 'Coleção excluída.');
+                onRefresh();
+            } catch (error) {
+                notify('error', 'Erro ao excluir.');
+            }
+        }
+    };
+
+    const toggleBusiness = (businessId: string) => {
+        if (!editingCollection) return;
+        const currentIds = editingCollection.businessIds || [];
+        const newIds = currentIds.includes(businessId) 
+            ? currentIds.filter((id: string) => id !== businessId)
+            : [...currentIds, businessId];
+        setEditingCollection({ ...editingCollection, businessIds: newIds });
+    };
+
+    return (
+        <div className="space-y-6 animate-fade-in">
+            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                    <button onClick={onBack} className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400 hover:text-ocean-600 transition-colors">
+                        <ChevronLeft size={20} />
+                    </button>
+                    <div>
+                        <h2 className="text-2xl font-black text-ocean-950 tracking-tight">Coleções</h2>
+                        <p className="text-sm font-medium text-slate-500">Gerencie as coleções em destaque</p>
                     </div>
+                </div>
+                <button onClick={() => setEditingCollection({ title: '', description: '', coverImage: '', businessIds: [], order: 0, active: true })} className="bg-ocean-600 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-ocean-600/20 active:scale-95 transition-all flex items-center gap-2">
+                    <Plus size={16} /> NOVA COLEÇÃO
+                </button>
+            </div>
+
+            {editingCollection ? (
+                <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+                    <h3 className="text-xl font-black text-ocean-950 mb-6">{editingCollection.id ? 'Editar Coleção' : 'Nova Coleção'}</h3>
+                    <form onSubmit={handleSave} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Título</label>
+                                    <input required className="w-full bg-slate-50 p-4 rounded-2xl border border-slate-100 font-bold text-sm text-ocean-950 focus:ring-2 focus:ring-ocean-500 outline-none transition-all" value={editingCollection.title} onChange={e => setEditingCollection({...editingCollection, title: e.target.value})} />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Descrição</label>
+                                    <textarea className="w-full bg-slate-50 p-4 rounded-2xl border border-slate-100 font-bold text-sm text-ocean-950 focus:ring-2 focus:ring-ocean-500 outline-none transition-all resize-none h-24" value={editingCollection.description} onChange={e => setEditingCollection({...editingCollection, description: e.target.value})} />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Ordem</label>
+                                        <input type="number" className="w-full bg-slate-50 p-4 rounded-2xl border border-slate-100 font-bold text-sm text-ocean-950 focus:ring-2 focus:ring-ocean-500 outline-none transition-all" value={editingCollection.order} onChange={e => setEditingCollection({...editingCollection, order: parseInt(e.target.value) || 0})} />
+                                    </div>
+                                    <div className="flex items-center gap-3 pt-8">
+                                        <input type="checkbox" id="active" className="w-5 h-5 rounded border-slate-300 text-ocean-600 focus:ring-ocean-500" checked={editingCollection.active} onChange={e => setEditingCollection({...editingCollection, active: e.target.checked})} />
+                                        <label htmlFor="active" className="text-sm font-bold text-slate-700 cursor-pointer">Ativo</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Imagem de Capa</label>
+                                <ImageUpload currentImage={editingCollection.coverImage} onImageSelect={(url) => setEditingCollection({...editingCollection, coverImage: url})} />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Empresas na Coleção ({(editingCollection.businessIds || []).length})</label>
+                            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 max-h-64 overflow-y-auto">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                    {businesses.map(b => (
+                                        <label key={b.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${editingCollection.businessIds?.includes(b.id) ? 'bg-ocean-50 border-ocean-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                                            <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-ocean-600 focus:ring-ocean-500" checked={editingCollection.businessIds?.includes(b.id)} onChange={() => toggleBusiness(b.id)} />
+                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                {b.coverImage && <img src={b.coverImage} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />}
+                                                <span className="text-xs font-bold text-slate-700 truncate">{b.name}</span>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-4 pt-6 border-t border-slate-100">
+                            <button type="button" onClick={() => setEditingCollection(null)} className="px-8 py-4 rounded-2xl font-black text-xs text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors">CANCELAR</button>
+                            <button type="submit" disabled={isSaving} className="px-8 py-4 rounded-2xl font-black text-xs text-white bg-ocean-600 hover:bg-ocean-700 shadow-lg shadow-ocean-600/20 flex items-center gap-2 transition-all">
+                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} SALVAR
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {collections.map(col => (
+                        <div key={col.id} className={`bg-white rounded-[2rem] overflow-hidden shadow-sm border transition-all ${col.active ? 'border-slate-100 hover:shadow-md' : 'border-slate-200 opacity-60'}`}>
+                            <div className="h-40 relative">
+                                {col.coverImage ? (
+                                    <img src={col.coverImage} alt={col.title} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full bg-slate-100 flex items-center justify-center">
+                                        <ImageIcon size={32} className="text-slate-300" />
+                                    </div>
+                                )}
+                                <div className="absolute top-4 right-4 flex gap-2">
+                                    <button onClick={() => setEditingCollection(col)} className="p-2 bg-white/90 backdrop-blur-sm text-ocean-600 rounded-xl hover:bg-white transition-colors shadow-sm">
+                                        <PenTool size={16} />
+                                    </button>
+                                    <button onClick={() => handleDelete(col.id)} className="p-2 bg-white/90 backdrop-blur-sm text-red-500 rounded-xl hover:bg-white transition-colors shadow-sm">
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                                {!col.active && (
+                                    <div className="absolute top-4 left-4 bg-slate-800 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
+                                        Inativo
+                                    </div>
+                                )}
+                            </div>
+                            <div className="p-6">
+                                <h3 className="text-lg font-black text-ocean-950 mb-1">{col.title}</h3>
+                                <p className="text-sm text-slate-500 line-clamp-2 mb-4">{col.description}</p>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-lg">
+                                        {(col.businessIds || []).length} empresas
+                                    </span>
+                                    <span className="text-xs font-bold text-slate-400">
+                                        Ordem: {col.order}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {collections.length === 0 && (
+                        <div className="col-span-full py-12 text-center bg-white rounded-[2.5rem] border border-slate-100 border-dashed">
+                            <Layers size={48} className="mx-auto text-slate-300 mb-4" />
+                            <h3 className="text-lg font-black text-slate-700 mb-2">Nenhuma coleção</h3>
+                            <p className="text-slate-500 text-sm mb-6 max-w-md mx-auto">Crie coleções para agrupar empresas e destacar na página inicial do guia.</p>
+                            <button onClick={() => setEditingCollection({ title: '', description: '', coverImage: '', businessIds: [], order: 0, active: true })} className="bg-ocean-600 text-white px-6 py-3 rounded-xl font-black text-xs shadow-lg shadow-ocean-600/20 inline-flex items-center gap-2">
+                                <Plus size={16} /> CRIAR PRIMEIRA COLEÇÃO
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

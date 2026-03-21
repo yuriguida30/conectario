@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, SavingsRecord, Coupon, BusinessProfile, UserRole } from '../types';
-import { Tag, LogOut, ChevronRight, HelpCircle, Trophy, TrendingUp, Wallet, Star, Heart, Store, Ticket, Send, Camera, Loader2, ShieldCheck, Zap, Bell, Clock, ShoppingBag } from 'lucide-react';
+import { Tag, LogOut, ChevronRight, HelpCircle, Trophy, TrendingUp, Wallet, Star, Heart, Store, Ticket, Send, Camera, Loader2, ShieldCheck, Zap, Bell, Clock, ShoppingBag, Settings } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 // Fix: Removed non-existent export 'sendSupportMessage' from dataService
-import { getCoupons, getBusinesses, getBusinessById, updateUser, logout, redeemCoupon } from '../services/dataService';
+import { getCoupons, getBusinesses, getBusinessById, updateUser, logout, redeemCoupon, changeCurrentUserPassword } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 import { ImageUpload } from '../components/ImageUpload';
@@ -101,6 +101,35 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
   const [newAvatarUrl, setNewAvatarUrl] = useState('');
   const [isSavingAvatar, setIsSavingAvatar] = useState(false);
 
+  const [showSettings, setShowSettings] = useState(false);
+  const [editName, setEditName] = useState(currentUser.name || '');
+  const [editSurname, setEditSurname] = useState(currentUser.surname || '');
+  const [editEmail, setEditEmail] = useState(currentUser.email || '');
+  const [editPassword, setEditPassword] = useState('');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  const handleUpdateSettings = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsSavingSettings(true);
+      try {
+          const updatedUser = { ...currentUser, name: editName, surname: editSurname, email: editEmail };
+          await updateUser(updatedUser);
+          
+          if (editPassword) {
+              await changeCurrentUserPassword(editPassword);
+          }
+          
+          window.dispatchEvent(new Event('dataUpdated'));
+          setShowSettings(false);
+          setEditPassword('');
+          notify('success', 'Perfil atualizado com sucesso!');
+      } catch (error: any) {
+          notify('error', error.message || 'Erro ao atualizar perfil.');
+      } finally {
+          setIsSavingSettings(false);
+      }
+  };
+
   useEffect(() => {
       if (activeTab === 'favorites') {
           const loadFavs = async () => {
@@ -166,9 +195,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                   )}
               </div>
           </div>
-          <button onClick={onLogout} className="bg-white p-2.5 rounded-xl text-slate-400 hover:text-red-500 shadow-sm border border-slate-100">
-              <LogOut size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+              <button onClick={() => setShowSettings(true)} className="bg-white p-2.5 rounded-xl text-slate-400 hover:text-ocean-600 shadow-sm border border-slate-100">
+                  <Settings size={20} />
+              </button>
+              <button onClick={onLogout} className="bg-white p-2.5 rounded-xl text-slate-400 hover:text-red-500 shadow-sm border border-slate-100">
+                  <LogOut size={20} />
+              </button>
+          </div>
       </div>
 
       {/* DASHBOARD ACCESS BUTTONS - ACESSO RÁPIDO */}
@@ -503,6 +537,78 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                       >
                           <Send size={20} /> ENVIAR MENSAGEM
                       </button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {showSettings && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+              <div className="bg-white w-full max-w-md rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in duration-300">
+                  <div className="p-8">
+                      <div className="flex justify-between items-center mb-6">
+                          <h3 className="text-2xl font-black text-ocean-950 uppercase tracking-tight">Configurações</h3>
+                          <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-ocean-600"><X size={24} /></button>
+                      </div>
+                      
+                      <form onSubmit={handleUpdateSettings} className="space-y-4">
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Nome</label>
+                              <input 
+                                  type="text" 
+                                  value={editName} 
+                                  onChange={e => setEditName(e.target.value)} 
+                                  className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-ocean-500/20 outline-none"
+                                  required
+                              />
+                          </div>
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Sobrenome</label>
+                              <input 
+                                  type="text" 
+                                  value={editSurname} 
+                                  onChange={e => setEditSurname(e.target.value)} 
+                                  className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-ocean-500/20 outline-none"
+                              />
+                          </div>
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email</label>
+                              <input 
+                                  type="email" 
+                                  value={editEmail} 
+                                  onChange={e => setEditEmail(e.target.value)} 
+                                  className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-ocean-500/20 outline-none"
+                                  required
+                              />
+                          </div>
+                          <div>
+                              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Nova Senha (opcional)</label>
+                              <input 
+                                  type="password" 
+                                  value={editPassword} 
+                                  onChange={e => setEditPassword(e.target.value)} 
+                                  placeholder="Deixe em branco para não alterar"
+                                  className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-ocean-500/20 outline-none"
+                              />
+                          </div>
+
+                          <div className="mt-8 flex gap-3 pt-4">
+                              <button 
+                                  type="button"
+                                  onClick={() => setShowSettings(false)}
+                                  className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl hover:bg-slate-200 transition-all"
+                              >
+                                  CANCELAR
+                              </button>
+                              <button 
+                                  type="submit"
+                                  disabled={isSavingSettings}
+                                  className="flex-1 py-4 bg-ocean-600 text-white font-black rounded-2xl hover:bg-ocean-700 transition-all shadow-lg shadow-ocean-600/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                              >
+                                  {isSavingSettings ? <Loader2 className="animate-spin" size={20} /> : "SALVAR"}
+                              </button>
+                          </div>
+                      </form>
                   </div>
               </div>
           </div>

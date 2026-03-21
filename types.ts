@@ -32,6 +32,7 @@ export interface UserPermissions {
 export interface User {
   id: string;
   name: string;
+  surname?: string;
   email: string;
   role: UserRole;
   avatarUrl?: string;
@@ -248,6 +249,8 @@ export interface Collection {
   description: string;
   coverImage: string;
   businessIds: string[];
+  active: boolean;
+  order: number;
 }
 
 export interface HomeHighlight {

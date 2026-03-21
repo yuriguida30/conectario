@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon, X, ChevronDown, ListFilter, ShoppingBag, Ticket } from 'lucide-react';
 import { BusinessProfile, AppCategory, AppAmenity, User, City, Neighborhood } from '../types';
-import { getBusinesses, getCategories, getAmenities, toggleFavorite, calculateDistance, getCities, getNeighborhoods, identifyNeighborhood, checkIfOpen, getCoupons } from '../services/dataService';
+import { getBusinesses, getCategories, getAmenities, toggleFavorite, calculateDistance, getCities, getNeighborhoods, identifyNeighborhood, checkIfOpen, getCoupons, getCollections } from '../services/dataService';
 import { useNotification } from '../components/NotificationSystem';
 
 interface BusinessGuideProps {
@@ -33,6 +33,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   const [cities, setCities] = useState<City[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>([]);
   const [amenities, setAmenities] = useState<AppAmenity[]>([]);
+  const [collections, setCollections] = useState<any[]>([]);
 
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
@@ -54,6 +55,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     setCities(getCities());
     setNeighborhoods(getNeighborhoods());
     setAmenities(getAmenities());
+    setCollections(getCollections().filter(c => c.active).sort((a, b) => a.order - b.order));
     
     // Fetch coupons to see which businesses have active coupons
     try {
@@ -269,6 +271,27 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
               </div>
           </div>
       </div>
+
+      {collections.length > 0 && (
+          <div className="px-4 mb-6 max-w-7xl mx-auto">
+              <h2 className="text-lg font-black text-ocean-950 mb-3">Coleções em Destaque</h2>
+              <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
+                  {collections.map(col => (
+                      <div 
+                          key={col.id} 
+                          onClick={() => onNavigate('collection-detail', { collectionId: col.id })}
+                          className="shrink-0 w-64 h-32 rounded-2xl overflow-hidden relative cursor-pointer group shadow-sm"
+                      >
+                          <img src={col.coverImage} alt={col.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex flex-col justify-end p-4">
+                              <h3 className="text-white font-black text-sm leading-tight">{col.title}</h3>
+                              <p className="text-white/80 text-[10px] font-medium mt-1">{(col.businessIds || []).length} locais</p>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      )}
 
       <div className="px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto">
           {filtered.map((business) => (

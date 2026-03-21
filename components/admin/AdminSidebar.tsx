@@ -63,6 +63,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           >
             <MapPin size={18} /> LOCAIS
           </button>
+          <button 
+            onClick={() => setView('COLLECTIONS')} 
+            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'COLLECTIONS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+          >
+            <Layers size={18} /> COLEÇÕES
+          </button>
         </>
       ) : (
         <>

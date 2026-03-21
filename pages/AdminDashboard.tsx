@@ -95,6 +95,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     if (biz) {
         setMyBusiness(biz);
         setEditBusiness(prev => Object.keys(prev).length === 0 ? biz : prev);
+        setNewCoupon(prev => ({
+            ...prev,
+            companyName: biz.name,
+            companyId: biz.id
+        }));
     }
     setAllBusinesses(getAllBusinesses());
     const s = await getBusinessStats(currentUser.id);
@@ -1384,33 +1389,72 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
         <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
             <div className="flex justify-between items-center">
                 <h2 className="text-3xl font-black text-ocean-950">Reatribuir Cupons</h2>
-                <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
-                    <ChevronLeft size={16} /> Voltar
-                </button>
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={async () => {
+                            if (confirm('Deseja corrigir os nomes de todas as empresas nos cupons automaticamente? Isso buscará o nome real da empresa pelo ID associado.')) {
+                                setIsSaving(true);
+                                try {
+                                    let count = 0;
+                                    for (const coupon of coupons) {
+                                        if (coupon.companyId) {
+                                            const biz = allBusinesses.find(b => b.id === coupon.companyId);
+                                            if (biz && biz.name !== coupon.companyName) {
+                                                await saveCoupon({...coupon, companyName: biz.name});
+                                                count++;
+                                            }
+                                        }
+                                    }
+                                    alert(`${count} cupons foram corrigidos com sucesso!`);
+                                    refreshData();
+                                } catch (err) {
+                                    console.error(err);
+                                    alert('Erro ao corrigir alguns cupons.');
+                                } finally {
+                                    setIsSaving(false);
+                                }
+                            }
+                        }}
+                        className="bg-green-600 text-white px-6 py-2 rounded-xl font-bold text-sm hover:bg-green-700 transition-colors disabled:opacity-50"
+                        disabled={isSaving}
+                    >
+                        {isSaving ? 'Corrigindo...' : 'Corrigir Nomes Automaticamente'}
+                    </button>
+                    <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                        <ChevronLeft size={16} /> Voltar
+                    </button>
+                </div>
             </div>
             <div className="space-y-4">
+                {coupons.length === 0 && <p className="text-center py-12 text-slate-400 font-bold">Nenhum cupom encontrado para reatribuição.</p>}
                 {coupons.map(coupon => (
                     <div key={coupon.id} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex items-center justify-between gap-4">
                         <div className="flex-1">
                             <h4 className="font-black text-ocean-950">{coupon.title}</h4>
-                            <p className="text-xs text-slate-500">{coupon.companyName}</p>
+                            <p className={`text-xs font-bold ${coupon.companyName === 'Minha Empresa' ? 'text-red-500' : 'text-slate-500'}`}>
+                                {coupon.companyName}
+                                {coupon.companyName === 'Minha Empresa' && ' (Atenção: Nome genérico detectado!)'}
+                            </p>
                         </div>
-                        <select 
-                            className="bg-white p-3 rounded-xl border border-slate-200 font-bold text-sm"
-                            value={coupon.companyId || ''}
-                            onChange={async (e) => {
-                                const newCompanyId = e.target.value;
-                                if (!newCompanyId) return;
-                                const biz = allBusinesses.find(b => b.id === newCompanyId);
-                                if (confirm(`Deseja reatribuir este cupom para "${biz?.name}"?`)) {
-                                    await saveCoupon({...coupon, companyId: newCompanyId, companyName: biz?.name || 'Empresa Desconhecida'});
-                                    refreshData();
-                                }
-                            }}
-                        >
-                            <option value="">Selecione a Empresa</option>
-                            {allBusinesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Atribuir a:</span>
+                            <select 
+                                className="bg-white p-3 rounded-xl border border-slate-200 font-bold text-sm min-w-[200px]"
+                                value={coupon.companyId || ''}
+                                onChange={async (e) => {
+                                    const newCompanyId = e.target.value;
+                                    if (!newCompanyId) return;
+                                    const biz = allBusinesses.find(b => b.id === newCompanyId);
+                                    if (confirm(`Deseja reatribuir este cupom para "${biz?.name}"?`)) {
+                                        await saveCoupon({...coupon, companyId: newCompanyId, companyName: biz?.name || 'Empresa Desconhecida'});
+                                        refreshData();
+                                    }
+                                }}
+                            >
+                                <option value="">Selecione a Empresa</option>
+                                {allBusinesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                        </div>
                     </div>
                 ))}
             </div>

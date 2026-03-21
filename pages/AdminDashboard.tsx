@@ -334,22 +334,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                             className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'LOCATIONS' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-emerald-600 shadow-sm'}`}>
                             <MapPin size={18} /> LOCAIS
                         </button>
-                        <button 
-                            onClick={async () => {
-                                if (confirm("Deseja atualizar todas as empresas sem local para Rio de Janeiro / Sepetiba?")) {
-                                    const { updateBusinessesWithLocation } = await import('../services/dataService');
-                                    const res = await updateBusinessesWithLocation();
-                                    if (res.success) {
-                                        alert(`Atualização concluída! ${res.updatedCount} empresas atualizadas.`);
-                                        refreshData();
-                                    } else {
-                                        alert("Erro ao atualizar empresas.");
-                                    }
-                                }
-                            }}
-                            className="px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 bg-slate-800 text-white shadow-lg hover:bg-slate-900">
-                            <MapPin size={18} /> FIX LOCAIS
-                        </button>
                     </>
                 ) : (
                     <>

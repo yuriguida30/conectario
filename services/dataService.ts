@@ -23,7 +23,6 @@ import {
     updatePassword
 } from 'firebase/auth';
 import { auth, db } from './firebase';
-import { MOCK_POSTS } from './mockData';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, SavingsRecord, 
     CompanyRequest, AppCategory, Subcategory, DEFAULT_CATEGORIES, 
@@ -144,13 +143,7 @@ export const initFirebaseData = () => {
 
     onSnapshot(collection(db, 'blog_posts'), (snapshot) => {
         const fbPosts = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BlogPost));
-        const merged = [...MOCK_POSTS];
-        fbPosts.forEach(fp => {
-            const idx = merged.findIndex(m => m.id === fp.id);
-            if (idx >= 0) merged[idx] = fp;
-            else merged.push(fp);
-        });
-        _posts = merged;
+        _posts = fbPosts;
         notifyListeners();
     });
 };
@@ -438,7 +431,7 @@ export const getLocations = () => {
     }));
 };
 export const getAmenities = () => DEFAULT_AMENITIES;
-let _posts: BlogPost[] = [...MOCK_POSTS];
+let _posts: BlogPost[] = [];
 
 export const getBlogPosts = () => _posts;
 export const getBlogPostById = (id: string) => _posts.find(p => p.id === id);

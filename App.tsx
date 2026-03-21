@@ -77,11 +77,15 @@ const buildUrl = (page: string, params?: any): string => {
   }
 };
 
+import { HelmetProvider } from 'react-helmet-async';
+
 export default function App() {
   return (
-    <NotificationProvider>
-      <AppContent />
-    </NotificationProvider>
+    <HelmetProvider>
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
+    </HelmetProvider>
   );
 }
 

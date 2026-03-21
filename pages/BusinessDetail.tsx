@@ -5,6 +5,7 @@ import {
   MessageCircle, Share2, Loader2, Ticket, 
   Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2, ShoppingBag
 } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, PricingPlan } from '../types';
 import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest, getPricingPlans } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
@@ -82,6 +83,13 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
 
   return (
     <div className={`bg-white min-h-screen pb-32 ${showMenuOverlay ? 'overflow-hidden' : ''}`}>
+        <Helmet>
+            <title>{business.name} | Guia Comercial</title>
+            <meta name="description" content={business.description.substring(0, 150) + '...'} />
+            <meta property="og:title" content={business.name} />
+            <meta property="og:description" content={business.description.substring(0, 150) + '...'} />
+            <meta property="og:image" content={business.coverImage} />
+        </Helmet>
         <div className="relative h-[35vh] w-full bg-slate-900">
             <img src={business.coverImage} className="w-full h-full object-cover opacity-80" alt={business.name} />
             <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-black/20" />

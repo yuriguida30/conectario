@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Calendar, Share2, Clock, Check, X, Instagram, Globe, Award, User, ChevronRight } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import { BlogPost, User as UserType } from '../types';
 import { getBlogPostById, getAllUsers } from '../services/dataService';
 import { useNotification } from '../components/NotificationSystem';
@@ -50,6 +51,13 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ postId, onNavigate }) =>
 
   return (
     <div className="bg-white min-h-screen pb-24">
+        <Helmet>
+            <title>{post.title} | Blog</title>
+            <meta name="description" content={post.excerpt} />
+            <meta property="og:title" content={post.title} />
+            <meta property="og:description" content={post.excerpt} />
+            <meta property="og:image" content={post.imageUrl} />
+        </Helmet>
         {/* Hero Header */}
         <div className="relative h-72 md:h-[50vh] w-full">
             <img src={post.imageUrl} className="w-full h-full object-cover" alt={post.title} />

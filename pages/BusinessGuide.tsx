@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon, X, ChevronDown, ListFilter, ShoppingBag } from 'lucide-react';
+import { Search, MapPin, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon, X, ChevronDown, ListFilter, ShoppingBag, Ticket } from 'lucide-react';
 import { BusinessProfile, AppCategory, AppAmenity, User, City, Neighborhood } from '../types';
-import { getBusinesses, getCategories, getAmenities, toggleFavorite, calculateDistance, getCities, getNeighborhoods, identifyNeighborhood, checkIfOpen } from '../services/dataService';
+import { getBusinesses, getCategories, getAmenities, toggleFavorite, calculateDistance, getCities, getNeighborhoods, identifyNeighborhood, checkIfOpen, getCoupons } from '../services/dataService';
 import { useNotification } from '../components/NotificationSystem';
 
 interface BusinessGuideProps {
@@ -43,16 +43,28 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   const [nearby, setNearby] = useState(false);
   const [locating, setLocating] = useState(false);
   const [currentLocationName, setCurrentLocationName] = useState('Rio de Janeiro');
+  const [businessesWithCoupons, setBusinessesWithCoupons] = useState<Set<string>>(new Set());
 
   const [favorites, setFavorites] = useState<string[]>(currentUser?.favorites?.businesses || []);
 
-  const syncData = () => {
+  const syncData = async () => {
     const biz = getBusinesses();
     setBusinesses(biz);
     setCategories(getCategories());
     setCities(getCities());
     setNeighborhoods(getNeighborhoods());
     setAmenities(getAmenities());
+    
+    // Fetch coupons to see which businesses have active coupons
+    try {
+        const coupons = await getCoupons();
+        const activeCoupons = coupons.filter(c => c.active);
+        const bizIdsWithCoupons = new Set(activeCoupons.map(c => c.companyId));
+        setBusinessesWithCoupons(bizIdsWithCoupons);
+    } catch (e) {
+        console.error("Failed to fetch coupons", e);
+    }
+
     setIsLoadingDB(false);
   };
 
@@ -302,12 +314,20 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                       </div>
                       <p className="text-slate-400 text-xs font-medium mb-2">{business.category} • {neighborhoods.find(n => n.id === business.neighborhoodId)?.name || cities.find(c => c.id === business.cityId)?.name || 'Rio'}</p>
                       <p className="text-slate-600 text-sm line-clamp-2 mb-4">{(business.description || '').substring(0, 100)}...</p>
-                      <div className="mt-auto pt-3 border-t border-slate-50 flex gap-2 overflow-hidden">
-                          {(business.amenities || []).slice(0, 3).map(am => (
-                              <span key={am} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md whitespace-nowrap">
-                                  {amenities.find(a => a.id === am)?.label || am}
-                              </span>
-                          ))}
+                      <div className="mt-auto pt-3 border-t border-slate-50 flex justify-between items-center gap-2 overflow-hidden">
+                          <div className="flex gap-2 overflow-hidden">
+                              {(business.amenities || []).slice(0, 3).map(am => (
+                                  <span key={am} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md whitespace-nowrap">
+                                      {amenities.find(a => a.id === am)?.label || am}
+                                  </span>
+                              ))}
+                          </div>
+                          {businessesWithCoupons.has(business.id) && (
+                              <div className="flex items-center gap-1 text-red-500 bg-red-50 px-2 py-1 rounded-lg shrink-0 shadow-sm" title="Cupom Disponível">
+                                  <Ticket size={14} className="animate-pulse" />
+                                  <span className="text-[10px] font-black uppercase tracking-wider">Cupom</span>
+                              </div>
+                          )}
                       </div>
                   </div>
               </div>

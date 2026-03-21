@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { MapPin, ChevronDown, ChevronRight, Gem, ArrowRight, Loader2, Utensils, Bed, Anchor, ShoppingBag, Star, Calendar, Map, Layers } from 'lucide-react';
+import { MapPin, ChevronDown, ChevronRight, Gem, ArrowRight, Loader2, Utensils, Bed, Anchor, ShoppingBag, Star, Calendar, Map, Layers, Ticket } from 'lucide-react';
 import { Coupon, User, AppCategory, BusinessProfile, BlogPost, Collection, FeaturedConfig, HomeHighlight } from '../types';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
@@ -368,7 +368,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                         <div 
                             key={biz.id} 
                             onClick={() => onNavigate('business-detail', { businessId: biz.id })}
-                            className="w-80 md:w-full flex-shrink-0 bg-white rounded-xl p-3 border border-slate-100 shadow-sm flex gap-4 cursor-pointer hover:shadow-md active:scale-[0.98] transition-all items-center"
+                            className="w-80 md:w-full flex-shrink-0 bg-white rounded-xl p-3 border border-slate-100 shadow-sm flex gap-4 cursor-pointer hover:shadow-md active:scale-[0.98] transition-all items-center relative"
                         >
                             <img src={biz.coverImage} className="w-20 h-20 rounded-lg object-cover bg-slate-100" />
                             <div className="flex-1 overflow-hidden">
@@ -401,11 +401,17 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                                     })()}
                                 </div>
                             </div>
-                            <div className="h-full flex items-center justify-center pr-2">
+                            <div className="h-full flex flex-col items-center justify-center pr-2 gap-2">
                                  <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
                                      <ChevronRight size={18}/>
                                  </div>
                             </div>
+                            {coupons.some(c => c.companyId === biz.id) && (
+                                <div className="absolute bottom-2 right-2 flex items-center gap-1 text-red-500 bg-red-50 px-2 py-1 rounded-lg shadow-sm" title="Cupom Disponível">
+                                    <Ticket size={12} className="animate-pulse" />
+                                    <span className="text-[9px] font-black uppercase tracking-wider">Cupom</span>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>

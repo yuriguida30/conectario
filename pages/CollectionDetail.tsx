@@ -1,8 +1,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { Collection, BusinessProfile } from '../types';
-import { getCollectionById, getBusinessById, checkIfOpen } from '../services/dataService';
-import { ArrowLeft, Star, Heart, Clock, ShoppingBag } from 'lucide-react';
+import { getCollectionById, getBusinessById, checkIfOpen, getCoupons } from '../services/dataService';
+import { ArrowLeft, Star, Heart, Clock, ShoppingBag, Ticket } from 'lucide-react';
 import { toggleFavorite, getCurrentUser } from '../services/dataService';
 import { useNotification } from '../components/NotificationSystem';
 
@@ -15,6 +15,7 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
   const { notify } = useNotification();
   const [collection, setCollection] = useState<Collection | null>(null);
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
+  const [businessesWithCoupons, setBusinessesWithCoupons] = useState<Set<string>>(new Set());
   const user = getCurrentUser();
   const [favorites, setFavorites] = useState<string[]>(user?.favorites?.businesses || []);
 
@@ -28,6 +29,13 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
             .filter((b: BusinessProfile | undefined): b is BusinessProfile => b !== undefined);
         setBusinesses(loadedBusinesses);
     }
+    
+    // Fetch coupons to see which businesses have active coupons
+    getCoupons().then(coupons => {
+        const activeCoupons = coupons.filter(c => c.active);
+        const bizIdsWithCoupons = new Set(activeCoupons.map(c => c.companyId));
+        setBusinessesWithCoupons(bizIdsWithCoupons);
+    }).catch(e => console.error("Failed to fetch coupons", e));
   }, [collectionId]);
 
   const handleToggleFavorite = (e: React.MouseEvent, id: string) => {
@@ -134,6 +142,12 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
                                         {typeof biz.description === 'string' ? biz.description : ''}
                                     </p>
                                 </div>
+                                {businessesWithCoupons.has(biz.id) && (
+                                    <div className="absolute bottom-2 right-2 flex items-center gap-1 text-red-500 bg-red-50 px-2 py-1 rounded-lg shadow-sm" title="Cupom Disponível">
+                                        <Ticket size={12} className="animate-pulse" />
+                                        <span className="text-[9px] font-black uppercase tracking-wider">Cupom</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     );

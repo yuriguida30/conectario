@@ -89,6 +89,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
   const [activeTab, setActiveTab] = useState<'overview' | 'favorites' | 'coupons'>('overview');
   const [favCoupons, setFavCoupons] = useState<Coupon[]>([]);
   const [favBusinesses, setFavBusinesses] = useState<BusinessProfile[]>([]);
+  const [businessesWithCoupons, setBusinessesWithCoupons] = useState<Set<string>>(new Set());
   const [selectedReceipt, setSelectedReceipt] = useState<SavingsRecord | null>(null);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [showFullHistory, setShowFullHistory] = useState(false);
@@ -110,6 +111,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
               const allBusinesses = getBusinesses();
               const userFavBiz = currentUser.favorites?.businesses || [];
               setFavBusinesses(allBusinesses.filter(b => userFavBiz.includes(b.id)));
+              
+              const activeCoupons = allCoupons.filter(c => c.active);
+              const bizIdsWithCoupons = new Set(activeCoupons.map(c => c.companyId));
+              setBusinessesWithCoupons(bizIdsWithCoupons);
           };
           loadFavs();
       }
@@ -395,10 +400,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                                   <div 
                                     key={biz.id} 
                                     onClick={() => onNavigate('business-detail', { businessId: biz.id })}
-                                    className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer"
+                                    className="bg-white p-4 rounded-2xl border border-slate-100 flex items-center gap-4 hover:shadow-md transition-all cursor-pointer relative"
                                   >
                                       <img src={biz.coverImage} className="w-12 h-12 rounded-xl object-cover" />
-                                      <div>
+                                      <div className="flex-1">
                                           <h4 className="font-bold text-ocean-950 flex items-center gap-2">
                                               {biz.name}
                                               {biz.deliveryUrl && (
@@ -409,6 +414,12 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                                           </h4>
                                           <p className="text-xs text-slate-500">{biz.category}</p>
                                       </div>
+                                      {businessesWithCoupons.has(biz.id) && (
+                                          <div className="flex items-center gap-1 text-red-500 bg-red-50 px-2 py-1 rounded-lg shadow-sm shrink-0" title="Cupom Disponível">
+                                              <Ticket size={12} className="animate-pulse" />
+                                              <span className="text-[9px] font-black uppercase tracking-wider hidden sm:inline">Cupom</span>
+                                          </div>
+                                      )}
                                   </div>
                               ))}
                           </div>

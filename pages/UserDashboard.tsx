@@ -329,7 +329,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({ currentUser, onLog
                                       </div>
                                       <div>
                                           <h4 className="font-black text-ocean-950 group-hover:text-ocean-600 transition-colors">{record.couponTitle}</h4>
-                                          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{record.companyName || 'Empresa Parceira'}</p>
+                                          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+                                              {(record.companyName && record.companyName !== 'Minha Empresa') ? record.companyName : 'Empresa Parceira'}
+                                          </p>
                                           <div className="flex items-center gap-3 mt-1">
                                               <span className="text-[10px] text-slate-400 flex items-center gap-1 font-bold"><Clock size={12} /> Resgatado em {new Date(record.date).toLocaleDateString('pt-BR')}</span>
                                               {record.expiryDate && (

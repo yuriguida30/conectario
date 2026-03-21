@@ -306,7 +306,16 @@ export const getBusinesses = () => _businesses.filter(b => !b.isBlocked);
 export const getAllBusinesses = () => _businesses;
 export const getCoupons = async () => {
     const activeBusinessIds = _businesses.filter(b => !b.isBlocked).map(b => b.id);
-    return _coupons.filter(c => activeBusinessIds.includes(c.companyId));
+    return _coupons
+        .filter(c => activeBusinessIds.includes(c.companyId))
+        .map(c => {
+            // Fallback: If companyName is generic, try to find the real name from businesses
+            if (!c.companyName || c.companyName === 'Minha Empresa') {
+                const biz = _businesses.find(b => b.id === c.companyId);
+                if (biz) return { ...c, companyName: biz.name };
+            }
+            return c;
+        });
 };
 export const getBusinessById = (id: string) => _businesses.find(b => b.id === id && !b.isBlocked);
 export const getBusinessByIdAdmin = (id: string) => _businesses.find(b => b.id === id);
@@ -398,7 +407,18 @@ export const saveDicasSubcategory = async (categoryId: string, subcategoryName: 
 };
 
 export const saveCoupon = async (c: Coupon) => {
-    await setDoc(doc(db, 'coupons', c.id), cleanObject(c)); 
+    const couponToSave = { ...c };
+    
+    // Ensure we have a real company name if possible
+    if (!couponToSave.companyName || couponToSave.companyName === 'Minha Empresa') {
+        const biz = _businesses.find(b => b.id === couponToSave.companyId);
+        if (biz) {
+            couponToSave.companyName = biz.name;
+            if (!couponToSave.companyLogo) couponToSave.companyLogo = biz.coverImage;
+        }
+    }
+    
+    await setDoc(doc(db, 'coupons', couponToSave.id), cleanObject(couponToSave)); 
 };
 
 export const deleteCoupon = async (id: string) => {
@@ -605,12 +625,20 @@ export const trackAction = async (businessId: string, type: string) => {
 };
 
 export const redeemCoupon = async (uid: string, c: Coupon) => {
+    let companyName = c.companyName;
+    
+    // Fallback: If companyName is generic, try to find the real name from businesses
+    if (!companyName || companyName === 'Minha Empresa') {
+        const biz = _businesses.find(b => b.id === c.companyId);
+        if (biz) companyName = biz.name;
+    }
+
     const record: SavingsRecord = { 
         date: new Date().toISOString(), 
         amount: c.originalPrice - c.discountedPrice, 
         couponTitle: c.title, 
         couponId: c.id,
-        companyName: c.companyName,
+        companyName: companyName,
         expiryDate: c.expiryDate,
         code: c.code
     };

@@ -32,7 +32,7 @@ const CouponReceiptModal: React.FC<CouponReceiptModalProps> = ({ record, onClose
                 <div className="p-8 space-y-6">
                     <div className="text-center space-y-1">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estabelecimento</p>
-                        <h3 className="text-xl font-black text-ocean-950">{record.companyName || 'Empresa Parceira'}</h3>
+                        <h3 className="text-xl font-black text-ocean-950">{(record.companyName && record.companyName !== 'Minha Empresa') ? record.companyName : 'Empresa Parceira'}</h3>
                     </div>
 
                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 text-center space-y-4">

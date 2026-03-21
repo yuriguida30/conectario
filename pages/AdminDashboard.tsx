@@ -17,7 +17,7 @@ import { BusinessHoursEditor } from '../components/BusinessHoursEditor';
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS' | 'REASSIGN_COUPONS'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -47,8 +47,17 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     rules: [],
     maxRedemptions: 100,
-    limitPerUser: 1
+    limitPerUser: 1,
+    companyId: currentUser.role === UserRole.COMPANY ? currentUser.id : '',
+    companyName: currentUser.role === UserRole.COMPANY ? (myBusiness?.name || currentUser.companyName || currentUser.name) : ''
   });
+  
+  const [allBusinesses, setAllBusinesses] = useState<BusinessProfile[]>([]);
+  
+  useEffect(() => {
+      setAllBusinesses(getAllBusinesses());
+  }, []);
+
 
   const [newPlace, setNewPlace] = useState<Partial<BusinessProfile>>({
     name: '',
@@ -77,12 +86,17 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
   const refreshData = async () => {
     const allCoupons = await getCoupons();
-    setCoupons(allCoupons.filter(c => c.companyId === currentUser.id));
+    if (currentUser.role === UserRole.SUPER_ADMIN) {
+        setCoupons(allCoupons);
+    } else {
+        setCoupons(allCoupons.filter(c => c.companyId === currentUser.id));
+    }
     const biz = getAllBusinesses().find(b => b.id === currentUser.id);
     if (biz) {
         setMyBusiness(biz);
         setEditBusiness(prev => Object.keys(prev).length === 0 ? biz : prev);
     }
+    setAllBusinesses(getAllBusinesses());
     const s = await getBusinessStats(currentUser.id);
     setStats(s);
     setCategories(getCategories());
@@ -245,7 +259,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   if (loading && !stats) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-ocean-600" size={48} /></div>;
 
   const renderName = () => {
-      const name = myBusiness?.name || currentUser.companyName || currentUser.name;
+      const name = myBusiness?.name || (currentUser.companyName !== 'Minha Empresa' ? currentUser.companyName : null) || currentUser.name;
       return typeof name === 'string' ? name : 'Empresa';
   };
 
@@ -428,6 +442,10 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                               <button onClick={() => setView('HIGHLIGHTS')} className="bg-slate-50 hover:bg-pink-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
                                   <h4 className="font-bold text-pink-600 mb-1">Destaques da Home</h4>
                                   <p className="text-xs text-slate-500">Gerencie o carrossel de banners da home.</p>
+                              </button>
+                              <button onClick={() => setView('REASSIGN_COUPONS')} className="bg-slate-50 hover:bg-amber-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
+                                  <h4 className="font-bold text-amber-600 mb-1">Reatribuir Cupons</h4>
+                                  <p className="text-xs text-slate-500">Corrija a empresa responsável pelos cupons.</p>
                               </button>
                           </div>
                       </div>
@@ -1055,8 +1073,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   const couponData = {
                       ...newCoupon, 
                       id: `c_${Date.now()}`, 
-                      companyId: currentUser.id, 
-                      companyName: renderName(),
+                      companyId: newCoupon.companyId || currentUser.id, 
+                      companyName: newCoupon.companyName || renderName(),
                       companyLogo: myBusiness?.coverImage,
                       discountPercentage: Math.round(((newCoupon.originalPrice! - newCoupon.discountedPrice!) / newCoupon.originalPrice!) * 100),
                       code: `CR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
@@ -1362,6 +1380,43 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
         </div>
       )}
 
+      {view === 'REASSIGN_COUPONS' && (
+        <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+            <div className="flex justify-between items-center">
+                <h2 className="text-3xl font-black text-ocean-950">Reatribuir Cupons</h2>
+                <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                    <ChevronLeft size={16} /> Voltar
+                </button>
+            </div>
+            <div className="space-y-4">
+                {coupons.map(coupon => (
+                    <div key={coupon.id} className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                            <h4 className="font-black text-ocean-950">{coupon.title}</h4>
+                            <p className="text-xs text-slate-500">{coupon.companyName}</p>
+                        </div>
+                        <select 
+                            className="bg-white p-3 rounded-xl border border-slate-200 font-bold text-sm"
+                            value={coupon.companyId || ''}
+                            onChange={async (e) => {
+                                const newCompanyId = e.target.value;
+                                if (!newCompanyId) return;
+                                const biz = allBusinesses.find(b => b.id === newCompanyId);
+                                if (confirm(`Deseja reatribuir este cupom para "${biz?.name}"?`)) {
+                                    await saveCoupon({...coupon, companyId: newCompanyId, companyName: biz?.name || 'Empresa Desconhecida'});
+                                    refreshData();
+                                }
+                            }}
+                        >
+                            <option value="">Selecione a Empresa</option>
+                            {allBusinesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                        </select>
+                    </div>
+                ))}
+            </div>
+        </div>
+      )}
+
       {view === 'CREATE_PLACE' && (
         <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
             <div className="flex justify-between items-center">
@@ -1493,17 +1548,13 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                         </div>
                     </div>
                 </div>
-
-                <button 
-                    type="submit" 
-                    disabled={isSaving}
-                    className="w-full bg-ocean-600 text-white py-6 rounded-2xl font-black text-lg shadow-xl shadow-ocean-600/20 hover:bg-ocean-700 transition-all flex justify-center items-center gap-3"
-                >
-                    {isSaving ? <Loader2 className="animate-spin" size={24} /> : <CheckCircle2 size={24} />} CADASTRAR NO GUIA
+                <button type="submit" className="w-full bg-ocean-600 hover:bg-ocean-700 text-white p-4 rounded-2xl font-black text-sm transition-all shadow-lg shadow-ocean-600/20">
+                    CADASTRAR LUGAR
                 </button>
             </form>
         </div>
       )}
+
 
       {view === 'PLANS' && (
         <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">

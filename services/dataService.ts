@@ -70,14 +70,22 @@ onAuthStateChanged(auth, async (firebaseUser) => {
     }
 });
 
-const cleanObject = (obj: any) => {
-    const newObj = { ...obj };
-    Object.keys(newObj).forEach(key => {
-        if (newObj[key] === undefined || newObj[key] === null) {
-            delete newObj[key];
-        }
-    });
-    return newObj;
+const cleanObject = (obj: any): any => {
+    if (obj === null || obj === undefined) return obj;
+    if (Array.isArray(obj)) {
+        return obj.map(item => cleanObject(item)).filter(item => item !== undefined && item !== null);
+    }
+    if (typeof obj === 'object') {
+        const newObj: any = {};
+        Object.keys(obj).forEach(key => {
+            const val = cleanObject(obj[key]);
+            if (val !== undefined && val !== null) {
+                newObj[key] = val;
+            }
+        });
+        return newObj;
+    }
+    return obj;
 };
 
 export const initFirebaseData = () => {
@@ -270,8 +278,14 @@ export const getCoupons = async () => {
             return c;
         });
 };
-export const getBusinessById = (id: string) => _businesses.find(b => b.id === id && !b.isBlocked);
-export const getBusinessByIdAdmin = (id: string) => _businesses.find(b => b.id === id);
+export const getBusinessById = (id: string) => {
+    const biz = _businesses.find(b => b.id === id && !b.isBlocked);
+    return biz ? { ...biz } : undefined;
+};
+export const getBusinessByIdAdmin = (id: string) => {
+    const biz = _businesses.find(b => b.id === id);
+    return biz ? { ...biz } : undefined;
+};
 
 export const saveBusiness = async (b: BusinessProfile) => {
     await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); 
@@ -348,6 +362,11 @@ export const getPendingReviews = () => {
     return _reviews.filter(r => r.status === 'pending');
 };
 
+export const getReviewsByBusinessId = (businessId: string) => {
+    return _reviews.filter(r => r.businessId === businessId && r.status === 'approved')
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
 export const approveReview = async (reviewId: string) => {
     const review = _reviews.find(r => r.id === reviewId);
     if (!review || !review.businessId) throw new Error('Review not found');
@@ -358,7 +377,11 @@ export const approveReview = async (reviewId: string) => {
     review.status = 'approved';
     await setDoc(doc(db, 'reviews', reviewId), cleanObject(review), { merge: true });
 
-    const updatedReviews = [review, ...(business.reviews || [])];
+    // Filter out the review if it already exists in the array (to avoid duplicates) and add the updated one
+    const existingReviews = business.reviews || [];
+    const filteredReviews = existingReviews.filter(r => r.id !== reviewId);
+    const updatedReviews = [review, ...filteredReviews];
+    
     const newCount = updatedReviews.length;
     const newRating = updatedReviews.reduce((acc, r) => acc + r.rating, 0) / newCount;
 

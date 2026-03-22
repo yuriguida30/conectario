@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, PricingPlan, Review } from '../types';
-import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest, getPricingPlans, addReview } from '../services/dataService';
+import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest, getPricingPlans, addReview, getReviewsByBusinessId } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 import { useNotification } from '../components/NotificationSystem';
@@ -28,6 +28,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
   const [newReviewRating, setNewReviewRating] = useState(5);
   const [newReviewComment, setNewReviewComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviews, setReviews] = useState<Review[]>([]);
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
@@ -59,9 +60,10 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
   };
 
   useEffect(() => {
-    const refreshData = async () => {
+    const loadInitialData = async () => {
         const busData = getBusinessById(businessId);
         setBusiness(busData);
+        setReviews(getReviewsByBusinessId(businessId));
         if (busData) {
             const allPlans = getPricingPlans();
             const busPlan = allPlans.find(p => p.name === busData.plan);
@@ -80,7 +82,27 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
         }
         setLoading(false);
     };
-    refreshData();
+    
+    const handleDataUpdate = async () => {
+        const busData = getBusinessById(businessId);
+        setBusiness(busData);
+        setReviews(getReviewsByBusinessId(businessId));
+        if (busData) {
+            const allPlans = getPricingPlans();
+            const busPlan = allPlans.find(p => p.name === busData.plan);
+            setPlan(busPlan);
+            setIsOpen(checkIfOpen(busData.openingHours));
+            const allCoupons = await getCoupons();
+            setCoupons(allCoupons.filter(c => c.companyId === businessId && c.active));
+            const user = getCurrentUser();
+            setCurrentUser(user);
+            if (user && user.favorites?.businesses.includes(businessId)) setIsFav(true);
+        }
+    };
+
+    loadInitialData();
+    window.addEventListener('dataUpdated', handleDataUpdate);
+    return () => window.removeEventListener('dataUpdated', handleDataUpdate);
   }, [businessId]);
 
   useEffect(() => {
@@ -365,7 +387,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                     )}
 
                     <div className="space-y-4">
-                        {business.reviews?.map(review => (
+                        {reviews.map(review => (
                             <div key={review.id} className="border-b border-slate-100 pb-4 last:border-0">
                                 <div className="flex items-center gap-3 mb-2">
                                     <div className="w-10 h-10 rounded-full bg-ocean-100 flex items-center justify-center overflow-hidden">
@@ -390,7 +412,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                                 <p className="text-sm text-slate-600">{review.comment}</p>
                             </div>
                         ))}
-                        {(!business.reviews || business.reviews.length === 0) && (
+                        {reviews.length === 0 && (
                             <p className="text-center text-slate-400 text-sm py-4">Nenhuma avaliação ainda. Seja o primeiro!</p>
                         )}
                     </div>

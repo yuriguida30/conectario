@@ -50,7 +50,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
         cityId: '',
         neighborhoodId: '',
         phone: currentUser.phone || '',
-        coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200'
+        coverImage: ''
     });
 
     const nextStep = () => {
@@ -76,7 +76,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                 id: currentUser.id,
                 name: formData.name,
                 category: formData.category,
-                description: formData.description || 'Nova empresa cadastrada pelo parceiro.',
+                description: formData.description || '',
                 coverImage: formData.coverImage,
                 gallery: gallery,
                 address: formData.address,

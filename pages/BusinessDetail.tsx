@@ -4,7 +4,7 @@ import {
   ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, 
   MessageCircle, Share2, Loader2, Ticket, 
   Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2, ShoppingBag,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, Store
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, PricingPlan, Review } from '../types';
@@ -169,8 +169,15 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             <meta property="og:description" content={business.description.substring(0, 150) + '...'} />
             <meta property="og:image" content={business.coverImage} />
         </Helmet>
-        <div className="relative h-[35vh] w-full bg-slate-900">
-            <img src={business.coverImage} className="w-full h-full object-cover opacity-80" alt={business.name} />
+        <div className="relative h-[35vh] w-full bg-slate-900 flex items-center justify-center">
+            {business.coverImage ? (
+                <img src={business.coverImage} className="w-full h-full object-cover opacity-80" alt={business.name} />
+            ) : (
+                <div className="flex flex-col items-center text-slate-400 z-10">
+                    <Store size={48} className="mb-2 opacity-50" />
+                    <span className="text-sm font-medium">Sem imagem</span>
+                </div>
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-black/20" />
             <div className="absolute top-10 left-0 w-full px-4 flex justify-between z-20">
                 <button onClick={() => window.history.back()} className="bg-white/20 text-white p-3 rounded-2xl backdrop-blur-xl hover:bg-white/40 transition-all"><ArrowLeft size={24} /></button>

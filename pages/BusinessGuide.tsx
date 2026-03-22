@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon, X, ChevronDown, ListFilter, ShoppingBag, Ticket } from 'lucide-react';
+import { Search, MapPin, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon, X, ChevronDown, ListFilter, ShoppingBag, Ticket, Store } from 'lucide-react';
 import { BusinessProfile, AppCategory, AppAmenity, User, City, Neighborhood } from '../types';
 import { getBusinesses, getCategories, getAmenities, toggleFavorite, calculateDistance, getCities, getNeighborhoods, identifyNeighborhood, checkIfOpen, getCoupons, getCollections, getBusinessesPaginated } from '../services/dataService';
 import { useNotification } from '../components/NotificationSystem';
@@ -29,6 +29,8 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
   const [filtered, setFiltered] = useState<BusinessProfile[]>([]);
   const [isLoadingDB, setIsLoadingDB] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isFiltering, setIsFiltering] = useState(false);
   
   const [categories, setCategories] = useState<AppCategory[]>([]);
   const [cities, setCities] = useState<City[]>([]);
@@ -67,39 +69,27 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
 
   const syncData = async (isLoadMore = false) => {
     if (isLoadMore) setLoadingMore(true);
-    else setIsLoadingDB(true);
+    else if (!isInitialLoad) setIsFiltering(true);
 
     try {
-        const [cats, cts, nbs, cols] = await Promise.all([
-            getCategories(),
-            getCities(),
-            getNeighborhoods(),
-            getCollections()
-        ]);
-        
-        setCategories(cats);
-        setCities(cts);
-        setNeighborhoods(nbs);
-        setAmenities(getAmenities());
-        setCollections(cols.filter(c => c.active).sort((a, b) => a.order - b.order));
-
         if (debouncedQuery.length > 2) {
             // Use searchBusinesses for queries
             const { searchBusinesses } = await import('../services/dataService');
-            const results = await searchBusinesses(debouncedQuery, selectedCategory, selectedLocation);
+            const results = await searchBusinesses(debouncedQuery, selectedCategory, selectedLocation, selectedSubCategory);
             setBusinesses(results);
             setHasMore(false);
         } else {
             // Fetch paginated businesses
-            const isCity = cts.some(c => c.id === selectedLocation);
-            const isNeighborhood = nbs.some(n => n.id === selectedLocation);
+            const isCity = cities.some(c => c.id === selectedLocation);
+            const isNeighborhood = neighborhoods.some(n => n.id === selectedLocation);
 
             const { docs, lastDoc: newLastDoc, hasMore: more } = await getBusinessesPaginated(
                 12, 
                 isLoadMore ? lastDoc : null,
                 selectedCategory,
                 selectedLocation,
-                isCity ? 'city' : (isNeighborhood ? 'neighborhood' : undefined)
+                isCity ? 'city' : (isNeighborhood ? 'neighborhood' : undefined),
+                selectedSubCategory
             );
 
             if (isLoadMore) {
@@ -116,9 +106,34 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
         console.error("Failed to sync data", e);
     } finally {
         setIsLoadingDB(false);
+        setIsInitialLoad(false);
+        setIsFiltering(false);
         setLoadingMore(false);
     }
   };
+
+  // --- INITIAL STRUCTURAL DATA LOAD ---
+  useEffect(() => {
+    const loadStructuralData = async () => {
+        try {
+            const [cats, cts, nbs, cols] = await Promise.all([
+                getCategories(),
+                getCities(),
+                getNeighborhoods(),
+                getCollections()
+            ]);
+            
+            setCategories(cats);
+            setCities(cts);
+            setNeighborhoods(nbs);
+            setAmenities(getAmenities());
+            setCollections(cols.filter(c => c.active).sort((a, b) => a.order - b.order));
+        } catch (e) {
+            console.error("Failed to load structural data", e);
+        }
+    };
+    loadStructuralData();
+  }, []);
 
   useEffect(() => {
     const fetchCoupons = async () => {
@@ -134,10 +149,9 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     const handleUpdate = () => syncData();
     window.addEventListener('dataUpdated', handleUpdate);
 
-    // Auto-detect location on load if available
+    // Auto-detect location name on load if available
     const storedGps = sessionStorage.getItem('user_gps');
-    if (storedGps) {
-        setNearby(true);
+    if (storedGps && !nearby && selectedLocation === 'Todos') {
         const { lat, lng } = JSON.parse(storedGps);
         setCurrentLocationName(identifyNeighborhood(lat, lng));
     }
@@ -145,7 +159,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     return () => {
         window.removeEventListener('dataUpdated', handleUpdate);
     };
-  }, [selectedCategory, selectedLocation, debouncedQuery]);
+  }, [selectedCategory, selectedSubCategory, selectedLocation, debouncedQuery]);
 
   const handleLoadMore = () => {
     if (hasMore && !loadingMore && debouncedQuery.length <= 2) {
@@ -357,12 +371,46 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
           </div>
       )}
 
-      <div className="px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto">
-          {filtered.map((business) => (
+      <div className="px-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-7xl mx-auto relative">
+          {isFiltering && (
+              <div className="absolute inset-0 z-10 bg-slate-50/50 backdrop-blur-[1px] flex items-center justify-center min-h-[200px]">
+                  <Loader2 className="animate-spin text-ocean-600" size={32} />
+              </div>
+          )}
+          
+          {filtered.length === 0 && !isFiltering ? (
+              <div className="col-span-full py-20 text-center">
+                  <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+                      <Search size={32} />
+                  </div>
+                  <h3 className="text-lg font-bold text-ocean-950 mb-2">Nenhum resultado encontrado</h3>
+                  <p className="text-slate-500 text-sm max-w-xs mx-auto">Tente ajustar seus filtros ou pesquisar por outro termo.</p>
+                  <button 
+                    onClick={() => {
+                        setQuery('');
+                        setSelectedCategory('Todos');
+                        setSelectedLocation('Todos');
+                        setSelectedAmenities([]);
+                        setOnlyOpen(false);
+                        setNearby(false);
+                    }}
+                    className="mt-6 text-ocean-600 font-bold text-sm hover:underline"
+                  >
+                      Limpar todos os filtros
+                  </button>
+              </div>
+          ) : filtered.map((business) => (
               <div key={business.id} onClick={() => onNavigate('business-detail', { businessId: business.id })} className={`bg-white rounded-xl overflow-hidden shadow-sm border hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full relative ${business.isFeatured ? 'ring-2 ring-gold-400' : 'border-slate-100'}`}>
                   {business.isFeatured && <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-gold-500 text-white text-[10px] font-bold px-3 py-1 rounded-full z-20 shadow-md">DESTAQUE</div>}
-                  <div className="h-40 w-full relative">
-                      <img src={business.coverImage} className="w-full h-full object-cover" alt={business.name} />
+                  <div className="h-40 w-full relative bg-slate-100 flex items-center justify-center">
+                      {business.coverImage ? (
+                          <img src={business.coverImage} className="w-full h-full object-cover" alt={business.name} />
+                      ) : (
+                          <div className="flex flex-col items-center text-slate-400">
+                              <Store size={32} className="mb-2 opacity-50" />
+                              <span className="text-xs font-medium">Sem imagem</span>
+                          </div>
+                      )}
                       <button onClick={(e) => handleToggleFavorite(e, business.id)} className="absolute top-2 right-2 p-2 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm z-20">
                          <Heart size={16} className={favorites.includes(business.id) ? 'fill-red-500 text-red-500' : 'text-white'} />
                       </button>

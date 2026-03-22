@@ -46,22 +46,29 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
   
   // Start loading if no data in memory
   const [loading, setLoading] = useState(true);
+  const [isActuallyLoading, setIsActuallyLoading] = useState(true);
 
   // GPS State
   const [gpsLoading, setGpsLoading] = useState(false);
   const [locationName, setLocationName] = useState("Rio de Janeiro");
 
   const fetchData = async () => {
-      const [postData, colData, highData] = await Promise.all([
-          getBlogPosts(),
-          getCollections(),
-          getHomeHighlights()
-      ]);
-      
-      setPosts(postData);
-      setCollections(colData || []);
-      setHighlights(highData);
-      setLoading(false);
+      try {
+          const [postData, colData, highData] = await Promise.all([
+              getBlogPosts(),
+              getCollections(),
+              getHomeHighlights()
+          ]);
+          
+          setPosts(postData);
+          setCollections(colData || []);
+          setHighlights(highData);
+      } catch (e) {
+          console.error("Failed to load home data", e);
+      } finally {
+          setLoading(false);
+          setIsActuallyLoading(false);
+      }
   };
 
   useEffect(() => {
@@ -145,7 +152,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
   }
 
   // FORCE LOADING STATE if data is empty (prevents "0 offers" flash)
-  const isActuallyLoading = loading || couponsLoading || businessesLoading || categoriesLoading || (swrCoupons.length === 0 && swrBusinesses.length === 0 && swrCategories.length === 0);
+  const isDataLoading = loading || couponsLoading || businessesLoading || categoriesLoading || isActuallyLoading;
 
   return (
     <div className="pb-28 bg-slate-50 min-h-screen">
@@ -213,16 +220,10 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                     </div>
                 ))
             ) : (
-                <div className="absolute inset-0">
-                    <img 
-                        src="https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&q=80&w=1600" 
-                        className="w-full h-full object-cover"
-                        alt="Default Featured" 
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-ocean-950/90 via-ocean-900/40 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 max-w-7xl mx-auto w-full text-white">
-                        <h2 className="text-2xl md:text-5xl font-black mb-2">Bem-vindo ao Conecta Rio</h2>
-                        <p className="text-xs md:text-lg opacity-90">Explore o melhor da cidade com benefícios exclusivos.</p>
+                <div className="absolute inset-0 bg-ocean-950 flex items-center justify-center">
+                    <div className="text-center px-4">
+                        <h2 className="text-2xl md:text-5xl font-black mb-2 text-white">Bem-vindo ao Conecta Rio</h2>
+                        <p className="text-xs md:text-lg text-ocean-100 opacity-90">Explore o melhor da cidade com benefícios exclusivos.</p>
                     </div>
                 </div>
             )}

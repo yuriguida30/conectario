@@ -71,8 +71,14 @@ export const CouponCard: React.FC<CouponCardProps> = ({ coupon, onGetCoupon, isR
 
         {/* Logo Overlay */}
         <div className="absolute bottom-3 left-3 flex items-center gap-2">
-             <div className="w-9 h-9 rounded-xl bg-white p-0.5 shadow-lg overflow-hidden">
-                 <img src={coupon.companyLogo || `https://ui-avatars.com/api/?name=${coupon.companyName.substring(0,2)}&background=000&color=fff`} className="w-full h-full object-cover rounded-lg" alt="logo" />
+             <div className="w-9 h-9 rounded-xl bg-white p-0.5 shadow-lg overflow-hidden flex items-center justify-center">
+                 {coupon.companyLogo ? (
+                     <img src={coupon.companyLogo} className="w-full h-full object-cover rounded-lg" alt="logo" />
+                 ) : (
+                     <div className="w-full h-full bg-slate-800 text-white flex items-center justify-center rounded-lg text-xs font-bold uppercase">
+                         {coupon.companyName.substring(0, 2)}
+                     </div>
+                 )}
              </div>
              <div className="flex flex-col items-start">
                  <span className="text-[10px] text-white/90 font-medium leading-none mb-1">{coupon.category}</span>

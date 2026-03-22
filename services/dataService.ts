@@ -367,12 +367,17 @@ export const getBusinessesPaginated = async (
     lastVisible: QueryDocumentSnapshot<DocumentData> | null = null,
     category?: string,
     locationId?: string,
-    locationType?: 'city' | 'neighborhood'
+    locationType?: 'city' | 'neighborhood',
+    subcategory?: string
 ) => {
     let q = query(collection(db, 'businesses'), where('isBlocked', '==', false), orderBy('name'), limit(pageSize));
     
     if (category && category !== 'Todos') {
         q = query(q, where('category', '==', category));
+    }
+    
+    if (subcategory && subcategory !== 'Todos') {
+        q = query(q, where('subcategory', '==', subcategory));
     }
     
     if (locationId && locationId !== 'Todos') {
@@ -461,11 +466,15 @@ export const getBusinessByIdAdmin = async (id: string) => {
 };
 
 // New optimized search function
-export const searchBusinesses = async (searchQuery: string, category?: string, locationId?: string) => {
+export const searchBusinesses = async (searchQuery: string, category?: string, locationId?: string, subcategory?: string) => {
     let q = query(collection(db, 'businesses'), where('isBlocked', '==', false), limit(100));
     
     if (category && category !== 'Todos') {
         q = query(q, where('category', '==', category));
+    }
+
+    if (subcategory && subcategory !== 'Todos') {
+        q = query(q, where('subcategory', '==', subcategory));
     }
 
     if (locationId && locationId !== 'Todos') {

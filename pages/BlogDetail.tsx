@@ -137,23 +137,6 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ postId, onNavigate }) =>
 
             <div className="prose prose-lg prose-slate max-w-none text-slate-800 leading-8 prose-headings:font-bold prose-headings:text-ocean-950 prose-a:text-ocean-600 hover:prose-a:text-ocean-700 prose-img:rounded-2xl prose-img:shadow-lg">
                 <p>{post.content}</p>
-                <p>
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. 
-                    Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                </p>
-                <h3>O que esperar?</h3>
-                <p>
-                    Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. 
-                    Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-                </p>
-                <img 
-                    src={`https://images.unsplash.com/photo-1544551763-46a42a4571d0?auto=format&fit=crop&q=80&w=1200`} 
-                    className="w-full rounded-2xl my-8 shadow-lg border border-slate-100"
-                    alt="Detail"
-                />
-                <p>
-                    Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam.
-                </p>
             </div>
 
             {/* Share Footer */}

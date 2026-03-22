@@ -19,7 +19,7 @@ import { MapPage } from './pages/MapPage';
 import { SubscribePage } from './pages/Subscribe';
 import { CreateBusiness } from './pages/CreateBusiness';
 import { PricingPlans } from './pages/PricingPlans';
-import { getCurrentUser, logout, getAppConfig } from './services/dataService';
+import { getCurrentUser, logout, getAppConfig, isAuthInitialized } from './services/dataService';
 import { User, UserRole } from './types';
 
 const parseUrl = (): { page: string; params: any } => {
@@ -94,6 +94,7 @@ function AppContent() {
   const [pageParams, setPageParams] = useState<any>(null);
   const [user, setUser] = useState<User | null>(getCurrentUser());
   const [loading, setLoading] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(isAuthInitialized());
 
   useEffect(() => {
     const { page: initialPage, params: initialParams } = parseUrl();
@@ -110,6 +111,7 @@ function AppContent() {
 
     const handleDataUpdate = () => {
         setUser(getCurrentUser()); 
+        setIsAuthReady(isAuthInitialized());
     };
     window.addEventListener('dataUpdated', handleDataUpdate);
     window.addEventListener('appConfigUpdated', updateBranding);
@@ -155,7 +157,7 @@ function AppContent() {
     handleNavigate('home');
   };
 
-  if (loading) {
+  if (loading || !isAuthReady) {
       return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin h-8 w-8 border-4 border-ocean-500 rounded-full border-t-transparent"></div></div>;
   }
 
@@ -180,13 +182,29 @@ function AppContent() {
       case 'collection-detail':
         return <CollectionDetail collectionId={pageParams?.collectionId} onNavigate={handleNavigate} />;
       case 'user-dashboard':
-        return user ? <UserDashboard currentUser={user} onLogout={handleLogout} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
+        if (!user) return <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
+        return <UserDashboard currentUser={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
       case 'admin-dashboard':
-        return user && (user.role === UserRole.COMPANY || user.role === UserRole.SUPER_ADMIN) ? <AdminDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
+        if (!user) return <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
+        if (user.role !== UserRole.COMPANY && user.role !== UserRole.SUPER_ADMIN) {
+            handleNavigate('home');
+            return null;
+        }
+        return <AdminDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} />;
       case 'journalist-dashboard':
-        return user && user.role === UserRole.JOURNALIST ? <JournalistDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
+        if (!user) return <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
+        if (user.role !== UserRole.JOURNALIST) {
+            handleNavigate('home');
+            return null;
+        }
+        return <JournalistDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} />;
       case 'create-business':
-        return user && (user.permissions?.canCreateBusiness || user.role === UserRole.COMPANY) ? <CreateBusiness currentUser={user} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
+        if (!user) return <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
+        if (!user.permissions?.canCreateBusiness && user.role !== UserRole.COMPANY) {
+            handleNavigate('home');
+            return null;
+        }
+        return <CreateBusiness currentUser={user} onNavigate={handleNavigate} />;
       case 'pricing-plans':
         return <PricingPlans currentUser={user} onNavigate={handleNavigate} />;
       case 'login':

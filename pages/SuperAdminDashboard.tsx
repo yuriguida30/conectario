@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User, CompanyRequest, BusinessProfile, UserRole } from '../types';
+import { User, CompanyRequest, BusinessProfile, UserRole, AppCategory } from '../types';
 import { 
   getCompanyRequests, approveCompanyRequest, getAllUsers, 
   getAllBusinesses, getCoupons, saveBusiness, updateUser, getAdminStats,
@@ -27,7 +27,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
   const [loadingData, setLoadingData] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const categories = getCategories();
+  const [categories, setCategories] = useState<AppCategory[]>([]);
   
   // Modal de Edição de Usuário
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -38,12 +38,19 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
   const loadData = async () => {
     setLoadingData(true);
     try {
-        const reqs = await getCompanyRequests();
-        setRequests(reqs || []);
-        setAllUsers(getAllUsers() || []);
-        setBusinesses(getAllBusinesses() || []);
+        const [reqs, users, bizs, cats, _] = await Promise.all([
+          getCompanyRequests(),
+          getAllUsers(),
+          getAllBusinesses(),
+          getCategories(),
+          getCoupons(true, true)
+        ]);
         const s = await getAdminStats();
+        setRequests(reqs || []);
+        setAllUsers(users || []);
+        setBusinesses(bizs || []);
         setStats(s);
+        setCategories(cats || []);
     } catch (e) {
         console.error("Erro ao carregar dados do admin:", e);
     } finally {

@@ -15,9 +15,17 @@ export const Blog: React.FC<BlogProps> = ({ onNavigate }) => {
   const [filter, setFilter] = useState('Todos');
 
   useEffect(() => {
-    setPosts(getBlogPosts());
-    setUsers(getAllUsers());
-    setCategories(getDicasCategories());
+    const fetchData = async () => {
+      const [p, u, c] = await Promise.all([
+        getBlogPosts(),
+        getAllUsers(),
+        getDicasCategories()
+      ]);
+      setPosts(p);
+      setUsers(u);
+      setCategories(c);
+    };
+    fetchData();
   }, []);
 
   const handlePostClick = (postId: string) => {

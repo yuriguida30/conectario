@@ -11,7 +11,11 @@ export const Collections: React.FC<CollectionsProps> = ({ onNavigate }) => {
   const [collections, setCollections] = useState<Collection[]>([]);
 
   useEffect(() => {
-    setCollections(getCollections());
+    const fetchData = async () => {
+      const data = await getCollections();
+      setCollections(data);
+    };
+    fetchData();
   }, []);
 
   return (

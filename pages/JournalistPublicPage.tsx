@@ -13,12 +13,13 @@ export const JournalistPublicPage: React.FC<JournalistPublicPageProps> = ({ jour
   const [posts, setPosts] = useState<BlogPost[]>([]);
 
   useEffect(() => {
-    const users = getAllUsers();
-    const journalist = users.find(u => u.id === journalistId);
-    setJournalist(journalist || null);
-
-    const allPosts = getBlogPosts();
-    setPosts(allPosts.filter(p => p.authorId === journalistId && p.status === 'published'));
+    const fetchData = async () => {
+      const [users, allPosts] = await Promise.all([getAllUsers(), getBlogPosts()]);
+      const journalist = users.find(u => u.id === journalistId);
+      setJournalist(journalist || null);
+      setPosts(allPosts.filter(p => p.authorId === journalistId && p.status === 'published'));
+    };
+    fetchData();
   }, [journalistId]);
 
   if (!journalist) return <div>Jornalista não encontrado.</div>;

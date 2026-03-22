@@ -61,11 +61,18 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
 
   useEffect(() => {
     const loadInitialData = async () => {
-        const busData = getBusinessById(businessId);
+        const [busData, revs] = await Promise.all([
+            getBusinessById(businessId),
+            getReviewsByBusinessId(businessId)
+        ]);
         setBusiness(busData);
-        setReviews(getReviewsByBusinessId(businessId));
+        setReviews(revs);
         if (busData) {
-            const allPlans = getPricingPlans();
+            const [allPlans, allCoupons] = await Promise.all([
+                getPricingPlans(),
+                getCoupons()
+            ]);
+            
             const busPlan = allPlans.find(p => p.name === busData.plan);
             setPlan(busPlan);
 
@@ -74,7 +81,6 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             const isFromSearch = document.referrer.includes('/search') || document.referrer.includes('?q=');
             trackAction(businessId, isFromSearch ? 'visit_search' : 'visit_direct');
 
-            const allCoupons = await getCoupons();
             setCoupons(allCoupons.filter(c => c.companyId === businessId && c.active));
             const user = getCurrentUser();
             setCurrentUser(user);
@@ -84,15 +90,21 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
     };
     
     const handleDataUpdate = async () => {
-        const busData = getBusinessById(businessId);
+        const [busData, revs] = await Promise.all([
+            getBusinessById(businessId),
+            getReviewsByBusinessId(businessId)
+        ]);
         setBusiness(busData);
-        setReviews(getReviewsByBusinessId(businessId));
+        setReviews(revs);
         if (busData) {
-            const allPlans = getPricingPlans();
+            const [allPlans, allCoupons] = await Promise.all([
+                getPricingPlans(),
+                getCoupons()
+            ]);
+            
             const busPlan = allPlans.find(p => p.name === busData.plan);
             setPlan(busPlan);
             setIsOpen(checkIfOpen(busData.openingHours));
-            const allCoupons = await getCoupons();
             setCoupons(allCoupons.filter(c => c.companyId === businessId && c.active));
             const user = getCurrentUser();
             setCurrentUser(user);

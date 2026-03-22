@@ -5,6 +5,7 @@ import { Coupon, User, AppCategory, BusinessProfile, BlogPost, Collection, Featu
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 import { getCoupons, redeemCoupon, getCategories, getBusinesses, getBlogPosts, getCollections, getFeaturedConfig, identifyNeighborhood, checkIfOpen, getHomeHighlights } from '../services/dataService';
+import { useBusinesses, useCoupons, useAppCategories } from '../hooks/useFirestore';
 
 interface HomeProps {
   currentUser: User | null;
@@ -33,10 +34,11 @@ const SkeletonList = () => (
 );
 
 export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
+  const { coupons: swrCoupons, isLoading: couponsLoading } = useCoupons();
+  const { businesses: swrBusinesses, isLoading: businessesLoading } = useBusinesses();
+  const { categories: swrCategories, isLoading: categoriesLoading } = useAppCategories();
+  
   const [posts, setPosts] = useState<BlogPost[]>([]);
-  const [categories, setCategories] = useState<AppCategory[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [highlights, setHighlights] = useState<HomeHighlight[]>([]);
   const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
@@ -50,24 +52,16 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
   const [locationName, setLocationName] = useState("Rio de Janeiro");
 
   const fetchData = async () => {
-      const couponData = await getCoupons();
-      const businessData = getBusinesses();
-      const postData = getBlogPosts();
-      const catData = getCategories();
-      const colData = getCollections();
-      const highData = getHomeHighlights();
+      const [postData, colData, highData] = await Promise.all([
+          getBlogPosts(),
+          getCollections(),
+          getHomeHighlights()
+      ]);
       
-      setCoupons(couponData.filter(c => c.active));
-      setBusinesses(businessData);
       setPosts(postData);
-      setCategories(catData || []);
       setCollections(colData || []);
       setHighlights(highData);
-      
-      // Stop loading only if we got some critical data
-      if (couponData.length > 0 || businessData.length > 0 || (catData && catData.length > 0)) {
-          setLoading(false);
-      }
+      setLoading(false);
   };
 
   useEffect(() => {
@@ -151,7 +145,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
   }
 
   // FORCE LOADING STATE if data is empty (prevents "0 offers" flash)
-  const isActuallyLoading = loading || (coupons.length === 0 && businesses.length === 0 && categories.length === 0);
+  const isActuallyLoading = loading || couponsLoading || businessesLoading || categoriesLoading || (swrCoupons.length === 0 && swrBusinesses.length === 0 && swrCategories.length === 0);
 
   return (
     <div className="pb-28 bg-slate-50 min-h-screen">
@@ -277,7 +271,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                 </div>
             ) : (
                 <div className="flex justify-between md:justify-start md:gap-8 overflow-x-auto pb-4 px-1 hide-scrollbar">
-                    {categories.slice(0, 4).map(cat => (
+                    {swrCategories.slice(0, 4).map(cat => (
                         <div key={cat.id} className="flex flex-col items-center gap-2 min-w-[70px] cursor-pointer group" onClick={() => onNavigate('search')}>
                             <div className="w-16 h-16 rounded-2xl bg-white border border-slate-100 shadow-sm flex items-center justify-center text-ocean-500 group-hover:bg-ocean-50 group-hover:text-ocean-600 group-hover:border-ocean-200 transition-all active:scale-95">
                                 {getCategoryIcon(cat.name)}
@@ -335,9 +329,9 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                 </button>
             </div>
             
-            {isActuallyLoading ? <SkeletonList /> : coupons.length > 0 ? (
+            {isActuallyLoading ? <SkeletonList /> : swrCoupons.length > 0 ? (
                 <div className="flex overflow-x-auto hide-scrollbar gap-5 -mx-4 px-4 pb-4 md:grid md:grid-cols-3 lg:grid-cols-4 md:mx-0 md:px-0 md:overflow-visible">
-                    {coupons.slice(0, 4).map(coupon => (
+                    {swrCoupons.slice(0, 4).map(coupon => (
                         <div key={coupon.id} className="w-72 flex-shrink-0 md:w-auto h-full">
                             <CouponCard coupon={coupon} onGetCoupon={handleCardClick} />
                         </div>
@@ -351,7 +345,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
         </div>
 
         {/* GUIDE */}
-        {isActuallyLoading ? <SkeletonList /> : businesses.length > 0 && (
+        {isActuallyLoading ? <SkeletonList /> : swrBusinesses.length > 0 && (
             <div>
                 <div className="flex justify-between items-center mb-4 px-1">
                     <h3 className="text-ocean-950 text-xl font-bold tracking-tight">Lugares Incríveis</h3>
@@ -364,7 +358,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                 </div>
 
                 <div className="flex overflow-x-auto hide-scrollbar gap-4 -mx-4 px-4 pb-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:mx-0 md:px-0">
-                    {businesses.slice(0, 3).map(biz => (
+                    {swrBusinesses.slice(0, 3).map(biz => (
                         <div 
                             key={biz.id} 
                             onClick={() => onNavigate('business-detail', { businessId: biz.id })}
@@ -406,7 +400,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                                      <ChevronRight size={18}/>
                                  </div>
                             </div>
-                            {coupons.some(c => c.companyId === biz.id) && (
+                            {swrCoupons.some(c => c.companyId === biz.id) && (
                                 <div className="absolute bottom-2 right-2 flex items-center gap-1 text-red-500 bg-red-50 px-2 py-1 rounded-lg shadow-sm" title="Cupom Disponível">
                                     <Ticket size={12} className="animate-pulse" />
                                     <span className="text-[9px] font-black uppercase tracking-wider">Cupom</span>

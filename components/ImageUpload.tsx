@@ -28,10 +28,20 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-      console.log(`Iniciando compressão: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+      console.log(`[ImageUpload] Iniciando compressão: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
       
       if (!file.type.startsWith('image/')) {
-          reject(new Error("Arquivo não é imagem"));
+          const errorMsg = `O arquivo "${file.name}" não é uma imagem válida. Tipo detectado: ${file.type}`;
+          console.error(`[ImageUpload] ${errorMsg}`);
+          reject(new Error(errorMsg));
+          return;
+      }
+
+      // Check file size before processing (e.g., 15MB limit for browser safety)
+      if (file.size > 15 * 1024 * 1024) {
+          const errorMsg = `O arquivo "${file.name}" é muito grande (${(file.size / 1024 / 1024).toFixed(2)} MB). Limite de 15MB para processamento.`;
+          console.error(`[ImageUpload] ${errorMsg}`);
+          reject(new Error(errorMsg));
           return;
       }
 
@@ -41,32 +51,45 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         const img = new Image();
         img.src = event.target?.result as string;
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
+          try {
+              const canvas = document.createElement('canvas');
+              let width = img.width;
+              let height = img.height;
 
-          if (width > maxWidth) {
-            height *= maxWidth / width;
-            width = maxWidth;
-          }
+              if (width > maxWidth) {
+                height *= maxWidth / width;
+                width = maxWidth;
+              }
 
-          canvas.width = width;
-          canvas.height = height;
-          
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-              ctx.drawImage(img, 0, 0, width, height);
-              // Qualidade 0.6 para economizar ainda mais espaço sem perder muita nitidez
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.6); 
-              console.log(`Compressão finalizada: ${file.name} -> ${(dataUrl.length / 1024).toFixed(2)} KB`);
-              resolve(dataUrl);
-          } else {
-              reject(new Error("Erro ao acessar contexto do Canvas"));
+              canvas.width = width;
+              canvas.height = height;
+              
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                  ctx.drawImage(img, 0, 0, width, height);
+                  // Qualidade 0.6 para economizar ainda mais espaço sem perder muita nitidez
+                  const dataUrl = canvas.toDataURL('image/jpeg', 0.6); 
+                  console.log(`[ImageUpload] Compressão finalizada: ${file.name} -> ${(dataUrl.length / 1024).toFixed(2)} KB`);
+                  resolve(dataUrl);
+              } else {
+                  const errorMsg = "Erro ao acessar contexto do Canvas para processar a imagem.";
+                  console.error(`[ImageUpload] ${errorMsg}`);
+                  reject(new Error(errorMsg));
+              }
+          } catch (e: any) {
+              console.error(`[ImageUpload] Erro durante processamento no Canvas:`, e);
+              reject(new Error(`Erro no processamento da imagem: ${e.message}`));
           }
         };
-        img.onerror = (err) => reject(err);
+        img.onerror = (err) => {
+            console.error(`[ImageUpload] Erro ao carregar imagem no objeto Image:`, err);
+            reject(new Error("Não foi possível carregar a imagem selecionada. Verifique se o arquivo não está corrompido."));
+        };
       };
-      reader.onerror = (err) => reject(err);
+      reader.onerror = (err) => {
+          console.error(`[ImageUpload] Erro no FileReader:`, err);
+          reject(new Error("Erro ao ler o arquivo do dispositivo."));
+      };
     });
   };
 
@@ -89,15 +112,17 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
             const results = await Promise.all(promises);
             onBatchSelect(results);
+            notify('success', `${results.length} fotos processadas e otimizadas com sucesso!`);
 
         } else if (onImageSelect) {
             // Modo Único
             const result = await compressImage(files[0]);
             onImageSelect(result);
+            notify('success', "Imagem processada e otimizada com sucesso!");
         }
-    } catch (error) {
-        console.error("Upload error:", error);
-        notify('error', "Erro ao processar imagem. Tente um arquivo diferente (JPG/PNG).");
+    } catch (error: any) {
+        console.error("[ImageUpload] Falha no processamento de imagem:", error);
+        notify('error', error.message || "Erro ao processar imagem. Tente um arquivo diferente (JPG/PNG).");
     } finally {
         setLoading(false);
         if (fileInputRef.current) fileInputRef.current.value = '';

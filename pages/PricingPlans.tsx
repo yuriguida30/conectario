@@ -147,7 +147,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
 
     useEffect(() => {
         const loadPlans = async () => {
-            const allPlans = getPricingPlans();
+            const allPlans = await getPricingPlans();
             setPlans(allPlans.filter(p => p.active));
             setLoading(false);
         };

@@ -47,8 +47,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
   const [requestSent, setRequestSent] = useState(false);
 
   useEffect(() => {
-      setCategories(getCategories());
-      setConfig(getAppConfig());
+      const loadData = async () => {
+          const cats = await getCategories();
+          setCategories(cats);
+          setConfig(getAppConfig());
+      };
+      loadData();
   }, []);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {

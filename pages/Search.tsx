@@ -27,13 +27,18 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
   const [locating, setLocating] = useState(false);
 
   const fetch = async () => {
-      const businesses = getBusinesses();
-      const couponData = (await getCoupons()).map(c => {
+      const [businesses, couponData, cats] = await Promise.all([
+          getBusinesses(),
+          getCoupons(),
+          getCategories()
+      ]);
+      
+      const mappedCoupons = couponData.map(c => {
           const biz = businesses.find(b => b.id === c.companyId);
           return { ...c, subcategory: biz?.subcategory };
       });
-      const cats = getCategories();
-      const activeData = couponData.filter(c => c.active);
+      
+      const activeData = mappedCoupons.filter(c => c.active);
       setCoupons(activeData);
       setCategories(cats);
       setCurrentUser(getCurrentUser());

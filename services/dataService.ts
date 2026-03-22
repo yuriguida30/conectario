@@ -11,7 +11,12 @@ import {
     where, 
     increment,
     onSnapshot,
-    arrayUnion
+    arrayUnion,
+    limit,
+    orderBy,
+    startAfter,
+    QueryDocumentSnapshot,
+    DocumentData
 } from 'firebase/firestore';
 import { 
     signInWithEmailAndPassword, 
@@ -41,11 +46,26 @@ let _plans: PricingPlan[] = [];
 let _highlights: HomeHighlight[] = [];
 let _cities: City[] = [];
 let _neighborhoods: Neighborhood[] = [];
-let _reviews: Review[] = [];
+const _reviews: Review[] = [];
 let _isInitialized = false;
 
 let _collections: Collection[] = [];
 const _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
+
+// --- READ MONITORING (PROMPT 5) ---
+let _totalReads = 0;
+const trackRead = (collectionName: string, count: number, source: string) => {
+    if (process.env.NODE_ENV === 'development') {
+        _totalReads += count;
+        console.log(`%c[FIRESTORE READ] %c${collectionName} %c(${count} docs) %cfrom: ${source} %cTotal: ${_totalReads}`, 
+            'color: #ff9800; font-weight: bold', 
+            'color: #2196f3; font-weight: bold', 
+            'color: #4caf50', 
+            'color: #9e9e9e',
+            'color: #f44336; font-weight: bold'
+        );
+    }
+};
 
 const notifyListeners = () => {
     if (typeof window !== 'undefined') {
@@ -53,6 +73,8 @@ const notifyListeners = () => {
         window.dispatchEvent(new Event('appConfigUpdated'));
     }
 };
+
+let _isAuthInitialized = false;
 
 onAuthStateChanged(auth, async (firebaseUser) => {
     if (firebaseUser) {
@@ -62,13 +84,18 @@ onAuthStateChanged(auth, async (firebaseUser) => {
                 const data = userDoc.data();
                 const userData = { id: userDoc.id, ...data } as User;
                 localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
-                notifyListeners();
             }
         } catch (e) {
             console.error("Auth session sync error:", e);
         }
+    } else {
+        localStorage.removeItem(SESSION_KEY);
     }
+    _isAuthInitialized = true;
+    notifyListeners();
 });
+
+export const isAuthInitialized = () => _isAuthInitialized;
 
 const cleanObject = (obj: any): any => {
     if (obj === null || obj === undefined) return obj;
@@ -96,26 +123,7 @@ export const initFirebaseData = () => {
         console.warn(`[Firestore] Permission denied or error reading ${collectionName}:`, err.message);
     };
 
-    onSnapshot(collection(db, 'reviews'), (snapshot) => {
-        _reviews = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Review));
-        notifyListeners();
-    }, (err) => handleError(err, 'reviews'));
-
-    onSnapshot(collection(db, 'businesses'), (snapshot) => {
-        _businesses = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
-        notifyListeners();
-    }, (err) => handleError(err, 'businesses'));
-
-    onSnapshot(collection(db, 'coupons'), (snapshot) => {
-        _coupons = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
-        notifyListeners();
-    }, (err) => handleError(err, 'coupons'));
-
-    onSnapshot(collection(db, 'users'), (snapshot) => {
-        _users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
-        notifyListeners();
-    }, (err) => handleError(err, 'users'));
-
+    // 1. Small & Structural Collections (Keep onSnapshot for real-time UI structure)
     onSnapshot(collection(db, 'app_categories_guia'), async (snapshot) => {
         if (snapshot.empty) {
             try {
@@ -137,11 +145,6 @@ export const initFirebaseData = () => {
         _dicasCategories = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppCategory));
         notifyListeners();
     }, (err) => handleError(err, 'app_categories_dicas'));
-
-    onSnapshot(collection(db, 'companyRequests'), (snapshot) => {
-        _requests = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
-        notifyListeners();
-    }, (err) => handleError(err, 'companyRequests'));
 
     onSnapshot(collection(db, 'pricingPlans'), async (snapshot) => {
         if (snapshot.empty) {
@@ -213,11 +216,33 @@ export const initFirebaseData = () => {
         notifyListeners();
     }, (err) => handleError(err, 'neighborhoods'));
 
-    onSnapshot(collection(db, 'blog_posts'), (snapshot) => {
-        const fbPosts = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BlogPost));
-        _posts = fbPosts;
+    onSnapshot(collection(db, 'collections'), (snapshot) => {
+        _collections = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Collection)).sort((a, b) => a.order - b.order);
         notifyListeners();
-    }, (err) => handleError(err, 'blog_posts'));
+    }, (err) => handleError(err, 'collections'));
+
+    // 2. Large Collections (Use getDocs with limits for initial load to save reads)
+    const loadInitialLargeData = async () => {
+        try {
+            // Load only first 20 businesses
+            const bizSnap = await getDocs(query(collection(db, 'businesses'), where('isBlocked', '==', false), limit(20)));
+            _businesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
+
+            // Load only first 20 active coupons
+            const couponSnap = await getDocs(query(collection(db, 'coupons'), where('active', '==', true), limit(20)));
+            _coupons = couponSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
+
+            // Load only first 10 blog posts
+            const postSnap = await getDocs(query(collection(db, 'blog_posts'), orderBy('date', 'desc'), limit(10)));
+            _posts = postSnap.docs.map(d => ({ id: d.id, ...d.data() } as BlogPost));
+
+            notifyListeners();
+        } catch (err) {
+            console.error("Error loading initial large data:", err);
+        }
+    };
+
+    loadInitialLargeData();
 };
 
 initFirebaseData();
@@ -317,14 +342,67 @@ export const logout = async () => {
     notifyListeners();
 };
 
-export const getBusinesses = () => _businesses.filter(b => !b.isBlocked);
-export const getAllBusinesses = () => _businesses;
-export const getCoupons = async () => {
+export const getBusinesses = async (forceRefresh = false) => {
+    if (_businesses.length === 0 || forceRefresh) {
+        const snap = await getDocs(query(collection(db, 'businesses'), where('isBlocked', '==', false), limit(50)));
+        _businesses = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
+    }
+    return _businesses.filter(b => !b.isBlocked);
+};
+
+export const getAllBusinesses = async () => {
+    if (_businesses.length < 10) { // If only initial load happened
+        const snap = await getDocs(collection(db, 'businesses'));
+        trackRead('businesses', snap.size, 'getAllBusinesses');
+        _businesses = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
+    }
+    return _businesses;
+};
+
+// --- PAGINATION (PROMPT 1) ---
+export const getBusinessesPaginated = async (
+    pageSize = 12, 
+    lastVisible: QueryDocumentSnapshot<DocumentData> | null = null,
+    category?: string,
+    neighborhood?: string
+) => {
+    let q = query(collection(db, 'businesses'), where('isBlocked', '==', false), orderBy('name'), limit(pageSize));
+    
+    if (category && category !== 'Todas') {
+        q = query(q, where('category', '==', category));
+    }
+    
+    if (neighborhood && neighborhood !== 'Todos') {
+        q = query(q, where('neighborhood', '==', neighborhood));
+    }
+    
+    if (lastVisible) {
+        q = query(q, startAfter(lastVisible));
+    }
+    
+    const snap = await getDocs(q);
+    trackRead('businesses', snap.size, 'getBusinessesPaginated');
+    
+    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
+    const lastDoc = snap.docs[snap.docs.length - 1] || null;
+    
+    return { docs, lastDoc, hasMore: snap.size === pageSize };
+};
+
+export const getCoupons = async (forceRefresh = false, includeInactive = false) => {
+    if (_coupons.length === 0 || forceRefresh) {
+        const q = includeInactive 
+            ? query(collection(db, 'coupons'), limit(100))
+            : query(collection(db, 'coupons'), where('active', '==', true), limit(50));
+        const snap = await getDocs(q);
+        trackRead('coupons', snap.size, 'getCoupons');
+        _coupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
+    }
+    
     const activeBusinessIds = _businesses.filter(b => !b.isBlocked).map(b => b.id);
     return _coupons
-        .filter(c => activeBusinessIds.includes(c.companyId))
+        .filter(c => includeInactive || activeBusinessIds.length === 0 || activeBusinessIds.includes(c.companyId))
         .map(c => {
-            // Fallback: If companyName is generic, try to find the real name from businesses
             if (!c.companyName || c.companyName === 'Minha Empresa') {
                 const biz = _businesses.find(b => b.id === c.companyId);
                 if (biz) return { ...c, companyName: biz.name };
@@ -332,13 +410,94 @@ export const getCoupons = async () => {
             return c;
         });
 };
-export const getBusinessById = (id: string) => {
-    const biz = _businesses.find(b => b.id === id && !b.isBlocked);
-    return biz ? { ...biz } : undefined;
+
+export const getBusinessById = async (id: string) => {
+    const cached = _businesses.find(b => b.id === id && !b.isBlocked);
+    if (cached) return { ...cached };
+
+    const docRef = doc(db, 'businesses', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        const biz = { id: docSnap.id, ...docSnap.data() } as BusinessProfile;
+        if (!biz.isBlocked) {
+            // Add to cache if not there
+            if (!_businesses.find(b => b.id === biz.id)) {
+                _businesses.push(biz);
+            }
+            return biz;
+        }
+    }
+    return undefined;
 };
-export const getBusinessByIdAdmin = (id: string) => {
-    const biz = _businesses.find(b => b.id === id);
-    return biz ? { ...biz } : undefined;
+
+export const getBusinessByIdAdmin = async (id: string) => {
+    const cached = _businesses.find(b => b.id === id);
+    if (cached) return { ...cached };
+
+    const docRef = doc(db, 'businesses', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        const biz = { id: docSnap.id, ...docSnap.data() } as BusinessProfile;
+        if (!_businesses.find(b => b.id === biz.id)) {
+            _businesses.push(biz);
+        }
+        return biz;
+    }
+    return undefined;
+};
+
+// New optimized search function
+export const searchBusinesses = async (searchQuery: string, category?: string) => {
+    let q = query(collection(db, 'businesses'), where('isBlocked', '==', false), limit(20));
+    
+    if (category && category !== 'Todos') {
+        q = query(q, where('category', '==', category));
+    }
+
+    const snap = await getDocs(q);
+    const results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
+    
+    // Update cache with new results
+    results.forEach(res => {
+        if (!_businesses.find(b => b.id === res.id)) {
+            _businesses.push(res);
+        }
+    });
+
+    if (searchQuery) {
+        const s = searchQuery.toLowerCase();
+        return results.filter(b => 
+            (b.name || '').toLowerCase().includes(s) || 
+            (b.description || '').toLowerCase().includes(s)
+        );
+    }
+    
+    return results;
+};
+
+export const getBlogPosts = async () => {
+    if (_posts.length === 0) {
+        const snap = await getDocs(query(collection(db, 'blog_posts'), orderBy('date', 'desc'), limit(20)));
+        _posts = snap.docs.map(d => ({ id: d.id, ...d.data() } as BlogPost));
+    }
+    return _posts;
+};
+
+export const getAllUsers = async () => {
+    const snap = await getDocs(collection(db, 'users'));
+    _users = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+    return _users;
+};
+
+export const getCompanyRequests = async () => {
+    const snap = await getDocs(collection(db, 'companyRequests'));
+    _requests = snap.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
+    return _requests;
+};
+
+export const getPendingReviews = async () => {
+    const snap = await getDocs(query(collection(db, 'reviews'), where('status', '==', 'pending')));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as Review));
 };
 
 enum OperationType {
@@ -450,7 +609,13 @@ export const updateUser = async (user: User) => {
     }
 };
 
-export const getCategories = () => _categories;
+export const getCategories = async () => {
+    if (_categories.length === 0) {
+        const snap = await getDocs(collection(db, 'app_categories_guia'));
+        _categories = snap.docs.map(d => ({ id: d.id, ...d.data() } as AppCategory));
+    }
+    return _categories;
+};
 
 export const addReview = async (businessId: string, review: Omit<Review, 'id' | 'date'>) => {
     const business = _businesses.find(b => b.id === businessId);
@@ -469,10 +634,6 @@ export const addReview = async (businessId: string, review: Omit<Review, 'id' | 
     await setDoc(doc(db, 'reviews', newReviewId), cleanObject(newReview));
     notifyListeners();
     return newReview;
-};
-
-export const getPendingReviews = () => {
-    return _reviews.filter(r => r.status === 'pending');
 };
 
 export const getReviewsByBusinessId = (businessId: string) => {
@@ -514,9 +675,13 @@ export const rejectReview = async (reviewId: string) => {
     await setDoc(doc(db, 'reviews', reviewId), cleanObject(review), { merge: true });
     notifyListeners();
 };
-export const getDicasCategories = () => _dicasCategories;
-export const getAllUsers = () => _users;
-
+export const getDicasCategories = async () => {
+    if (_dicasCategories.length === 0) {
+        const snap = await getDocs(collection(db, 'app_categories_dicas'));
+        _dicasCategories = snap.docs.map(d => ({ id: d.id, ...d.data() } as AppCategory));
+    }
+    return _dicasCategories;
+};
 export const saveCategory = async (category: AppCategory) => {
     await setDoc(doc(db, 'app_categories_guia', category.id), cleanObject(category), { merge: true });
 };
@@ -637,8 +802,21 @@ export const getLocations = () => {
 export const getAmenities = () => DEFAULT_AMENITIES;
 let _posts: BlogPost[] = [];
 
-export const getBlogPosts = () => _posts;
-export const getBlogPostById = (id: string) => _posts.find(p => p.id === id);
+export const getBlogPostById = async (id: string) => {
+    const cached = _posts.find(p => p.id === id);
+    if (cached) return cached;
+    
+    const docRef = doc(db, 'blog_posts', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        const post = { id: docSnap.id, ...docSnap.data() } as BlogPost;
+        if (!_posts.find(p => p.id === post.id)) {
+            _posts.push(post);
+        }
+        return post;
+    }
+    return undefined;
+};
 
 export const saveBlogPost = async (post: BlogPost) => {
     const idx = _posts.findIndex(p => p.id === post.id);
@@ -656,7 +834,13 @@ export const deleteBlogPost = async (id: string) => {
     await deleteDoc(doc(db, 'blog_posts', id));
     notifyListeners();
 };
-export const getCollections = (): Collection[] => _collections;
+export const getCollections = async (): Promise<Collection[]> => {
+    if (_collections.length === 0) {
+        const snap = await getDocs(collection(db, 'collections'));
+        _collections = snap.docs.map(d => ({ id: d.id, ...d.data() } as Collection)).sort((a, b) => a.order - b.order);
+    }
+    return _collections;
+};
 
 export const saveCollection = async (col: Partial<Collection>) => {
     const id = col.id || doc(collection(db, 'collections')).id;
@@ -689,12 +873,39 @@ export const deleteCollection = async (id: string) => {
 };
 
 // Fix: Added missing getCollectionById function export to resolve the import error in CollectionDetail.tsx
-export const getCollectionById = (id: string) => _collections.find(c => c.id === id);
+export const getCollectionById = async (id: string) => {
+    const cached = _collections.find(c => c.id === id);
+    if (cached) return cached;
+    
+    const docRef = doc(db, 'collections', id);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+        const col = { id: docSnap.id, ...docSnap.data() } as Collection;
+        if (!_collections.find(c => c.id === col.id)) {
+            _collections.push(col);
+        }
+        return col;
+    }
+    return undefined;
+};
 
 export const getFeaturedConfig = () => null;
 
-export const getHomeHighlights = () => _highlights.filter(h => h.active);
-export const getAllHomeHighlights = () => _highlights;
+export const getHomeHighlights = async () => {
+    if (_highlights.length === 0) {
+        const snap = await getDocs(query(collection(db, 'home_highlights'), where('active', '==', true), orderBy('order')));
+        _highlights = snap.docs.map(d => ({ id: d.id, ...d.data() } as HomeHighlight));
+    }
+    return _highlights.filter(h => h.active);
+};
+
+export const getAllHomeHighlights = async () => {
+    if (_highlights.length === 0) {
+        const snap = await getDocs(query(collection(db, 'home_highlights'), orderBy('order')));
+        _highlights = snap.docs.map(d => ({ id: d.id, ...d.data() } as HomeHighlight));
+    }
+    return _highlights;
+};
 
 export const saveHomeHighlight = async (h: Partial<HomeHighlight>) => {
     const id = h.id || doc(collection(db, 'home_highlights')).id;
@@ -717,8 +928,21 @@ export const deleteHomeHighlight = async (id: string) => {
     await deleteDoc(doc(db, 'home_highlights', id));
 };
 
-export const getCities = () => _cities;
-export const getNeighborhoods = () => _neighborhoods;
+export const getCities = async () => {
+    if (_cities.length === 0) {
+        const snap = await getDocs(collection(db, 'cities'));
+        _cities = snap.docs.map(d => ({ id: d.id, ...d.data() } as City));
+    }
+    return _cities;
+};
+
+export const getNeighborhoods = async () => {
+    if (_neighborhoods.length === 0) {
+        const snap = await getDocs(collection(db, 'neighborhoods'));
+        _neighborhoods = snap.docs.map(d => ({ id: d.id, ...d.data() } as Neighborhood));
+    }
+    return _neighborhoods;
+};
 
 export const saveCity = async (c: City) => {
     const id = c.id || doc(collection(db, 'cities')).id;
@@ -946,10 +1170,6 @@ export const createCompanyRequest = async (request: any, type: 'NEW_REGISTRATION
     await setDoc(doc(db, 'companyRequests', id), data);
 };
 
-export const getCompanyRequests = () => {
-    return _requests;
-};
-
 export const rejectCompanyRequest = async (requestId: string) => {
     await updateDoc(doc(db, 'companyRequests', requestId), { status: 'REJECTED' });
 };
@@ -1037,7 +1257,13 @@ export const checkIfOpen = (openingHours: { [key: string]: string }): boolean =>
     return false;
 };
 
-export const getPricingPlans = () => _plans;
+export const getPricingPlans = async () => {
+    if (_plans.length === 0) {
+        const snap = await getDocs(collection(db, 'pricingPlans'));
+        _plans = snap.docs.map(d => ({ id: d.id, ...d.data() } as PricingPlan));
+    }
+    return _plans;
+};
 
 export const savePricingPlan = async (plan: Partial<PricingPlan>) => {
     const id = plan.id || doc(collection(db, 'pricingPlans')).id;

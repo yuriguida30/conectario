@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Star, Clock, Check, Heart, Navigation, Loader2, Crown, Compass, Map as MapIcon, X, ChevronDown, ListFilter, ShoppingBag, Ticket } from 'lucide-react';
 import { BusinessProfile, AppCategory, AppAmenity, User, City, Neighborhood } from '../types';
-import { getBusinesses, getCategories, getAmenities, toggleFavorite, calculateDistance, getCities, getNeighborhoods, identifyNeighborhood, checkIfOpen, getCoupons, getCollections } from '../services/dataService';
+import { getBusinesses, getCategories, getAmenities, toggleFavorite, calculateDistance, getCities, getNeighborhoods, identifyNeighborhood, checkIfOpen, getCoupons, getCollections, getBusinessesPaginated } from '../services/dataService';
 import { useNotification } from '../components/NotificationSystem';
+import { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 
 interface BusinessGuideProps {
   currentUser: User | null;
@@ -48,46 +49,87 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
 
   const [favorites, setFavorites] = useState<string[]>(currentUser?.favorites?.businesses || []);
 
-  const syncData = async () => {
-    const biz = getBusinesses();
-    setBusinesses(biz);
-    setCategories(getCategories());
-    setCities(getCities());
-    setNeighborhoods(getNeighborhoods());
-    setAmenities(getAmenities());
-    setCollections(getCollections().filter(c => c.active).sort((a, b) => a.order - b.order));
-    
-    // Fetch coupons to see which businesses have active coupons
+  // --- PAGINATION STATE (PROMPT 1) ---
+  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const syncData = async (isLoadMore = false) => {
+    if (isLoadMore) setLoadingMore(true);
+    else setIsLoadingDB(true);
+
     try {
+        const [cats, cts, nbs, cols] = await Promise.all([
+            getCategories(),
+            getCities(),
+            getNeighborhoods(),
+            getCollections()
+        ]);
+        
+        setCategories(cats);
+        setCities(cts);
+        setNeighborhoods(nbs);
+        setAmenities(getAmenities());
+        setCollections(cols.filter(c => c.active).sort((a, b) => a.order - b.order));
+
+        // Fetch paginated businesses
+        const { docs, lastDoc: newLastDoc, hasMore: more } = await getBusinessesPaginated(
+            12, 
+            isLoadMore ? lastDoc : null,
+            selectedCategory,
+            selectedLocation
+        );
+
+        if (isLoadMore) {
+            setBusinesses(prev => [...prev, ...docs]);
+        } else {
+            setBusinesses(docs);
+        }
+        
+        setLastDoc(newLastDoc);
+        setHasMore(more);
+
+        // Fetch coupons
         const coupons = await getCoupons();
         const activeCoupons = coupons.filter(c => c.active);
         const bizIdsWithCoupons = new Set(activeCoupons.map(c => c.companyId));
         setBusinessesWithCoupons(bizIdsWithCoupons);
-    } catch (e) {
-        console.error("Failed to fetch coupons", e);
-    }
 
-    setIsLoadingDB(false);
+    } catch (e) {
+        console.error("Failed to sync data", e);
+    } finally {
+        setIsLoadingDB(false);
+        setLoadingMore(false);
+    }
   };
 
   useEffect(() => {
     syncData();
-    window.addEventListener('dataUpdated', syncData);
-    const timer = setTimeout(() => setIsLoadingDB(false), 4000);
-    
-    // Auto-detect location on load if available
-    const storedGps = sessionStorage.getItem('user_gps');
-    if (storedGps) {
-        setNearby(true);
-        const { lat, lng } = JSON.parse(storedGps);
-        setCurrentLocationName(identifyNeighborhood(lat, lng));
-    }
+    // Re-fetch when filters change
+  }, [selectedCategory, selectedLocation]);
 
-    return () => {
-        window.removeEventListener('dataUpdated', syncData);
-        clearTimeout(timer);
+  const handleLoadMore = () => {
+    if (hasMore && !loadingMore) {
+        syncData(true);
+    }
+  };
+
+  // Optimized search effect
+  useEffect(() => {
+    const performSearch = async () => {
+        if (query.length > 2 || selectedCategory !== 'Todos') {
+            const { searchBusinesses } = await import('../services/dataService');
+            const results = await searchBusinesses(query, selectedCategory);
+            setBusinesses(results);
+        } else {
+            const biz = await getBusinesses();
+            setBusinesses(biz);
+        }
     };
-  }, []);
+    
+    const timeout = setTimeout(performSearch, 300);
+    return () => clearTimeout(timeout);
+  }, [query, selectedCategory]);
 
   useEffect(() => {
     let result = [...businesses];
@@ -356,6 +398,35 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
               </div>
           ))}
       </div>
+
+      {/* --- LOAD MORE BUTTON (PROMPT 1) --- */}
+      {hasMore && (
+          <div className="flex justify-center mt-12 mb-20">
+              <button 
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="bg-white border-2 border-ocean-600 text-ocean-600 hover:bg-ocean-600 hover:text-white px-10 py-4 rounded-2xl font-black text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50 flex items-center gap-3"
+              >
+                  {loadingMore ? (
+                      <>
+                          <Loader2 className="animate-spin" size={20} />
+                          CARREGANDO...
+                      </>
+                  ) : (
+                      <>
+                          VER MAIS ESTABELECIMENTOS
+                          <ChevronDown size={20} />
+                      </>
+                  )}
+              </button>
+          </div>
+      )}
+
+      {!hasMore && filtered.length > 0 && (
+          <div className="text-center mt-12 mb-20 text-slate-400 font-bold text-sm">
+              Você chegou ao fim da lista.
+          </div>
+      )}
     </div>
   );
 };

@@ -18,13 +18,16 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ postId, onNavigate }) =>
   const [showAuthorModal, setShowAuthorModal] = useState(false);
 
   useEffect(() => {
-    const data = getBlogPostById(postId);
-    setPost(data);
-    if (data?.authorId) {
-        const users = getAllUsers();
-        const foundAuthor = users.find(u => u.id === data.authorId);
-        setAuthor(foundAuthor);
-    }
+    const fetchData = async () => {
+      const data = await getBlogPostById(postId);
+      setPost(data);
+      if (data?.authorId) {
+          const users = await getAllUsers();
+          const foundAuthor = users.find(u => u.id === data.authorId);
+          setAuthor(foundAuthor);
+      }
+    };
+    fetchData();
   }, [postId]);
 
   if (!post) {

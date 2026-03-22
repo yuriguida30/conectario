@@ -20,15 +20,27 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
     const [step, setStep] = useState(1);
     const totalSteps = 4;
 
-    useEffect(() => {
-        const plans = getPricingPlans();
-        const userPlan = plans.find(p => p.name === currentUser.plan) || plans[0];
-        setSelectedPlan(userPlan);
-    }, [currentUser.plan]);
+    const [categories, setCategories] = useState<any[]>([]);
+    const [cities, setCities] = useState<any[]>([]);
+    const [neighborhoods, setNeighborhoods] = useState<any[]>([]);
 
-    const categories = getCategories();
-    const cities = getCities();
-    const neighborhoods = getNeighborhoods();
+    useEffect(() => {
+        const loadInitialData = async () => {
+            const [plans, cats, cts, nbs] = await Promise.all([
+                getPricingPlans(),
+                getCategories(),
+                getCities(),
+                getNeighborhoods()
+            ]);
+            
+            const userPlan = plans.find(p => p.name === currentUser.plan) || plans[0];
+            setSelectedPlan(userPlan);
+            setCategories(cats);
+            setCities(cts);
+            setNeighborhoods(nbs);
+        };
+        loadInitialData();
+    }, [currentUser.plan]);
 
     const [formData, setFormData] = useState({
         name: '',

@@ -22,90 +22,90 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const isSuperAdmin = currentUser.role === UserRole.SUPER_ADMIN;
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-nowrap md:flex-wrap gap-2 md:gap-3 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0 scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
       <button 
         onClick={() => setView('HOME')} 
-        className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'HOME' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+        className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs transition-all flex items-center gap-2 whitespace-nowrap ${view === 'HOME' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
       >
-        <BarChart3 size={18} /> DASHBOARD
+        <BarChart3 size={16} className="md:w-[18px] md:h-[18px]" /> DASHBOARD
       </button>
       
       <button 
         onClick={() => setView('COUPONS')} 
-        className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'COUPONS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+        className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs transition-all flex items-center gap-2 whitespace-nowrap ${view === 'COUPONS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
       >
-        <Ticket size={18} /> MEUS CUPONS
+        <Ticket size={16} className="md:w-[18px] md:h-[18px]" /> MEUS CUPONS
       </button>
 
       {isSuperAdmin ? (
         <>
           <button 
             onClick={() => setView('BUSINESSES')} 
-            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'BUSINESSES' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+            className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs transition-all flex items-center gap-2 whitespace-nowrap ${view === 'BUSINESSES' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
           >
-            <Store size={18} /> EMPRESAS
+            <Store size={16} className="md:w-[18px] md:h-[18px]" /> EMPRESAS
           </button>
           <button 
             onClick={() => setView('REQUESTS')} 
-            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'REQUESTS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+            className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs transition-all flex items-center gap-2 whitespace-nowrap ${view === 'REQUESTS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
           >
-            <Layers size={18} /> SOLICITAÇÕES
+            <Layers size={16} className="md:w-[18px] md:h-[18px]" /> SOLICITAÇÕES
           </button>
           <button 
             onClick={() => setView('USERS')} 
-            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'USERS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+            className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs transition-all flex items-center gap-2 whitespace-nowrap ${view === 'USERS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
           >
-            <Users size={18} /> USUÁRIOS
+            <Users size={16} className="md:w-[18px] md:h-[18px]" /> USUÁRIOS
           </button>
           <button 
             onClick={() => setView('LOCATIONS')} 
-            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'LOCATIONS' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-emerald-600 shadow-sm'}`}
+            className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs transition-all flex items-center gap-2 whitespace-nowrap ${view === 'LOCATIONS' ? 'bg-emerald-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-emerald-600 shadow-sm'}`}
           >
-            <MapPin size={18} /> LOCAIS
+            <MapPin size={16} className="md:w-[18px] md:h-[18px]" /> LOCAIS
           </button>
           <button 
             onClick={() => setView('COLLECTIONS')} 
-            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'COLLECTIONS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+            className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs transition-all flex items-center gap-2 whitespace-nowrap ${view === 'COLLECTIONS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
           >
-            <Layers size={18} /> COLEÇÕES
+            <Layers size={16} className="md:w-[18px] md:h-[18px]" /> COLEÇÕES
           </button>
           <button 
             onClick={() => setView('REVIEWS')} 
-            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'REVIEWS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+            className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs transition-all flex items-center gap-2 whitespace-nowrap ${view === 'REVIEWS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
           >
-            <Star size={18} /> AVALIAÇÕES
+            <Star size={16} className="md:w-[18px] md:h-[18px]" /> AVALIAÇÕES
           </button>
         </>
       ) : (
         <>
           <button 
             onClick={() => setView('MENU')} 
-            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'MENU' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+            className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs transition-all flex items-center gap-2 whitespace-nowrap ${view === 'MENU' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
           >
-            <Utensils size={18} /> CARDÁPIO
+            <Utensils size={16} className="md:w-[18px] md:h-[18px]" /> CARDÁPIO
           </button>
           <button 
             onClick={() => onNavigate('pricing-plans')} 
-            className="bg-gradient-to-tr from-gold-500 to-gold-400 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-gold-500/20 active:scale-95 transition-all flex items-center gap-2 group"
+            className="bg-gradient-to-tr from-gold-500 to-gold-400 text-white px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs shadow-lg shadow-gold-500/20 active:scale-95 transition-all flex items-center gap-2 group whitespace-nowrap"
           >
-            <Star size={18} className="group-hover:rotate-12 transition-transform" /> 
+            <Star size={16} className="md:w-[18px] md:h-[18px] group-hover:rotate-12 transition-transform" /> 
             <div className="text-left">
               <p className="leading-none">MEU PLANO</p>
-              {currentUser.plan && <p className="text-[8px] opacity-80 mt-0.5 uppercase tracking-widest">{currentUser.plan}</p>}
+              {currentUser.plan && <p className="text-[7px] md:text-[8px] opacity-80 mt-0.5 uppercase tracking-widest">{currentUser.plan}</p>}
             </div>
           </button>
           <button 
             onClick={() => setView(view === 'PROFILE' ? 'HOME' : 'PROFILE')} 
-            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'PROFILE' ? 'bg-slate-200 text-slate-700' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+            className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs transition-all flex items-center gap-2 whitespace-nowrap ${view === 'PROFILE' ? 'bg-slate-200 text-slate-700' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
           >
-            <Settings size={18} /> {view === 'PROFILE' ? 'VOLTAR' : 'CONFIGURAR PERFIL'}
+            <Settings size={16} className="md:w-[18px] md:h-[18px]" /> {view === 'PROFILE' ? 'VOLTAR' : 'CONFIGURAR PERFIL'}
           </button>
-          <button onClick={() => setView('CREATE_COUPON')} className="bg-ocean-600 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-ocean-600/20 active:scale-95 transition-all">
+          <button onClick={() => setView('CREATE_COUPON')} className="bg-ocean-600 text-white px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs shadow-lg shadow-ocean-600/20 active:scale-95 transition-all whitespace-nowrap">
             + NOVO CUPOM
           </button>
         </>
       )}
-      <button onClick={onLogout} className="px-6 py-4 bg-red-50 text-red-500 rounded-2xl font-black text-xs">SAIR</button>
+      <button onClick={onLogout} className="px-4 md:px-6 py-3 md:py-4 bg-red-50 text-red-500 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs whitespace-nowrap">SAIR</button>
     </div>
   );
 };

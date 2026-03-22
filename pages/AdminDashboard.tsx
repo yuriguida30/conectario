@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNotification } from '../components/NotificationSystem';
-import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood } from '../types';
+import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood, AppCategory } from '../types';
 import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
@@ -55,6 +55,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     rules: [],
     maxRedemptions: 100,
+    currentRedemptions: 0,
     limitPerUser: 1,
     companyId: currentUser.role === UserRole.COMPANY ? currentUser.id : '',
     companyName: currentUser.role === UserRole.COMPANY ? (myBusiness?.name || currentUser.companyName || currentUser.name) : ''
@@ -62,11 +63,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   
   const [allBusinesses, setAllBusinesses] = useState<BusinessProfile[]>([]);
   
-  useEffect(() => {
-      setAllBusinesses(getAllBusinesses());
-  }, []);
-
-
   const [newPlace, setNewPlace] = useState<Partial<BusinessProfile>>({
     name: '',
     description: '',
@@ -93,13 +89,15 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   });
 
   const refreshData = async () => {
-    const allCoupons = await getCoupons();
+    const allCoupons = await getCoupons(true, true);
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         setCoupons(allCoupons);
     } else {
         setCoupons(allCoupons.filter(c => c.companyId === currentUser.id));
     }
-    const biz = getAllBusinesses().find(b => b.id === currentUser.id);
+    const allBiz = await getAllBusinesses();
+    setAllBusinesses(allBiz);
+    const biz = allBiz.find(b => b.id === currentUser.id);
     if (biz) {
         setMyBusiness(biz);
         setEditBusiness(prev => Object.keys(prev).length === 0 ? biz : prev);
@@ -109,21 +107,33 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
             companyId: biz.id
         }));
     }
-    setAllBusinesses(getAllBusinesses());
     const s = await getBusinessStats(currentUser.id);
     setStats(s);
-    setCategories(getCategories());
-    setCities(getCities());
-    setNeighborhoods(getNeighborhoods());
+    
+    const [cats, cts, nbs] = await Promise.all([
+        getCategories(),
+        getCities(),
+        getNeighborhoods()
+    ]);
+    setCategories(cats);
+    setCities(cts);
+    setNeighborhoods(nbs);
     
     if (currentUser.role === UserRole.SUPER_ADMIN) {
-        const allRequests = getCompanyRequests();
+        const [allRequests, allPlans, allHighlights, allCollections] = await Promise.all([
+            getCompanyRequests(),
+            getPricingPlans(),
+            getAllHomeHighlights(),
+            getCollections()
+        ]);
         setRequests(allRequests.filter(r => r.status === 'PENDING'));
-        setPlans(getPricingPlans());
-        setHighlights(getAllHomeHighlights());
-        setCollections(getCollections());
-        setUsers(getAllUsers());
-        setPendingReviews(getPendingReviews());
+        setPlans(allPlans);
+        setHighlights(allHighlights);
+        setCollections(allCollections);
+        const allU = await getAllUsers();
+        setUsers(allU);
+        const pReviews = await getPendingReviews();
+        setPendingReviews(pReviews);
     }
     setLoading(false);
   };
@@ -282,101 +292,103 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     <div className="pb-32 pt-10 px-4 max-w-7xl mx-auto space-y-8 animate-in fade-in">
       
       {/* HEADER DE PERFORMANCE */}
-      <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-6">
-              <div className="w-20 h-20 bg-ocean-600 rounded-3xl overflow-hidden shadow-xl">
+      <div className="bg-white p-4 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto">
+              <div className="w-16 h-16 md:w-20 md:h-20 bg-ocean-600 rounded-2xl md:rounded-3xl overflow-hidden shadow-xl shrink-0">
                   {(editBusiness.coverImage || myBusiness?.coverImage) && <img src={editBusiness.coverImage || myBusiness?.coverImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />}
               </div>
-              <div>
-                  <h1 className="text-3xl font-black text-ocean-950 tracking-tight">
+              <div className="flex-1 min-w-0">
+                  <h1 className="text-xl md:text-3xl font-black text-ocean-950 tracking-tight truncate">
                       {renderName()}
                   </h1>
-                  <div className="flex items-center gap-2 mt-1">
-                      <p className="text-[10px] text-ocean-600 font-black uppercase tracking-widest">Painel Administrativo</p>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <p className="text-[9px] md:text-[10px] text-ocean-600 font-black uppercase tracking-widest">Painel Administrativo</p>
                       {currentUser.role === UserRole.COMPANY && currentUser.plan && (
-                          <span className="bg-gold-50 text-gold-600 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border border-gold-100 flex items-center gap-1">
-                              <Star size={10} /> {currentUser.plan}
+                          <span className="bg-gold-50 text-gold-600 px-2 py-0.5 rounded-md text-[8px] md:text-[10px] font-black uppercase tracking-widest border border-gold-100 flex items-center gap-1">
+                              <Star size={8} className="md:w-[10px] md:h-[10px]" /> {currentUser.plan}
                           </span>
                       )}
                   </div>
               </div>
           </div>
-          <AdminSidebar 
-            view={view} 
-            setView={setView} 
-            currentUser={currentUser} 
-            onNavigate={onNavigate} 
-            onLogout={onLogout} 
-          />
+          <div className="w-full md:w-auto overflow-hidden">
+            <AdminSidebar 
+              view={view} 
+              setView={setView} 
+              currentUser={currentUser} 
+              onNavigate={onNavigate} 
+              onLogout={onLogout} 
+            />
+          </div>
       </div>
 
       {view === 'HOME' && stats && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
               {currentUser.role === UserRole.SUPER_ADMIN ? (
-                  <div className="lg:col-span-12 space-y-8">
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                          <div className="bg-amber-500 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('REQUESTS')}>
-                              <Layers className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
-                              <p className="text-[10px] font-black text-amber-100 uppercase tracking-widest mb-2">Reivindicações</p>
-                              <h3 className="text-4xl font-black">{requests.filter(r => r.type === 'CLAIM').length}</h3>
-                              <p className="text-amber-100 text-[10px] font-bold mt-2">Empresas Reivindicadas</p>
+                  <div className="lg:col-span-12 space-y-6 md:space-y-8">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
+                          <div className="bg-amber-500 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('REQUESTS')}>
+                              <Layers className="absolute -right-4 -bottom-4 w-20 h-20 md:w-24 md:h-24 text-white/10 group-hover:scale-110 transition-transform" />
+                              <p className="text-[9px] md:text-[10px] font-black text-amber-100 uppercase tracking-widest mb-1 md:mb-2">Reivindicações</p>
+                              <h3 className="text-3xl md:text-4xl font-black">{requests.filter(r => r.type === 'CLAIM').length}</h3>
+                              <p className="text-amber-100 text-[9px] md:text-[10px] font-bold mt-1 md:mt-2">Empresas Reivindicadas</p>
                           </div>
-                          <div className="bg-blue-600 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('REQUESTS')}>
-                              <Layers className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
-                              <p className="text-[10px] font-black text-blue-100 uppercase tracking-widest mb-2">Leads de Cadastro</p>
-                              <h3 className="text-4xl font-black">{requests.filter(r => r.type === 'NEW_REGISTRATION').length}</h3>
-                              <p className="text-blue-100 text-[10px] font-bold mt-2">Novos Parceiros</p>
+                          <div className="bg-blue-600 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('REQUESTS')}>
+                              <Layers className="absolute -right-4 -bottom-4 w-20 h-20 md:w-24 md:h-24 text-white/10 group-hover:scale-110 transition-transform" />
+                              <p className="text-[9px] md:text-[10px] font-black text-blue-100 uppercase tracking-widest mb-1 md:mb-2">Leads de Cadastro</p>
+                              <h3 className="text-3xl md:text-4xl font-black">{requests.filter(r => r.type === 'NEW_REGISTRATION').length}</h3>
+                              <p className="text-blue-100 text-[9px] md:text-[10px] font-bold mt-1 md:mt-2">Novos Parceiros</p>
                           </div>
-                          <div className="bg-ocean-600 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('CATEGORIES')}>
-                              <Layers className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
-                              <p className="text-[10px] font-black text-ocean-100 uppercase tracking-widest mb-2">Total de Categorias</p>
-                              <h3 className="text-4xl font-black">{categories.length}</h3>
-                              <p className="text-ocean-100 text-[10px] font-bold mt-2">Gestão de Segmentos</p>
+                          <div className="bg-ocean-600 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('CATEGORIES')}>
+                              <Layers className="absolute -right-4 -bottom-4 w-20 h-20 md:w-24 md:h-24 text-white/10 group-hover:scale-110 transition-transform" />
+                              <p className="text-[9px] md:text-[10px] font-black text-ocean-100 uppercase tracking-widest mb-1 md:mb-2">Total de Categorias</p>
+                              <h3 className="text-3xl md:text-4xl font-black">{categories.length}</h3>
+                              <p className="text-ocean-100 text-[9px] md:text-[10px] font-bold mt-1 md:mt-2">Gestão de Segmentos</p>
                           </div>
-                          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm cursor-pointer hover:shadow-md transition-all group" onClick={() => setView('BUSINESSES')}>
-                              <div className="flex justify-between items-start mb-2">
-                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresas Ativas</p>
-                                 <Store size={16} className="text-ocean-500 group-hover:scale-110 transition-transform" />
+                          <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm cursor-pointer hover:shadow-md transition-all group" onClick={() => setView('BUSINESSES')}>
+                              <div className="flex justify-between items-start mb-1 md:mb-2">
+                                 <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">Empresas Ativas</p>
+                                 <Store size={14} className="md:w-4 md:h-4 text-ocean-500 group-hover:scale-110 transition-transform" />
                               </div>
-                              <h3 className="text-4xl font-black text-ocean-950">{getAllBusinesses().length}</h3>
-                              <p className="text-slate-400 text-[10px] font-bold mt-2">Gerenciar Lojistas</p>
+                              <h3 className="text-3xl md:text-4xl font-black text-ocean-950">{allBusinesses.length}</h3>
+                              <p className="text-slate-400 text-[9px] md:text-[10px] font-bold mt-1 md:mt-2">Gerenciar Lojistas</p>
                           </div>
-                          <div className="bg-purple-600 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('PLANS')}>
-                              <Zap className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
-                              <p className="text-[10px] font-black text-purple-100 uppercase tracking-widest mb-2">Planos de Assinatura</p>
-                              <h3 className="text-4xl font-black">{plans.length}</h3>
-                              <p className="text-purple-100 text-[10px] font-bold mt-2">Configurar Planos</p>
+                          <div className="bg-purple-600 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('PLANS')}>
+                              <Zap className="absolute -right-4 -bottom-4 w-20 h-20 md:w-24 md:h-24 text-white/10 group-hover:scale-110 transition-transform" />
+                              <p className="text-[9px] md:text-[10px] font-black text-purple-100 uppercase tracking-widest mb-1 md:mb-2">Planos de Assinatura</p>
+                              <h3 className="text-3xl md:text-4xl font-black">{plans.length}</h3>
+                              <p className="text-purple-100 text-[9px] md:text-[10px] font-bold mt-1 md:mt-2">Configurar Planos</p>
                           </div>
-                          <div className="bg-pink-600 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('HIGHLIGHTS')}>
-                              <Layout className="absolute -right-4 -bottom-4 w-24 h-24 text-white/10 group-hover:scale-110 transition-transform" />
-                              <p className="text-[10px] font-black text-pink-100 uppercase tracking-widest mb-2">Destaques Home</p>
-                              <h3 className="text-4xl font-black">{highlights.length}</h3>
-                              <p className="text-pink-100 text-[10px] font-bold mt-2">Gerenciar Banners</p>
+                          <div className="bg-pink-600 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('HIGHLIGHTS')}>
+                              <Layout className="absolute -right-4 -bottom-4 w-20 h-20 md:w-24 md:h-24 text-white/10 group-hover:scale-110 transition-transform" />
+                              <p className="text-[9px] md:text-[10px] font-black text-pink-100 uppercase tracking-widest mb-1 md:mb-2">Destaques Home</p>
+                              <h3 className="text-3xl md:text-4xl font-black">{highlights.length}</h3>
+                              <p className="text-pink-100 text-[9px] md:text-[10px] font-bold mt-1 md:mt-2">Gerenciar Banners</p>
                           </div>
                       </div>
 
-                      <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
-                          <h3 className="text-xl font-black text-ocean-950 mb-6">Bem-vindo, Super Admin</h3>
-                          <p className="text-slate-500 leading-relaxed">
+                      <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-sm">
+                          <h3 className="text-lg md:text-xl font-black text-ocean-950 mb-4 md:mb-6">Bem-vindo, Super Admin</h3>
+                          <p className="text-sm md:text-base text-slate-500 leading-relaxed">
                               Este é o seu painel de controle mestre. Aqui você pode gerenciar as solicitações de novas empresas, 
                               ajustar as categorias do sistema e monitorar o crescimento da plataforma.
                           </p>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
-                              <button onClick={() => setView('REQUESTS')} className="bg-slate-50 hover:bg-amber-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 md:mt-8">
+                              <button onClick={() => setView('REQUESTS')} className="bg-slate-50 hover:bg-amber-50 p-4 md:p-6 rounded-2xl border border-slate-100 transition-all text-left">
                                   <h4 className="font-bold text-amber-600 mb-1">Ver Solicitações</h4>
-                                  <p className="text-xs text-slate-500">Aprove ou rejeite novos parceiros.</p>
+                                  <p className="text-[10px] md:text-xs text-slate-500">Aprove ou rejeite novos parceiros.</p>
                               </button>
-                              <button onClick={() => setView('CATEGORIES')} className="bg-slate-50 hover:bg-ocean-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
+                              <button onClick={() => setView('CATEGORIES')} className="bg-slate-50 hover:bg-ocean-50 p-4 md:p-6 rounded-2xl border border-slate-100 transition-all text-left">
                                   <h4 className="font-bold text-ocean-600 mb-1">Gerenciar Categorias</h4>
-                                  <p className="text-xs text-slate-500">Adicione ou remova subcategorias.</p>
+                                  <p className="text-[10px] md:text-xs text-slate-500">Adicione ou remova subcategorias.</p>
                               </button>
-                              <button onClick={() => setView('PLANS')} className="bg-slate-50 hover:bg-purple-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
+                              <button onClick={() => setView('PLANS')} className="bg-slate-50 hover:bg-purple-50 p-4 md:p-6 rounded-2xl border border-slate-100 transition-all text-left">
                                   <h4 className="font-bold text-purple-600 mb-1">Planos de Assinatura</h4>
-                                  <p className="text-xs text-slate-500">Crie planos personalizados para parceiros.</p>
+                                  <p className="text-[10px] md:text-xs text-slate-500">Crie planos personalizados para parceiros.</p>
                               </button>
-                              <button onClick={() => setView('HIGHLIGHTS')} className="bg-slate-50 hover:bg-pink-50 p-6 rounded-2xl border border-slate-100 transition-all text-left">
+                              <button onClick={() => setView('HIGHLIGHTS')} className="bg-slate-50 hover:bg-pink-50 p-4 md:p-6 rounded-2xl border border-slate-100 transition-all text-left">
                                   <h4 className="font-bold text-pink-600 mb-1">Destaques da Home</h4>
-                                  <p className="text-xs text-slate-500">Gerencie o carrossel de banners da home.</p>
+                                  <p className="text-[10px] md:text-xs text-slate-500">Gerencie o carrossel de banners da home.</p>
                               </button>
                           </div>
                       </div>
@@ -384,93 +396,93 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               ) : (
                   <>
                       {/* KPIs DE CONVERSÃO */}
-                      <div className="lg:col-span-8 space-y-8">
+                      <div className="lg:col-span-8 space-y-6 md:space-y-8">
                           {/* WELCOME / GETTING STARTED FOR NEW BUSINESSES */}
                           {coupons.length === 0 && (
-                              <div className="bg-gradient-to-br from-ocean-600 to-ocean-800 p-10 rounded-[3rem] text-white shadow-2xl relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-700">
+                              <div className="bg-gradient-to-br from-ocean-600 to-ocean-800 p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] text-white shadow-2xl relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-700">
                                   <div className="relative z-10">
-                                      <div className="flex items-center gap-3 mb-6">
-                                          <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
-                                              <Zap size={28} className="text-ocean-200" />
+                                      <div className="flex items-center gap-3 mb-4 md:mb-6">
+                                          <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center">
+                                              <Zap size={24} className="text-ocean-200 md:w-[28px] md:h-[28px]" />
                                           </div>
-                                          <h2 className="text-3xl font-black tracking-tight">Vamos começar a crescer?</h2>
+                                          <h2 className="text-xl md:text-3xl font-black tracking-tight">Vamos começar a crescer?</h2>
                                       </div>
-                                      <p className="text-ocean-100 font-medium text-lg mb-8 max-w-xl">
+                                      <p className="text-ocean-100 font-medium text-sm md:text-lg mb-6 md:mb-8 max-w-xl">
                                           Sua empresa já está no ar! Agora, siga estes passos simples para atrair seus primeiros clientes.
                                       </p>
                                       
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                           <button 
                                               onClick={() => setView('CREATE_COUPON')}
-                                              className="bg-white text-ocean-950 p-6 rounded-2xl flex items-center gap-4 hover:bg-ocean-50 transition-all text-left group"
+                                              className="bg-white text-ocean-950 p-4 md:p-6 rounded-2xl flex items-center gap-4 hover:bg-ocean-50 transition-all text-left group"
                                           >
-                                              <div className="w-10 h-10 bg-ocean-100 rounded-xl flex items-center justify-center text-ocean-600 group-hover:scale-110 transition-transform">
+                                              <div className="w-10 h-10 bg-ocean-100 rounded-xl flex items-center justify-center text-ocean-600 group-hover:scale-110 transition-transform shrink-0">
                                                   <Ticket size={20} />
                                               </div>
                                               <div>
-                                                  <p className="font-black text-sm uppercase tracking-tight">Criar Primeiro Cupom</p>
-                                                  <p className="text-xs text-slate-500 font-bold">Atraia clientes com ofertas</p>
+                                                  <p className="font-black text-xs md:text-sm uppercase tracking-tight">Criar Primeiro Cupom</p>
+                                                  <p className="text-[10px] md:text-xs text-slate-500 font-bold">Atraia clientes com ofertas</p>
                                               </div>
                                           </button>
                                           <button 
                                               onClick={() => setView('PROFILE')}
-                                              className="bg-white/10 backdrop-blur-md text-white p-6 rounded-2xl flex items-center gap-4 hover:bg-white/20 transition-all text-left group border border-white/10"
+                                              className="bg-white/10 backdrop-blur-md text-white p-4 md:p-6 rounded-2xl flex items-center gap-4 hover:bg-white/20 transition-all text-left group border border-white/10"
                                           >
-                                              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                                              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white group-hover:scale-110 transition-transform shrink-0">
                                                   <PenTool size={20} />
                                               </div>
                                               <div>
-                                                  <p className="font-black text-sm uppercase tracking-tight">Completar Perfil</p>
-                                                  <p className="text-xs text-ocean-200 font-bold">Adicione fotos e horários</p>
+                                                  <p className="font-black text-xs md:text-sm uppercase tracking-tight">Completar Perfil</p>
+                                                  <p className="text-[10px] md:text-xs text-ocean-200 font-bold">Adicione fotos e horários</p>
                                               </div>
                                           </button>
                                       </div>
                                   </div>
-                                  <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -mr-48 -mt-48 blur-3xl"></div>
+                                  <div className="absolute top-0 right-0 w-64 h-64 md:w-96 md:h-96 bg-white/5 rounded-full -mr-32 -mt-32 md:-mr-48 md:-mt-48 blur-3xl"></div>
                               </div>
                           )}
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                              <div className="bg-ocean-950 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
-                                  <MousePointer2 className="absolute -right-4 -bottom-4 w-24 h-24 text-white/5 group-hover:scale-110 transition-transform" />
-                                  <p className="text-[10px] font-black text-ocean-400 uppercase tracking-widest mb-2">Total de Resgates</p>
-                                  <h3 className="text-4xl font-black">{stats.totalConversions}</h3>
-                                  <p className="text-ocean-200 text-[10px] font-bold mt-2">Leads Gerados pelo Guia</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6">
+                              <div className="bg-ocean-950 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
+                                  <MousePointer2 className="absolute -right-4 -bottom-4 w-20 h-20 md:w-24 md:h-24 text-white/5 group-hover:scale-110 transition-transform" />
+                                  <p className="text-[9px] md:text-[10px] font-black text-ocean-400 uppercase tracking-widest mb-1 md:mb-2">Total de Resgates</p>
+                                  <h3 className="text-3xl md:text-4xl font-black">{stats.totalConversions}</h3>
+                                  <p className="text-ocean-200 text-[9px] md:text-[10px] font-bold mt-1 md:mt-2">Leads Gerados pelo Guia</p>
                               </div>
-                              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                                  <div className="flex justify-between items-start mb-2">
-                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Compartilhamentos</p>
-                                     <Share2 size={16} className="text-ocean-500" />
+                              <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm">
+                                  <div className="flex justify-between items-start mb-1 md:mb-2">
+                                     <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">Compartilhamentos</p>
+                                     <Share2 size={14} className="md:w-4 md:h-4 text-ocean-500" />
                                   </div>
-                                  <h3 className="text-4xl font-black text-ocean-950">{stats.shares}</h3>
-                                  <p className="text-slate-400 text-[10px] font-bold mt-2">Engajamento Social</p>
+                                  <h3 className="text-3xl md:text-4xl font-black text-ocean-950">{stats.shares}</h3>
+                                  <p className="text-slate-400 text-[9px] md:text-[10px] font-bold mt-1 md:mt-2">Engajamento Social</p>
                               </div>
-                              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm">
-                                  <div className="flex justify-between items-start mb-2">
-                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visitas Totais</p>
-                                     <Eye size={16} className="text-ocean-500" />
+                              <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border border-slate-100 shadow-sm">
+                                  <div className="flex justify-between items-start mb-1 md:mb-2">
+                                     <p className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">Visitas Totais</p>
+                                     <Eye size={14} className="md:w-4 md:h-4 text-ocean-500" />
                                   </div>
-                                  <h3 className="text-4xl font-black text-ocean-950">{stats.views}</h3>
-                                  <p className="text-slate-400 text-[10px] font-bold mt-2">Audiência da Página</p>
+                                  <h3 className="text-3xl md:text-4xl font-black text-ocean-950">{stats.views}</h3>
+                                  <p className="text-slate-400 text-[9px] md:text-[10px] font-bold mt-1 md:mt-2">Audiência da Página</p>
                               </div>
                           </div>
 
                           {/* GRÁFICO DE TENDÊNCIA DE CONVERSÃO */}
-                          <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
-                              <h3 className="text-lg font-black text-ocean-950 mb-8 flex items-center gap-3">
-                                  <TrendingUp className="text-ocean-600" size={20} /> Fluxo de Resgates (Últimos 7 dias)
+                          <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-sm">
+                              <h3 className="text-base md:text-lg font-black text-ocean-950 mb-6 md:mb-8 flex items-center gap-3">
+                                  <TrendingUp className="text-ocean-600 md:w-5 md:h-5" size={18} /> Fluxo de Resgates (Últimos 7 dias)
                               </h3>
-                              <div className="h-72 w-full">
+                              <div className="h-48 md:h-72 w-full">
                                   <ResponsiveContainer width="100%" height="100%">
                                       <AreaChart data={stats.conversionTrend}>
                                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                          <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 12, fontWeight: 'bold', fill: '#94a3b8'}} />
+                                          <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold', fill: '#94a3b8'}} />
                                           <YAxis hide />
                                           <Tooltip 
-                                            contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                                            contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
                                             labelStyle={{ fontWeight: 'black', color: '#0f172a' }}
                                           />
-                                          <Area type="monotone" dataKey="valor" stroke="#0ea5e9" strokeWidth={4} fillOpacity={1} fill="url(#colorRes)" />
+                                          <Area type="monotone" dataKey="valor" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorRes)" />
                                           <defs>
                                               <linearGradient id="colorRes" x1="0" y1="0" x2="0" y2="1">
                                                   <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.2}/>
@@ -484,17 +496,17 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                       </div>
 
                       {/* GRÁFICOS LATERAIS - ORIGEM E HEATMAP */}
-                      <div className="lg:col-span-4 space-y-8">
+                      <div className="lg:col-span-4 space-y-6 md:space-y-8">
                           {/* HEATMAP DE CLIQUES - AGORA COM DADOS REAIS DE BOTÕES */}
-                          <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
-                              <h3 className="text-lg font-black text-ocean-950 mb-6 flex items-center gap-3">
-                                  <BarChart3 className="text-ocean-600" size={20} /> Comportamento (Botões)
+                          <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-sm">
+                              <h3 className="text-base md:text-lg font-black text-ocean-950 mb-4 md:mb-6 flex items-center gap-3">
+                                  <BarChart3 className="text-ocean-600 md:w-5 md:h-5" size={18} /> Comportamento (Botões)
                               </h3>
-                              <div className="h-[400px] w-full">
+                              <div className="h-[300px] md:h-[400px] w-full">
                                   <ResponsiveContainer width="100%" height="100%">
                                       <BarChart data={stats.actionHeatmap} layout="vertical">
                                           <XAxis type="number" hide />
-                                          <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold'}} width={90} />
+                                          <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 'bold'}} width={80} />
                                           <Tooltip 
                                             cursor={{fill: 'transparent'}}
                                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
@@ -507,21 +519,21 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                       </BarChart>
                                   </ResponsiveContainer>
                               </div>
-                              <p className="text-[10px] text-slate-400 mt-4 text-center font-bold uppercase">Métricas em tempo real</p>
+                              <p className="text-[9px] md:text-[10px] text-slate-400 mt-2 md:mt-4 text-center font-bold uppercase">Métricas em tempo real</p>
                           </div>
 
                           {/* ORIGEM DO TRÁFEGO */}
-                          <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm">
-                              <h3 className="text-lg font-black text-ocean-950 mb-6 flex items-center gap-3">
-                                  <PieIcon className="text-ocean-600" size={20} /> Origem das Visitas
+                          <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-sm">
+                              <h3 className="text-base md:text-lg font-black text-ocean-950 mb-4 md:mb-6 flex items-center gap-3">
+                                  <PieIcon className="text-ocean-600 md:w-5 md:h-5" size={18} /> Origem das Visitas
                               </h3>
-                              <div className="h-64 w-full">
+                              <div className="h-48 md:h-64 w-full">
                                   <ResponsiveContainer width="100%" height="100%">
                                       <PieChart>
                                           <Pie
                                             data={stats.trafficSource}
-                                            innerRadius={60}
-                                            outerRadius={80}
+                                            innerRadius={50}
+                                            outerRadius={70}
                                             paddingAngle={8}
                                             dataKey="value"
                                           >
@@ -530,7 +542,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                             ))}
                                           </Pie>
                                           <Tooltip />
-                                          <Legend verticalAlign="bottom" align="center" iconType="circle" />
+                                          <Legend verticalAlign="bottom" align="center" iconType="circle" wrapperStyle={{fontSize: '10px'}} />
                                       </PieChart>
                                   </ResponsiveContainer>
                               </div>
@@ -608,76 +620,131 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               </div>
 
               <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-                  <table className="w-full text-left">
-                  <thead className="bg-slate-50">
-                      <tr>
-                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase">Usuário</th>
-                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase">Cargo</th>
-                          <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase text-center">Ações</th>
-                      </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto">
+                      <table className="w-full text-left">
+                          <thead className="bg-slate-50">
+                              <tr>
+                                  <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase">Usuário</th>
+                                  <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase">Cargo</th>
+                                  <th className="px-6 py-5 text-[10px] font-black text-slate-400 uppercase text-center">Ações</th>
+                              </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50">
+                              {users.map(u => (
+                                  <tr key={u.id} className="hover:bg-slate-50/50">
+                                      <td className="px-6 py-5">
+                                          <div className="flex items-center gap-3">
+                                              <div className="w-10 h-10 rounded-full bg-ocean-50 text-ocean-600 flex items-center justify-center font-black text-sm">
+                                                  {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full rounded-full object-cover" /> : (u.name?.[0] || '?')}
+                                              </div>
+                                              <div>
+                                                <p className="font-bold text-ocean-950 text-sm">{u.name || 'Sem nome'}</p>
+                                                <p className="text-[10px] text-slate-400">{u.email || 'Sem e-mail'}</p>
+                                              </div>
+                                          </div>
+                                      </td>
+                                      <td className="px-6 py-5">
+                                          <div className="flex flex-col gap-1">
+                                            <span className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase w-fit ${u.role === UserRole.SUPER_ADMIN ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
+                                              {u.role}
+                                            </span>
+                                          </div>
+                                      </td>
+                                      <td className="px-6 py-5">
+                                          <div className="flex justify-center items-center gap-2">
+                                              {u.role !== UserRole.SUPER_ADMIN && u.role !== UserRole.JOURNALIST && (
+                                                  <button 
+                                                      onClick={async () => {
+                                                          if (await confirm({ title: 'Promover a Jornalista', message: `Deseja transformar ${u.name} em Jornalista?` })) {
+                                                              const { updateUser } = await import('../services/dataService');
+                                                              await updateUser({ ...u, role: UserRole.JOURNALIST });
+                                                              notify('success', `${u.name} agora é um Jornalista!`);
+                                                              refreshData();
+                                                          }
+                                                      }}
+                                                      className="p-3 bg-white text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm border border-indigo-100"
+                                                      title="Tornar Jornalista"
+                                                  >
+                                                      <PenTool size={18} />
+                                                  </button>
+                                              )}
+                                              {u.role === UserRole.JOURNALIST && (
+                                                  <button 
+                                                      onClick={async () => {
+                                                          if (await confirm({ title: 'Remover Jornalista', message: `Deseja remover o acesso de Jornalista de ${u.name}?` })) {
+                                                              const { updateUser } = await import('../services/dataService');
+                                                              await updateUser({ ...u, role: UserRole.CUSTOMER });
+                                                              notify('success', `${u.name} agora é um Cliente comum.`);
+                                                              refreshData();
+                                                          }
+                                                      }}
+                                                      className="p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm border border-indigo-100"
+                                                      title="Remover Acesso de Jornalista"
+                                                  >
+                                                      <PenTool size={18} />
+                                                  </button>
+                                              )}
+                                          </div>
+                                      </td>
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                  </div>
+
+                  {/* Mobile Card View */}
+                  <div className="md:hidden divide-y divide-slate-50">
                       {users.map(u => (
-                          <tr key={u.id} className="hover:bg-slate-50/50">
-                              <td className="px-6 py-5">
-                                  <div className="flex items-center gap-3">
-                                      <div className="w-10 h-10 rounded-full bg-ocean-50 text-ocean-600 flex items-center justify-center font-black text-sm">
-                                          {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full rounded-full object-cover" /> : (u.name?.[0] || '?')}
-                                      </div>
-                                      <div>
-                                        <p className="font-bold text-ocean-950 text-sm">{u.name || 'Sem nome'}</p>
-                                        <p className="text-[10px] text-slate-400">{u.email || 'Sem e-mail'}</p>
-                                      </div>
+                          <div key={u.id} className="p-5 space-y-4">
+                              <div className="flex items-center gap-4">
+                                  <div className="w-12 h-12 rounded-full bg-ocean-50 text-ocean-600 flex items-center justify-center font-black text-lg shrink-0">
+                                      {u.avatarUrl ? <img src={u.avatarUrl} className="w-full h-full rounded-full object-cover" /> : (u.name?.[0] || '?')}
                                   </div>
-                              </td>
-                              <td className="px-6 py-5">
-                                  <div className="flex flex-col gap-1">
-                                    <span className={`text-[10px] font-black px-3 py-1.5 rounded-full uppercase w-fit ${u.role === UserRole.SUPER_ADMIN ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
-                                      {u.role}
-                                    </span>
+                                  <div className="flex-1 min-w-0">
+                                      <p className="font-black text-ocean-950 text-sm truncate">{u.name || 'Sem nome'}</p>
+                                      <p className="text-[10px] text-slate-400 font-bold truncate">{u.email || 'Sem e-mail'}</p>
+                                      <span className={`mt-1 inline-block text-[8px] font-black px-2 py-0.5 rounded-full uppercase ${u.role === UserRole.SUPER_ADMIN ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'}`}>
+                                          {u.role}
+                                      </span>
                                   </div>
-                              </td>
-                              <td className="px-6 py-5">
-                                  <div className="flex justify-center items-center gap-2">
-                                      {u.role !== UserRole.SUPER_ADMIN && u.role !== UserRole.JOURNALIST && (
-                                          <button 
-                                              onClick={async () => {
-                                                  if (await confirm({ title: 'Promover a Jornalista', message: `Deseja transformar ${u.name} em Jornalista?` })) {
-                                                      const { updateUser } = await import('../services/dataService');
-                                                      await updateUser({ ...u, role: UserRole.JOURNALIST });
-                                                      notify('success', `${u.name} agora é um Jornalista!`);
-                                                      refreshData();
-                                                  }
-                                              }}
-                                              className="p-3 bg-white text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm border border-indigo-100"
-                                              title="Tornar Jornalista"
-                                          >
-                                              <PenTool size={18} />
-                                          </button>
-                                      )}
-                                      {u.role === UserRole.JOURNALIST && (
-                                          <button 
-                                              onClick={async () => {
-                                                  if (await confirm({ title: 'Remover Jornalista', message: `Deseja remover o acesso de Jornalista de ${u.name}?` })) {
-                                                      const { updateUser } = await import('../services/dataService');
-                                                      await updateUser({ ...u, role: UserRole.CUSTOMER });
-                                                      notify('success', `${u.name} agora é um Cliente comum.`);
-                                                      refreshData();
-                                                  }
-                                              }}
-                                              className="p-3 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm border border-indigo-100"
-                                              title="Remover Acesso de Jornalista"
-                                          >
-                                              <PenTool size={18} />
-                                          </button>
-                                      )}
-                                  </div>
-                              </td>
-                          </tr>
+                              </div>
+                              <div className="flex gap-2">
+                                  {u.role !== UserRole.SUPER_ADMIN && u.role !== UserRole.JOURNALIST && (
+                                      <button 
+                                          onClick={async () => {
+                                              if (await confirm({ title: 'Promover a Jornalista', message: `Deseja transformar ${u.name} em Jornalista?` })) {
+                                                  const { updateUser } = await import('../services/dataService');
+                                                  await updateUser({ ...u, role: UserRole.JOURNALIST });
+                                                  notify('success', `${u.name} agora é um Jornalista!`);
+                                                  refreshData();
+                                              }
+                                          }}
+                                          className="flex-1 flex items-center justify-center gap-2 py-3 bg-indigo-50 text-indigo-600 rounded-xl font-black text-[10px] uppercase tracking-widest"
+                                      >
+                                          <PenTool size={14} /> TORNAR JORNALISTA
+                                      </button>
+                                  )}
+                                  {u.role === UserRole.JOURNALIST && (
+                                      <button 
+                                          onClick={async () => {
+                                              if (await confirm({ title: 'Remover Jornalista', message: `Deseja remover o acesso de Jornalista de ${u.name}?` })) {
+                                                  const { updateUser } = await import('../services/dataService');
+                                                  await updateUser({ ...u, role: UserRole.CUSTOMER });
+                                                  notify('success', `${u.name} agora é um Cliente comum.`);
+                                                  refreshData();
+                                              }
+                                          }}
+                                          className="flex-1 flex items-center justify-center gap-2 py-3 bg-red-50 text-red-500 rounded-xl font-black text-[10px] uppercase tracking-widest"
+                                      >
+                                          <PenTool size={14} /> REMOVER ACESSO
+                                      </button>
+                                  )}
+                              </div>
+                          </div>
                       ))}
-                  </tbody>
-              </table>
-          </div>
+                  </div>
+              </div>
       </div>
       )}
 
@@ -1192,11 +1259,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
           </div>
 
           <div className="space-y-4">
-            {getAllBusinesses().length === 0 ? (
+            {allBusinesses.length === 0 ? (
               <p className="text-slate-500 text-center py-10">Nenhuma empresa cadastrada.</p>
             ) : (
-              getAllBusinesses().map(biz => {
-                const owner = getAllUsers().find(u => u.id === biz.id);
+              allBusinesses.map(biz => {
+                const owner = users.find(u => u.id === biz.id);
                 return (
                   <div key={biz.id} className={`p-6 rounded-[2rem] border transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-6 ${biz.isBlocked ? 'bg-red-50 border-red-100 opacity-80' : 'bg-slate-50 border-slate-100'}`}>
                     <div className="flex items-center gap-4 flex-1">
@@ -1820,6 +1887,62 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               )}
           </div>
       )}
+
+      {view === 'COUPONS' && currentUser.role === UserRole.SUPER_ADMIN && (
+          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+              <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                      <button onClick={() => setView('HOME')} className="p-3 bg-slate-50 rounded-2xl text-slate-400 hover:text-ocean-600 transition-colors">
+                          <ChevronLeft size={20} />
+                      </button>
+                      <h2 className="text-2xl md:text-3xl font-black text-ocean-950">Todos os Cupons</h2>
+                  </div>
+                  <div className="flex items-center gap-2 bg-ocean-50 px-4 py-2 rounded-full">
+                      <Ticket size={18} className="text-ocean-600" />
+                      <span className="text-xs font-black text-ocean-600 uppercase">{coupons.length} Ativos</span>
+                  </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4">
+                  {coupons.length === 0 ? (
+                      <p className="text-slate-500 text-center py-10">Nenhum cupom encontrado.</p>
+                  ) : (
+                      coupons.map(coupon => (
+                          <div key={coupon.id} className="p-6 rounded-[2rem] border bg-slate-50 border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                              <div className="flex items-center gap-4 flex-1">
+                                  <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-200 shrink-0">
+                                      {coupon.imageUrl && <img src={coupon.imageUrl} className="w-full h-full object-cover" />}
+                                  </div>
+                                  <div className="space-y-1">
+                                      <h3 className="font-black text-lg text-ocean-950">{coupon.title}</h3>
+                                      <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{coupon.companyName}</p>
+                                      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                                          <p className="text-[10px] text-slate-400 flex items-center gap-1 font-bold"><Clock size={12} /> Expira em: {new Date(coupon.expiryDate).toLocaleDateString()}</p>
+                                          <p className="text-[10px] text-slate-400 flex items-center gap-1 font-bold"><Zap size={12} /> {coupon.currentRedemptions || 0} resgates</p>
+                                      </div>
+                                  </div>
+                              </div>
+                              
+                              <div className="flex gap-2 w-full md:w-auto">
+                                  <button 
+                                      onClick={async () => {
+                                          if (await confirm({ title: 'Excluir Cupom', message: `Deseja excluir permanentemente o cupom "${coupon.title}"?` })) {
+                                              await deleteCoupon(coupon.id);
+                                              refreshData();
+                                              notify('success', 'Cupom excluído com sucesso.');
+                                          }
+                                      }}
+                                      className="flex-1 md:flex-none bg-white border border-red-100 text-red-500 px-6 py-3 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 hover:bg-red-50 transition-all"
+                                  >
+                                      <Trash2 size={16} /> EXCLUIR
+                                  </button>
+                              </div>
+                          </div>
+                      ))
+                  )}
+              </div>
+          </div>
+      )}
     </div>
   );
 };
@@ -2057,22 +2180,22 @@ const LocationsManager: React.FC<{ cities: City[]; neighborhoods: Neighborhood[]
 
     return (
         <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <button onClick={onBack} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
                     <ChevronLeft size={16} /> Voltar
                 </button>
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-3 w-full sm:w-auto">
                     <button 
                         onClick={() => setEditingCity({ name: '', active: true })}
-                        className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg flex items-center gap-2"
+                        className="flex-1 sm:flex-none bg-emerald-600 text-white px-4 py-3 rounded-2xl font-black text-[10px] shadow-lg flex items-center justify-center gap-2"
                     >
-                        <Plus size={18} /> NOVA CIDADE
+                        <Plus size={16} /> NOVA CIDADE
                     </button>
                     <button 
                         onClick={() => setEditingNeighborhood({ name: '', cityId: '', active: true })}
-                        className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg flex items-center gap-2"
+                        className="flex-1 sm:flex-none bg-emerald-600 text-white px-4 py-3 rounded-2xl font-black text-[10px] shadow-lg flex items-center justify-center gap-2"
                     >
-                        <Plus size={18} /> NOVO BAIRRO
+                        <Plus size={16} /> NOVO BAIRRO
                     </button>
                 </div>
             </div>

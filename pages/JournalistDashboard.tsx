@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, BlogPost, AppCategory } from '../types';
 import { getBlogPosts, saveBlogPost, deleteBlogPost, getDicasCategories, saveDicasCategory, saveDicasSubcategory } from '../services/dataService';
-import { Pencil, Trash2, Plus, Image as ImageIcon, Tag, Globe, Settings, FileText, CheckCircle, XCircle, LayoutDashboard, FolderPlus, Link as LinkIcon, X, Loader2 } from 'lucide-react';
+import { Pencil, Trash2, Plus, Image as ImageIcon, Tag, Globe, Settings, FileText, CheckCircle, XCircle, LayoutDashboard, FolderPlus, Link as LinkIcon, X, Loader2, LogOut, ChevronRight, Clock, Zap, Trophy, Store, Send } from 'lucide-react';
 import { ImageUpload } from '../components/ImageUpload';
 import { useNotification } from '../components/NotificationSystem';
 
@@ -35,11 +35,14 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
     loadData();
   }, [currentUser]);
 
-  const loadData = () => {
-    const allPosts = getBlogPosts();
+  const loadData = async () => {
+    const [allPosts, cats] = await Promise.all([
+      getBlogPosts(),
+      getDicasCategories()
+    ]);
     const myPosts = allPosts.filter(p => p.authorId === currentUser.id);
     setPosts(myPosts);
-    setCategories(getDicasCategories());
+    setCategories(cats);
   };
 
   const handleCreatePost = () => {
@@ -86,6 +89,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
       content: currentPost.content || '',
       imageUrl: currentPost.imageUrl || '',
       category: currentPost.category || 'Notícia',
+      subcategory: currentPost.subcategory || '',
       date: currentPost.date || new Date().toISOString().split('T')[0],
       author: currentPost.author || currentUser.name,
       authorId: currentUser.id,
@@ -98,6 +102,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
     saveBlogPost(postToSave);
     setIsEditing(false);
     loadData();
+    notify('success', 'Matéria salva com sucesso!');
   };
 
   const applyFormat = (tag: string) => {
@@ -203,185 +208,276 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <div className="w-64 bg-white border-r border-gray-200 hidden md:block">
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+      {/* Mobile Header */}
+      <div className="md:hidden bg-white border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 z-50">
+          <h2 className="text-lg font-black text-ocean-950 uppercase tracking-tight">Painel Jornalista</h2>
+          <div className="flex gap-2">
+              <button onClick={() => setActiveTab('dashboard')} className={`p-2 rounded-lg ${activeTab === 'dashboard' ? 'bg-ocean-100 text-ocean-600' : 'text-slate-400'}`}><LayoutDashboard size={20} /></button>
+              <button onClick={() => setActiveTab('posts')} className={`p-2 rounded-lg ${activeTab === 'posts' ? 'bg-ocean-100 text-ocean-600' : 'text-slate-400'}`}><FileText size={20} /></button>
+              <button onClick={() => setActiveTab('settings')} className={`p-2 rounded-lg ${activeTab === 'settings' ? 'bg-ocean-100 text-ocean-600' : 'text-slate-400'}`}><Settings size={20} /></button>
+              <button onClick={onLogout} className="p-2 rounded-lg text-red-500"><LogOut size={20} /></button>
+          </div>
+      </div>
+
+      <div className="w-64 bg-white border-r border-gray-200 hidden md:block shrink-0">
         <div className="p-6">
-          <h2 className="text-xl font-bold text-gray-800">Painel do Jornalista</h2>
-          <p className="text-sm text-gray-500 mt-1">Olá, {currentUser.name}</p>
+          <h2 className="text-xl font-black text-ocean-950 uppercase tracking-tight">Painel do Jornalista</h2>
+          <p className="text-sm text-slate-500 mt-1 font-medium">Olá, {currentUser.name}</p>
         </div>
-        <nav className="mt-6">
-          <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-6 py-3 text-left ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}>
+        <nav className="mt-6 space-y-1 px-3">
+          <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-xl transition-all font-bold text-sm ${activeTab === 'dashboard' ? 'bg-ocean-50 text-ocean-600' : 'text-slate-600 hover:bg-slate-50'}`}>
             <LayoutDashboard className="w-5 h-5" /> Dashboard
           </button>
-          <button onClick={() => setActiveTab('posts')} className={`w-full flex items-center gap-3 px-6 py-3 text-left ${activeTab === 'posts' ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}>
+          <button onClick={() => setActiveTab('posts')} className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-xl transition-all font-bold text-sm ${activeTab === 'posts' ? 'bg-ocean-50 text-ocean-600' : 'text-slate-600 hover:bg-slate-50'}`}>
             <FileText className="w-5 h-5" /> Minhas Matérias
           </button>
-          <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-6 py-3 text-left ${activeTab === 'settings' ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-600' : 'text-gray-600 hover:bg-gray-50'}`}>
+          <button onClick={() => setActiveTab('settings')} className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-xl transition-all font-bold text-sm ${activeTab === 'settings' ? 'bg-ocean-50 text-ocean-600' : 'text-slate-600 hover:bg-slate-50'}`}>
             <Settings className="w-5 h-5" /> Configurações
           </button>
+          <div className="pt-4 mt-4 border-t border-slate-100">
+              <button onClick={onLogout} className="w-full flex items-center gap-3 px-4 py-3 text-left rounded-xl transition-all font-bold text-sm text-red-500 hover:bg-red-50">
+                <LogOut className="w-5 h-5" /> Sair da Conta
+              </button>
+          </div>
         </nav>
       </div>
 
-      <div className="flex-1 p-4 md:p-8">
+      <div className="flex-1 p-4 md:p-10 max-w-7xl mx-auto w-full">
           {/* Main Content based on activeTab */}
           {activeTab === 'dashboard' && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                      <h3 className="text-gray-500 text-sm font-medium">Total de Matérias</h3>
-                      <p className="text-3xl font-bold text-gray-900 mt-2">{posts.length}</p>
+              <div className="animate-in fade-in space-y-6 md:space-y-8">
+                  <div className="flex justify-between items-center">
+                      <h1 className="text-2xl md:text-4xl font-black text-ocean-950 uppercase tracking-tight">Dashboard</h1>
+                      <button onClick={handleCreatePost} className="bg-ocean-600 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-ocean-600/20 hover:bg-ocean-700 transition-all">
+                          <Plus size={18} /> NOVA MATÉRIA
+                      </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                      <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
+                          <div className="flex items-center gap-4 mb-4">
+                              <div className="bg-ocean-50 p-3 rounded-xl text-ocean-600"><FileText size={24} /></div>
+                              <h3 className="text-slate-500 text-xs md:text-sm font-black uppercase tracking-widest">Total de Matérias</h3>
+                          </div>
+                          <p className="text-3xl md:text-5xl font-black text-ocean-950 tracking-tighter">{posts.length}</p>
+                      </div>
                   </div>
               </div>
           )}
 
           {activeTab === 'posts' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              {posts.length === 0 ? (
-                <div className="p-12 text-center">
-                  <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900">Nenhuma matéria encontrada</h3>
-                  <button
-                    onClick={handleCreatePost}
-                    className="mt-4 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium inline-flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Criar Matéria
-                  </button>
+            <div className="animate-in fade-in space-y-6 md:space-y-8">
+                <div className="flex justify-between items-center">
+                    <h1 className="text-2xl md:text-4xl font-black text-ocean-950 uppercase tracking-tight">Minhas Matérias</h1>
+                    <button onClick={handleCreatePost} className="bg-ocean-600 text-white px-4 md:px-6 py-2.5 md:py-3 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-ocean-600/20 hover:bg-ocean-700 transition-all">
+                        <Plus size={18} /> NOVA MATÉRIA
+                    </button>
                 </div>
-              ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="p-4 font-medium text-gray-600">Título</th>
-                      <th className="p-4 font-medium text-gray-600 hidden md:table-cell">Data</th>
-                      <th className="p-4 font-medium text-gray-600">Status</th>
-                      <th className="p-4 font-medium text-gray-600 text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {posts.map(post => (
-                      <tr key={post.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="p-4">
-                          <div className="font-medium text-gray-900">{post.title}</div>
-                        </td>
-                        <td className="p-4 text-gray-600 hidden md:table-cell">
-                          {new Date(post.date).toLocaleDateString('pt-BR')}
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${post.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                            {post.status === 'published' ? 'Publicado' : 'Rascunho'}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => handleEditPost(post)}
-                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Editar"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeletePost(post.id)}
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Excluir"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+
+                {posts.length === 0 ? (
+                    <div className="p-12 md:p-20 text-center bg-white rounded-[2rem] md:rounded-[3rem] border border-dashed border-slate-200">
+                        <FileText className="w-16 h-16 text-slate-200 mx-auto mb-4 md:w-[80px] md:h-[80px]" />
+                        <h3 className="text-lg md:text-xl font-black text-ocean-950 uppercase tracking-tight">Nenhuma matéria encontrada</h3>
+                        <p className="text-slate-400 font-bold text-sm md:text-base mb-6">Comece a escrever sua primeira matéria para o guia.</p>
+                        <button
+                            onClick={handleCreatePost}
+                            className="px-8 py-4 bg-ocean-50 text-ocean-600 rounded-2xl hover:bg-ocean-100 font-black text-xs uppercase tracking-widest flex items-center gap-2 mx-auto transition-all"
+                        >
+                            <Plus className="w-5 h-5" />
+                            CRIAR MINHA PRIMEIRA MATÉRIA
+                        </button>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4 md:gap-6">
+                        {/* Mobile List / Desktop Table */}
+                        <div className="hidden md:block bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="bg-slate-50 border-b border-slate-100">
+                                        <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Matéria</th>
+                                        <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
+                                        <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+                                        <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {posts.map(post => (
+                                        <tr key={post.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
+                                            <td className="p-6">
+                                                <div className="font-black text-ocean-950 group-hover:text-ocean-600 transition-colors">{post.title}</div>
+                                                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{post.category}</div>
+                                            </td>
+                                            <td className="p-6 text-slate-500 font-bold text-sm">
+                                                {new Date(post.date).toLocaleDateString('pt-BR')}
+                                            </td>
+                                            <td className="p-6">
+                                                <span className={`px-3 py-1 text-[10px] rounded-lg font-black uppercase tracking-widest ${post.status === 'published' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                                                    {post.status === 'published' ? 'Publicado' : 'Rascunho'}
+                                                </span>
+                                            </td>
+                                            <td className="p-6 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => handleEditPost(post)} className="p-2.5 text-slate-400 hover:text-ocean-600 hover:bg-ocean-50 rounded-xl transition-all"><Pencil size={18} /></button>
+                                                    <button onClick={() => handleDeletePost(post.id)} className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile Card View */}
+                        <div className="md:hidden space-y-4">
+                            {posts.map(post => (
+                                <div key={post.id} className="bg-white p-5 rounded-[1.5rem] border border-slate-100 shadow-sm space-y-4">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="font-black text-ocean-950 text-sm leading-tight mb-1">{post.title}</h4>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{post.category}</span>
+                                                <span className="text-slate-300">•</span>
+                                                <span className="text-[9px] text-slate-400 font-bold">{new Date(post.date).toLocaleDateString('pt-BR')}</span>
+                                            </div>
+                                        </div>
+                                        <span className={`px-2 py-0.5 text-[8px] rounded-md font-black uppercase tracking-widest shrink-0 ${post.status === 'published' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'}`}>
+                                            {post.status === 'published' ? 'PUB' : 'RAS'}
+                                        </span>
+                                    </div>
+                                    <div className="flex gap-2 pt-2 border-t border-slate-50">
+                                        <button onClick={() => handleEditPost(post)} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-slate-50 text-slate-600 rounded-xl font-black text-[10px] uppercase tracking-widest"><Pencil size={14} /> EDITAR</button>
+                                        <button onClick={() => handleDeletePost(post.id)} className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-50 text-red-500 rounded-xl font-black text-[10px] uppercase tracking-widest"><Trash2 size={14} /> EXCLUIR</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
           )}
 
           {activeTab === 'settings' && (
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Perfil do Jornalista</h3>
-              <div className="space-y-4 max-w-md">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Foto de Perfil</label>
-                  <ImageUpload
-                    currentImage={profile.avatarUrl}
-                    onImageSelect={(base64) => setProfile({...profile, avatarUrl: base64})}
-                    label="Alterar Foto"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Profissão</label>
-                  <input type="text" className="w-full p-3 border border-gray-200 rounded-lg" value={profile.profession || ''} onChange={e => setProfile({...profile, profession: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Localização</label>
-                  <input type="text" className="w-full p-3 border border-gray-200 rounded-lg" value={profile.location || ''} onChange={e => setProfile({...profile, location: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Especialidades (separadas por vírgula)</label>
-                  <input type="text" className="w-full p-3 border border-gray-200 rounded-lg" value={profile.specialties?.join(', ') || ''} onChange={e => setProfile({...profile, specialties: e.target.value.split(',').map(s => s.trim())})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Instagram</label>
-                  <input type="text" className="w-full p-3 border border-gray-200 rounded-lg" value={profile.instagram || ''} onChange={e => setProfile({...profile, instagram: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                  <input type="text" className="w-full p-3 border border-gray-200 rounded-lg" value={profile.website || ''} onChange={e => setProfile({...profile, website: e.target.value})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Descrição (Quem é)</label>
-                  <textarea
-                    className="w-full p-3 border border-gray-200 rounded-lg"
-                    value={profile.bio || ''}
-                    onChange={e => setProfile({...profile, bio: e.target.value})}
-                  />
-                </div>
-                <button
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                    onClick={async () => {
-                        const { updateUser } = await import('../services/dataService');
-                        await updateUser({ ...currentUser, ...profile } as User);
-                        notify('success', 'Perfil atualizado!');
-                    }}
-                >
-                    Salvar Perfil
-                </button>
-              </div>
+            <div className="animate-in fade-in space-y-6 md:space-y-8">
+                <h1 className="text-2xl md:text-4xl font-black text-ocean-950 uppercase tracking-tight">Configurações</h1>
+                
+                <div className="bg-white p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] shadow-sm border border-slate-100">
+                    <h3 className="text-lg md:text-2xl font-black text-ocean-950 uppercase tracking-tight mb-6 md:mb-8">Perfil do Jornalista</h3>
+                    <div className="space-y-6 md:space-y-8 max-w-2xl">
+                        <div className="flex flex-col md:flex-row gap-6 md:items-center">
+                            <div className="shrink-0">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Foto de Perfil</label>
+                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-[2rem] overflow-hidden bg-slate-100 border-4 border-white shadow-xl">
+                                    {profile.avatarUrl ? (
+                                        <img src={profile.avatarUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageIcon size={32} /></div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex-1">
+                                <ImageUpload
+                                    currentImage={profile.avatarUrl}
+                                    onImageSelect={(base64) => setProfile({...profile, avatarUrl: base64})}
+                                    label="Alterar Foto"
+                                />
+                            </div>
+                        </div>
 
-              <h3 className="text-lg font-medium text-gray-900 mt-8 mb-4">Gerenciar Categorias e Subcategorias</h3>
-              <div className="space-y-6">
-                  {categories.map(cat => (
-                      <div key={cat.id} className="p-4 border border-gray-200 rounded-lg">
-                          <h4 className="font-bold">{cat.name}</h4>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                              {cat.subcategories.map(sub => <span key={sub.id} className="px-2 py-1 bg-gray-100 rounded text-xs">{sub.name}</span>)}
-                          </div>
-                          <div className="flex gap-2 mt-2">
-                              <input type="text" id={`sub-${cat.id}`} placeholder="Nova Subcategoria" className="flex-1 p-2 border border-gray-200 rounded-lg text-sm" />
-                              <button onClick={async () => {
-                                  const input = document.getElementById(`sub-${cat.id}`) as HTMLInputElement;
-                                  if (!input.value) return;
-                                  await saveDicasSubcategory(cat.id, input.value);
-                                  input.value = '';
-                                  notify('success', 'Subcategoria criada!');
-                                  loadData();
-                              }} className="px-3 py-1 bg-gray-600 text-white rounded-lg text-sm">Adicionar</button>
-                          </div>
-                      </div>
-                  ))}
-                  <div className="flex gap-2">
-                      <input type="text" id="new-cat" placeholder="Nova Categoria" className="w-full p-3 border border-gray-200 rounded-lg" />
-                      <button onClick={async () => {
-                          const input = document.getElementById('new-cat') as HTMLInputElement;
-                          if (!input.value) return;
-                          await saveDicasCategory({ id: input.value.toLowerCase(), name: input.value, subcategories: [] });
-                          input.value = '';
-                          notify('success', 'Categoria criada!');
-                          loadData();
-                      }} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Criar Categoria</button>
-                  </div>
-              </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                            <div className="space-y-1.5">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Profissão / Título</label>
+                                <input type="text" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-ocean-500/20 outline-none font-bold text-sm" value={profile.profession || ''} onChange={e => setProfile({...profile, profession: e.target.value})} placeholder="Ex: Jornalista Gastronômico" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Localização</label>
+                                <input type="text" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-ocean-500/20 outline-none font-bold text-sm" value={profile.location || ''} onChange={e => setProfile({...profile, location: e.target.value})} placeholder="Ex: Rio de Janeiro, RJ" />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Especialidades (separadas por vírgula)</label>
+                            <input type="text" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-ocean-500/20 outline-none font-bold text-sm" value={profile.specialties?.join(', ') || ''} onChange={e => setProfile({...profile, specialties: e.target.value.split(',').map(s => s.trim())})} placeholder="Ex: Gastronomia, Turismo, Eventos" />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                            <div className="space-y-1.5">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Instagram</label>
+                                <div className="relative">
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">@</span>
+                                    <input type="text" className="w-full p-4 pl-8 bg-slate-50 border border-slate-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-ocean-500/20 outline-none font-bold text-sm" value={profile.instagram || ''} onChange={e => setProfile({...profile, instagram: e.target.value})} placeholder="seu.perfil" />
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Website / Portfólio</label>
+                                <input type="text" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-ocean-500/20 outline-none font-bold text-sm" value={profile.website || ''} onChange={e => setProfile({...profile, website: e.target.value})} placeholder="https://seusite.com" />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Biografia / Quem é</label>
+                            <textarea
+                                className="w-full h-32 p-4 bg-slate-50 border border-slate-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-ocean-500/20 outline-none font-medium text-sm resize-none"
+                                value={profile.bio || ''}
+                                onChange={e => setProfile({...profile, bio: e.target.value})}
+                                placeholder="Conte um pouco sobre sua trajetória e foco jornalístico..."
+                            />
+                        </div>
+
+                        <button
+                            className="w-full md:w-auto px-10 py-4 bg-ocean-600 text-white rounded-2xl hover:bg-ocean-700 font-black text-xs uppercase tracking-widest shadow-lg shadow-ocean-600/20 transition-all active:scale-95"
+                            onClick={async () => {
+                                const { updateUser } = await import('../services/dataService');
+                                await updateUser({ ...currentUser, ...profile } as User);
+                                notify('success', 'Perfil atualizado com sucesso!');
+                            }}
+                        >
+                            SALVAR ALTERAÇÕES NO PERFIL
+                        </button>
+                    </div>
+
+                    <div className="mt-12 md:mt-20 pt-12 border-t border-slate-100">
+                        <h3 className="text-lg md:text-2xl font-black text-ocean-950 uppercase tracking-tight mb-6 md:mb-8">Gerenciar Categorias</h3>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {categories.map(cat => (
+                                <div key={cat.id} className="p-6 bg-slate-50 rounded-[1.5rem] border border-slate-100 space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <h4 className="font-black text-ocean-950 uppercase tracking-tight">{cat.name}</h4>
+                                        <span className="text-[10px] bg-white px-2 py-1 rounded-md text-slate-400 font-black uppercase tracking-widest border border-slate-100">{cat.subcategories.length} SUBS</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {cat.subcategories.map(sub => <span key={sub.id} className="px-3 py-1.5 bg-white rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest border border-slate-100">{sub.name}</span>)}
+                                    </div>
+                                    <div className="flex gap-2 pt-2">
+                                        <input type="text" id={`sub-${cat.id}`} placeholder="Nova Subcategoria" className="flex-1 p-3 bg-white border border-slate-100 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-ocean-500/20" />
+                                        <button onClick={async () => {
+                                            const input = document.getElementById(`sub-${cat.id}`) as HTMLInputElement;
+                                            if (!input.value) return;
+                                            await saveDicasSubcategory(cat.id, input.value);
+                                            input.value = '';
+                                            notify('success', 'Subcategoria adicionada!');
+                                            loadData();
+                                        }} className="bg-ocean-950 text-white px-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all">ADD</button>
+                                    </div>
+                                </div>
+                            ))}
+                            <div className="p-6 bg-ocean-50 rounded-[1.5rem] border border-ocean-100 flex flex-col justify-center gap-4">
+                                <p className="text-ocean-600 font-black text-xs uppercase tracking-widest text-center">Criar Nova Categoria Principal</p>
+                                <div className="flex gap-2">
+                                    <input type="text" id="new-cat" placeholder="Nome da Categoria" className="flex-1 p-3 bg-white border border-ocean-100 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-ocean-500/20" />
+                                    <button onClick={async () => {
+                                        const input = document.getElementById('new-cat') as HTMLInputElement;
+                                        if (!input.value) return;
+                                        await saveDicasCategory({ id: input.value.toLowerCase().replace(/\s+/g, '-'), name: input.value, subcategories: [] });
+                                        input.value = '';
+                                        notify('success', 'Categoria criada com sucesso!');
+                                        loadData();
+                                    }} className="bg-ocean-600 text-white px-4 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-ocean-700 transition-all shadow-md">CRIAR</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
           )}
       </div>
@@ -411,7 +507,9 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
               </button>
               <button 
                 onClick={() => {
-                  if (linkUrl) applyFormat(`a href="${linkUrl}"`);
+                  if (linkUrl) {
+                      applyFormat(`a href="${linkUrl}"`);
+                  }
                   setLinkPrompt(false);
                   setLinkUrl('');
                 }}

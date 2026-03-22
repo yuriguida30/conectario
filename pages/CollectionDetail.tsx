@@ -20,22 +20,27 @@ export const CollectionDetail: React.FC<CollectionDetailProps> = ({ collectionId
   const [favorites, setFavorites] = useState<string[]>(user?.favorites?.businesses || []);
 
   useEffect(() => {
-    const col = getCollectionById(collectionId);
-    if (col) {
-        setCollection(col);
-        const ids = col.businessIds || [];
-        const loadedBusinesses = ids
-            .map((id: string) => getBusinessById(id))
-            .filter((b: BusinessProfile | undefined): b is BusinessProfile => b !== undefined);
-        setBusinesses(loadedBusinesses);
-    }
-    
-    // Fetch coupons to see which businesses have active coupons
-    getCoupons().then(coupons => {
-        const activeCoupons = coupons.filter(c => c.active);
-        const bizIdsWithCoupons = new Set(activeCoupons.map(c => c.companyId));
-        setBusinessesWithCoupons(bizIdsWithCoupons);
-    }).catch(e => console.error("Failed to fetch coupons", e));
+    const fetchData = async () => {
+      const col = await getCollectionById(collectionId);
+      if (col) {
+          setCollection(col);
+          const ids = col.businessIds || [];
+          const loadedBusinesses = await Promise.all(ids.map((id: string) => getBusinessById(id)));
+          const filteredBusinesses = loadedBusinesses.filter((b: BusinessProfile | undefined): b is BusinessProfile => b !== undefined);
+          setBusinesses(filteredBusinesses);
+      }
+      
+      // Fetch coupons to see which businesses have active coupons
+      try {
+          const coupons = await getCoupons();
+          const activeCoupons = coupons.filter(c => c.active);
+          const bizIdsWithCoupons = new Set(activeCoupons.map(c => c.companyId));
+          setBusinessesWithCoupons(bizIdsWithCoupons);
+      } catch (e) {
+          console.error("Failed to fetch coupons", e);
+      }
+    };
+    fetchData();
   }, [collectionId]);
 
   const handleToggleFavorite = (e: React.MouseEvent, id: string) => {

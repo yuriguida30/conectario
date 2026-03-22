@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPER_ADMIN' ||
+         request.auth.token.email == 'sea.angelshotel@gmail.com');
+    }
+    
+    function isCompany() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'COMPANY';
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Users Collection
+    // ===============================================================
+    
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    // ===============================================================
+    // Businesses Collection
+    // ===============================================================
+    
+    match /businesses/{businessId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && (isOwner(businessId) || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(businessId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    // ===============================================================
+    // Coupons Collection
+    // ===============================================================
+    
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && (isCompany() || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(request.resource.data.companyId) || isAdmin());
+      allow delete: if isAuthenticated() && (isOwner(resource.data.companyId) || isAdmin());
+    }
+    
+    // ===============================================================
+    // Reviews Collection
+    // ===============================================================
+    
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // ===============================================================
+    // Blog Posts Collection
+    // ===============================================================
+    
+    match /blog_posts/{postId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ===============================================================
+    // Pricing Plans Collection
+    // ===============================================================
+    
+    match /pricingPlans/{planId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // ===============================================================
+    // Cities & Neighborhoods
+    // ===============================================================
+    
+    match /cities/{cityId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /neighborhoods/{neighborhoodId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ===============================================================
+    // Collections & Highlights
+    // ===============================================================
+    
+    match /collections/{colId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /home_highlights/{hId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /app_categories_guia/{catId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /app_categories_dicas/{catId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    match /companyRequests/{reqId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

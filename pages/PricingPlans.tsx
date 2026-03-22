@@ -190,8 +190,20 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
             setTimeout(() => {
                 onNavigate('create-business');
             }, 3000);
-        } catch (error) {
-            notify('error', "Erro ao processar assinatura.");
+        } catch (error: any) {
+            console.error("Erro ao processar assinatura:", error);
+            let message = "Erro ao processar assinatura.";
+            
+            try {
+                const errData = JSON.parse(error.message);
+                if (errData.error.includes('insufficient permissions')) {
+                    message = "Erro de permissão no Firebase. Verifique as regras de segurança do Firestore.";
+                }
+            } catch (e) {
+                // Not a JSON error or other issue
+            }
+            
+            notify('error', message);
         }
     };
 

@@ -283,7 +283,11 @@ export const loginWithGoogle = async (): Promise<User | null> => {
             savedAmount: 0,
             avatarUrl: res.user.photoURL || undefined
         };
-        await setDoc(doc(db, 'users', userData.id), cleanObject(userData));
+        try {
+            await setDoc(doc(db, 'users', userData.id), cleanObject(userData));
+        } catch (error) {
+            handleFirestoreError(error, OperationType.WRITE, `users/${userData.id}`);
+        }
     }
     localStorage.setItem(SESSION_KEY, JSON.stringify(userData));
     notifyListeners();
@@ -337,8 +341,63 @@ export const getBusinessByIdAdmin = (id: string) => {
     return biz ? { ...biz } : undefined;
 };
 
+enum OperationType {
+    CREATE = 'create',
+    UPDATE = 'update',
+    DELETE = 'delete',
+    LIST = 'list',
+    GET = 'get',
+    WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+    error: string;
+    operationType: OperationType;
+    path: string | null;
+    authInfo: {
+        userId: string | undefined;
+        email: string | null | undefined;
+        emailVerified: boolean | undefined;
+        isAnonymous: boolean | undefined;
+        tenantId: string | null | undefined;
+        providerInfo: {
+            providerId: string;
+            displayName: string | null;
+            email: string | null;
+            photoUrl: string | null;
+        }[];
+    }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+    const errInfo: FirestoreErrorInfo = {
+        error: error instanceof Error ? error.message : String(error),
+        authInfo: {
+            userId: auth.currentUser?.uid,
+            email: auth.currentUser?.email,
+            emailVerified: auth.currentUser?.emailVerified,
+            isAnonymous: auth.currentUser?.isAnonymous,
+            tenantId: auth.currentUser?.tenantId,
+            providerInfo: auth.currentUser?.providerData.map(provider => ({
+                providerId: provider.providerId,
+                displayName: provider.displayName,
+                email: provider.email,
+                photoUrl: provider.photoURL
+            })) || []
+        },
+        operationType,
+        path
+    }
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
+}
+
 export const saveBusiness = async (b: BusinessProfile) => {
-    await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); 
+    try {
+        await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); 
+    } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `businesses/${b.id}`);
+    }
 };
 
 export const toggleBusinessStatus = async (businessId: string, isBlocked: boolean) => {
@@ -376,15 +435,19 @@ export const getCurrentUser = (): User | null => {
 };
 
 export const updateUser = async (user: User) => {
-    await setDoc(doc(db, 'users', user.id), cleanObject(user), { merge: true });
-    
-    // Only update localStorage if we are updating the currently logged-in user
-    const current = getCurrentUser();
-    if (current && current.id === user.id) {
-        localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    try {
+        await setDoc(doc(db, 'users', user.id), cleanObject(user), { merge: true });
+        
+        // Only update localStorage if we are updating the currently logged-in user
+        const current = getCurrentUser();
+        if (current && current.id === user.id) {
+            localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+        }
+        
+        notifyListeners();
+    } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `users/${user.id}`);
     }
-    
-    notifyListeners();
 };
 
 export const getCategories = () => _categories;

@@ -74,6 +74,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                 isClaimed: true,
                 plan: selectedPlan?.id || ''
             };
+            console.log("Salvando empresa:", newBiz);
             await saveBusiness(newBiz);
 
             const updatedUser: User = {
@@ -92,9 +93,20 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
             setTimeout(() => {
                 onNavigate('admin-dashboard');
             }, 2000);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Erro ao criar empresa:", error);
-            notify('error', "Erro ao criar empresa. Tente novamente.");
+            let message = "Erro ao criar empresa. Tente novamente.";
+            
+            try {
+                const errData = JSON.parse(error.message);
+                if (errData.error.includes('insufficient permissions')) {
+                    message = "Erro de permissão no Firebase. Verifique as regras de segurança do Firestore.";
+                }
+            } catch (e) {
+                // Not a JSON error or other issue
+            }
+            
+            notify('error', message);
         } finally {
             setLoading(false);
         }

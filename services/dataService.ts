@@ -84,74 +84,82 @@ export const initFirebaseData = () => {
     if (_isInitialized) return;
     _isInitialized = true;
 
+    const handleError = (err: any, collectionName: string) => {
+        console.warn(`[Firestore] Permission denied or error reading ${collectionName}:`, err.message);
+    };
+
     onSnapshot(collection(db, 'reviews'), (snapshot) => {
         _reviews = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Review));
         notifyListeners();
-    });
+    }, (err) => handleError(err, 'reviews'));
 
     onSnapshot(collection(db, 'businesses'), (snapshot) => {
         _businesses = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
         notifyListeners();
-    });
+    }, (err) => handleError(err, 'businesses'));
 
     onSnapshot(collection(db, 'coupons'), (snapshot) => {
         _coupons = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
         notifyListeners();
-    });
+    }, (err) => handleError(err, 'coupons'));
 
     onSnapshot(collection(db, 'users'), (snapshot) => {
         _users = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as User));
         notifyListeners();
-    });
+    }, (err) => handleError(err, 'users'));
 
     onSnapshot(collection(db, 'app_categories_guia'), async (snapshot) => {
         if (snapshot.empty) {
-            for (const catName of DEFAULT_CATEGORIES) {
-                const catId = catName.toLowerCase().replace(/ç/g, 'c').replace(/ã/g, 'a');
-                const newCat: AppCategory = { id: catId, name: catName, subcategories: [] };
-                await setDoc(doc(db, 'app_categories_guia', catId), newCat);
+            try {
+                for (const catName of DEFAULT_CATEGORIES) {
+                    const catId = catName.toLowerCase().replace(/ç/g, 'c').replace(/ã/g, 'a');
+                    const newCat: AppCategory = { id: catId, name: catName, subcategories: [] };
+                    await setDoc(doc(db, 'app_categories_guia', catId), newCat);
+                }
+            } catch (e) {
+                console.warn("Could not create default categories:", e);
             }
         } else {
             _categories = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppCategory));
             notifyListeners();
         }
-    });
+    }, (err) => handleError(err, 'app_categories_guia'));
 
     onSnapshot(collection(db, 'app_categories_dicas'), (snapshot) => {
         _dicasCategories = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as AppCategory));
         notifyListeners();
-    });
+    }, (err) => handleError(err, 'app_categories_dicas'));
 
     onSnapshot(collection(db, 'companyRequests'), (snapshot) => {
         _requests = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as CompanyRequest));
         notifyListeners();
-    });
+    }, (err) => handleError(err, 'companyRequests'));
 
     onSnapshot(collection(db, 'pricingPlans'), (snapshot) => {
         _plans = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PricingPlan));
         notifyListeners();
-    });
+    }, (err) => handleError(err, 'pricingPlans'));
 
     onSnapshot(collection(db, 'home_highlights'), (snapshot) => {
         _highlights = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as HomeHighlight)).sort((a, b) => a.order - b.order);
         notifyListeners();
-    });
+    }, (err) => handleError(err, 'home_highlights'));
 
     onSnapshot(collection(db, 'cities'), (snapshot) => {
         _cities = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as City));
         notifyListeners();
-    });
+    }, (err) => handleError(err, 'cities'));
 
     onSnapshot(collection(db, 'neighborhoods'), (snapshot) => {
         _neighborhoods = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Neighborhood));
         notifyListeners();
-    });
+    }, (err) => handleError(err, 'neighborhoods'));
 
     onSnapshot(collection(db, 'blog_posts'), (snapshot) => {
         const fbPosts = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BlogPost));
         _posts = fbPosts;
         notifyListeners();
-    });
+    }, (err) => handleError(err, 'blog_posts'));
 };
 
 initFirebaseData();

@@ -351,7 +351,9 @@ export const getBusinesses = async (forceRefresh = false) => {
 };
 
 export const getAllBusinesses = async () => {
-    if (_businesses.length < 10) { // If only initial load happened
+    // Fetch all businesses if not already fully loaded
+    // We assume if it's less than a large number, it might be just the initial partial load
+    if (_businesses.length < 50) { 
         const snap = await getDocs(collection(db, 'businesses'));
         trackRead('businesses', snap.size, 'getAllBusinesses');
         _businesses = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
@@ -393,22 +395,21 @@ export const getCoupons = async (forceRefresh = false, includeInactive = false) 
     if (_coupons.length === 0 || forceRefresh) {
         const q = includeInactive 
             ? query(collection(db, 'coupons'), limit(100))
-            : query(collection(db, 'coupons'), where('active', '==', true), limit(50));
+            : query(collection(db, 'coupons'), where('active', '==', true), limit(100)); // Increased limit
         const snap = await getDocs(q);
         trackRead('coupons', snap.size, 'getCoupons');
         _coupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
     }
     
-    const activeBusinessIds = _businesses.filter(b => !b.isBlocked).map(b => b.id);
-    return _coupons
-        .filter(c => includeInactive || activeBusinessIds.length === 0 || activeBusinessIds.includes(c.companyId))
-        .map(c => {
-            if (!c.companyName || c.companyName === 'Minha Empresa') {
-                const biz = _businesses.find(b => b.id === c.companyId);
-                if (biz) return { ...c, companyName: biz.name };
-            }
-            return c;
-        });
+    // REMOVED: Filtering by _businesses.length because with pagination _businesses is often incomplete.
+    // This was causing coupon icons to disappear for businesses not in the initial 20-item cache.
+    return _coupons.map(c => {
+        if (!c.companyName || c.companyName === 'Minha Empresa') {
+            const biz = _businesses.find(b => b.id === c.companyId);
+            if (biz) return { ...c, companyName: biz.name };
+        }
+        return c;
+    });
 };
 
 export const getBusinessById = async (id: string) => {

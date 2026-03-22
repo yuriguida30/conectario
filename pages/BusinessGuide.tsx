@@ -105,7 +105,21 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
 
   useEffect(() => {
     syncData();
-    // Re-fetch when filters change
+    
+    const handleUpdate = () => syncData();
+    window.addEventListener('dataUpdated', handleUpdate);
+
+    // Auto-detect location on load if available
+    const storedGps = sessionStorage.getItem('user_gps');
+    if (storedGps) {
+        setNearby(true);
+        const { lat, lng } = JSON.parse(storedGps);
+        setCurrentLocationName(identifyNeighborhood(lat, lng));
+    }
+
+    return () => {
+        window.removeEventListener('dataUpdated', handleUpdate);
+    };
   }, [selectedCategory, selectedLocation]);
 
   const handleLoadMore = () => {
@@ -388,9 +402,9 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                               ))}
                           </div>
                           {businessesWithCoupons.has(business.id) && (
-                              <div className="flex items-center gap-1 text-red-500 bg-red-50 px-2 py-1 rounded-lg shrink-0 shadow-sm" title="Cupom Disponível">
-                                  <Ticket size={14} className="animate-pulse" />
-                                  <span className="text-[10px] font-black uppercase tracking-wider">Cupom</span>
+                              <div className="flex items-center gap-1 bg-orange-50 text-orange-600 px-2 py-1 rounded-lg shrink-0 shadow-sm border border-orange-100" title="Cupom Disponível">
+                                  <Ticket size={12} className="animate-pulse" />
+                                  <span className="text-[10px] font-black uppercase tracking-wider">Tem Cupom</span>
                               </div>
                           )}
                       </div>

@@ -361,21 +361,34 @@ export const getAllBusinesses = async () => {
     return _businesses;
 };
 
-// --- PAGINATION (PROMPT 1) ---
+// --- PAGINATION ---
 export const getBusinessesPaginated = async (
     pageSize = 12, 
     lastVisible: QueryDocumentSnapshot<DocumentData> | null = null,
     category?: string,
-    neighborhood?: string
+    locationId?: string,
+    locationType?: 'city' | 'neighborhood'
 ) => {
     let q = query(collection(db, 'businesses'), where('isBlocked', '==', false), orderBy('name'), limit(pageSize));
     
-    if (category && category !== 'Todas') {
+    if (category && category !== 'Todos') {
         q = query(q, where('category', '==', category));
     }
     
-    if (neighborhood && neighborhood !== 'Todos') {
-        q = query(q, where('neighborhood', '==', neighborhood));
+    if (locationId && locationId !== 'Todos') {
+        if (locationType === 'neighborhood') {
+            q = query(q, where('neighborhoodId', '==', locationId));
+        } else if (locationType === 'city') {
+            q = query(q, where('cityId', '==', locationId));
+        } else {
+            // Fallback: guess from cache
+            const isNeighborhood = _neighborhoods.some(n => n.id === locationId);
+            if (isNeighborhood) {
+                q = query(q, where('neighborhoodId', '==', locationId));
+            } else {
+                q = query(q, where('cityId', '==', locationId));
+            }
+        }
     }
     
     if (lastVisible) {
@@ -448,14 +461,24 @@ export const getBusinessByIdAdmin = async (id: string) => {
 };
 
 // New optimized search function
-export const searchBusinesses = async (searchQuery: string, category?: string) => {
-    let q = query(collection(db, 'businesses'), where('isBlocked', '==', false), limit(20));
+export const searchBusinesses = async (searchQuery: string, category?: string, locationId?: string) => {
+    let q = query(collection(db, 'businesses'), where('isBlocked', '==', false), limit(100));
     
     if (category && category !== 'Todos') {
         q = query(q, where('category', '==', category));
     }
 
+    if (locationId && locationId !== 'Todos') {
+        const isNeighborhood = _neighborhoods.some(n => n.id === locationId);
+        if (isNeighborhood) {
+            q = query(q, where('neighborhoodId', '==', locationId));
+        } else {
+            q = query(q, where('cityId', '==', locationId));
+        }
+    }
+
     const snap = await getDocs(q);
+    trackRead('businesses', snap.size, 'searchBusinesses');
     const results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
     
     // Update cache with new results

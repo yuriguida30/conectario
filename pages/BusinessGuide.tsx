@@ -58,6 +58,13 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
   const syncData = async (isLoadMore = false) => {
     if (isLoadMore) setLoadingMore(true);
     else setIsLoadingDB(true);
@@ -76,22 +83,34 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
         setAmenities(getAmenities());
         setCollections(cols.filter(c => c.active).sort((a, b) => a.order - b.order));
 
-        // Fetch paginated businesses
-        const { docs, lastDoc: newLastDoc, hasMore: more } = await getBusinessesPaginated(
-            12, 
-            isLoadMore ? lastDoc : null,
-            selectedCategory,
-            selectedLocation
-        );
-
-        if (isLoadMore) {
-            setBusinesses(prev => [...prev, ...docs]);
+        if (debouncedQuery.length > 2) {
+            // Use searchBusinesses for queries
+            const { searchBusinesses } = await import('../services/dataService');
+            const results = await searchBusinesses(debouncedQuery, selectedCategory, selectedLocation);
+            setBusinesses(results);
+            setHasMore(false);
         } else {
-            setBusinesses(docs);
+            // Fetch paginated businesses
+            const isCity = cts.some(c => c.id === selectedLocation);
+            const isNeighborhood = nbs.some(n => n.id === selectedLocation);
+
+            const { docs, lastDoc: newLastDoc, hasMore: more } = await getBusinessesPaginated(
+                12, 
+                isLoadMore ? lastDoc : null,
+                selectedCategory,
+                selectedLocation,
+                isCity ? 'city' : (isNeighborhood ? 'neighborhood' : undefined)
+            );
+
+            if (isLoadMore) {
+                setBusinesses(prev => [...prev, ...docs]);
+            } else {
+                setBusinesses(docs);
+            }
+            
+            setLastDoc(newLastDoc);
+            setHasMore(more);
         }
-        
-        setLastDoc(newLastDoc);
-        setHasMore(more);
 
     } catch (e) {
         console.error("Failed to sync data", e);
@@ -126,30 +145,13 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
     return () => {
         window.removeEventListener('dataUpdated', handleUpdate);
     };
-  }, [selectedCategory, selectedLocation]);
+  }, [selectedCategory, selectedLocation, debouncedQuery]);
 
   const handleLoadMore = () => {
-    if (hasMore && !loadingMore) {
+    if (hasMore && !loadingMore && debouncedQuery.length <= 2) {
         syncData(true);
     }
   };
-
-  // Optimized search effect
-  useEffect(() => {
-    const performSearch = async () => {
-        if (query.length > 2 || selectedCategory !== 'Todos') {
-            const { searchBusinesses } = await import('../services/dataService');
-            const results = await searchBusinesses(query, selectedCategory);
-            setBusinesses(results);
-        } else {
-            const biz = await getBusinesses();
-            setBusinesses(biz);
-        }
-    };
-    
-    const timeout = setTimeout(performSearch, 300);
-    return () => clearTimeout(timeout);
-  }, [query, selectedCategory]);
 
   useEffect(() => {
     let result = [...businesses];

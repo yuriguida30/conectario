@@ -17,18 +17,13 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
     const [success, setSuccess] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
     const [gallery, setGallery] = useState<string[]>([]);
-    const [, setTick] = useState(0);
+    const [step, setStep] = useState(1);
+    const totalSteps = 4;
 
     useEffect(() => {
-        const handleUpdate = () => setTick(t => t + 1);
-        window.addEventListener('dataUpdated', handleUpdate);
-        
-        // Find the plan the user selected
         const plans = getPricingPlans();
         const userPlan = plans.find(p => p.name === currentUser.plan) || plans[0];
         setSelectedPlan(userPlan);
-
-        return () => window.removeEventListener('dataUpdated', handleUpdate);
     }, [currentUser.plan]);
 
     const categories = getCategories();
@@ -46,14 +41,20 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
         coverImage: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=1200'
     });
 
+    const nextStep = () => {
+        if (step === 1 && !formData.name.trim()) return notify('warning', "Por favor, insira o nome da empresa.");
+        if (step === 2 && (!formData.cityId || !formData.neighborhoodId || !formData.address)) return notify('warning', "Por favor, preencha todos os dados de localização.");
+        setStep(s => Math.min(s + 1, totalSteps));
+    };
+
+    const prevStep = () => setStep(s => Math.max(s - 1, 1));
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name.trim()) return notify('warning', "Por favor, insira o nome da empresa.");
-        if (!formData.cityId || !formData.neighborhoodId) return notify('warning', "Por favor, selecione a cidade e o bairro.");
+        if (step < totalSteps) return nextStep();
         
         setLoading(true);
         try {
-            // 1. Criar perfil da empresa
             const newBiz: BusinessProfile = {
                 id: currentUser.id,
                 name: formData.name,
@@ -75,7 +76,6 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
             };
             await saveBusiness(newBiz);
 
-            // 2. Atualizar usuário
             const updatedUser: User = {
                 ...currentUser,
                 role: UserRole.COMPANY,
@@ -116,169 +116,216 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 pb-20 pt-8 md:pt-20 px-4">
-            <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <button 
-                        onClick={() => onNavigate('user-dashboard')}
-                        className="flex items-center gap-2 text-slate-400 hover:text-ocean-600 font-bold mb-4 transition-colors"
-                    >
-                        <ArrowLeft size={20} /> Voltar ao Início
-                    </button>
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+            {/* Header Onboarding */}
+            <div className="bg-white border-b border-slate-100 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-ocean-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-ocean-600/20">
+                        <Store size={24} />
+                    </div>
+                    <div>
+                        <h1 className="text-sm font-black text-ocean-950 uppercase tracking-tight">Onboarding de Parceiro</h1>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Passo {step} de {totalSteps}</p>
+                    </div>
+                </div>
+                <button 
+                    onClick={() => onNavigate('user-dashboard')}
+                    className="text-slate-400 hover:text-ocean-600 transition-colors"
+                >
+                    <ArrowLeft size={24} />
+                </button>
+            </div>
 
-                    <div className="bg-white rounded-[3rem] shadow-xl border border-slate-100 overflow-hidden">
-                        <div className="bg-ocean-950 p-10 text-white relative overflow-hidden">
-                            <div className="relative z-10">
-                                <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center mb-6">
-                                    <Store size={32} className="text-ocean-400" />
-                                </div>
-                                <h1 className="text-4xl font-black tracking-tight mb-2">Criar sua Empresa</h1>
-                                <p className="text-ocean-300 font-medium">Preencha os dados básicos para começar a divulgar seus cupons.</p>
-                            </div>
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-ocean-400/10 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-                        </div>
+            {/* Progress Bar */}
+            <div className="w-full h-1 bg-slate-100">
+                <div 
+                    className="h-full bg-ocean-600 transition-all duration-500 ease-out"
+                    style={{ width: `${(step / totalSteps) * 100}%` }}
+                />
+            </div>
 
-                        <form onSubmit={handleSubmit} className="p-10 space-y-8">
-                            <div className="grid grid-cols-1 gap-8">
+            <div className="flex-1 max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-0 lg:gap-12 p-6 md:p-12">
+                <div className="lg:col-span-2">
+                    <form onSubmit={handleSubmit} className="space-y-12">
+                        {step === 1 && (
+                            <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Nome Fantasia da Empresa</label>
-                                    <div className="relative">
-                                        <Store className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                                    <h2 className="text-4xl font-black text-ocean-950 tracking-tight mb-2">Vamos começar pelo básico</h2>
+                                    <p className="text-slate-500 font-medium">Como os clientes devem conhecer sua empresa?</p>
+                                </div>
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Nome Fantasia</label>
                                         <input 
                                             required
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
+                                            className="w-full bg-white border border-slate-200 rounded-2xl p-5 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 focus:border-ocean-500 transition-all text-lg"
                                             placeholder="Ex: Restaurante do Yuri"
                                             value={formData.name}
                                             onChange={e => setFormData({...formData, name: e.target.value})}
                                         />
                                     </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Categoria Principal</label>
-                                    <select 
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
-                                        value={formData.category}
-                                        onChange={e => setFormData({...formData, category: e.target.value})}
-                                    >
-                                        {categories.map((cat: any) => (
-                                            <option key={cat.id} value={cat.name}>{cat.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Localização</label>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                        <select 
-                                            required
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
-                                            value={formData.cityId}
-                                            onChange={e => setFormData({...formData, cityId: e.target.value, neighborhoodId: ''})}
-                                        >
-                                            <option value="">Selecione a Cidade</option>
-                                            {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                        <select 
-                                            required
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
-                                            value={formData.neighborhoodId}
-                                            onChange={e => setFormData({...formData, neighborhoodId: e.target.value})}
-                                            disabled={!formData.cityId}
-                                        >
-                                            <option value="">Selecione o Bairro</option>
-                                            {neighborhoods.filter(n => n.cityId === formData.cityId).map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
-                                        </select>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Categoria Principal</label>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                            {categories.map((cat: any) => (
+                                                <button
+                                                    key={cat.id}
+                                                    type="button"
+                                                    onClick={() => setFormData({...formData, category: cat.name})}
+                                                    className={`p-4 rounded-2xl border-2 transition-all text-center font-bold text-sm ${formData.category === cat.name ? 'border-ocean-600 bg-ocean-50 text-ocean-600 shadow-md' : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'}`}
+                                                >
+                                                    {cat.name}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="relative">
-                                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 2 && (
+                            <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
+                                <div>
+                                    <h2 className="text-4xl font-black text-ocean-950 tracking-tight mb-2">Onde você está localizado?</h2>
+                                    <p className="text-slate-500 font-medium">Isso ajuda os clientes a te encontrarem no mapa.</p>
+                                </div>
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Cidade</label>
+                                            <select 
+                                                required
+                                                className="w-full bg-white border border-slate-200 rounded-2xl p-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
+                                                value={formData.cityId}
+                                                onChange={e => setFormData({...formData, cityId: e.target.value, neighborhoodId: ''})}
+                                            >
+                                                <option value="">Selecione a Cidade</option>
+                                                {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Bairro</label>
+                                            <select 
+                                                required
+                                                className="w-full bg-white border border-slate-200 rounded-2xl p-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
+                                                value={formData.neighborhoodId}
+                                                onChange={e => setFormData({...formData, neighborhoodId: e.target.value})}
+                                                disabled={!formData.cityId}
+                                            >
+                                                <option value="">Selecione o Bairro</option>
+                                                {neighborhoods.filter(n => n.cityId === formData.cityId).map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Endereço Completo</label>
                                         <input 
                                             required
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
+                                            className="w-full bg-white border border-slate-200 rounded-2xl p-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
                                             placeholder="Rua, Número, Complemento"
                                             value={formData.address}
                                             onChange={e => setFormData({...formData, address: e.target.value})}
                                         />
                                     </div>
                                 </div>
+                            </div>
+                        )}
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div>
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Telefone / WhatsApp</label>
-                                        <div className="relative">
-                                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={20} />
-                                            <input 
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
-                                                placeholder="(21) 99999-9999"
-                                                value={formData.phone}
-                                                onChange={e => setFormData({...formData, phone: e.target.value})}
-                                            />
+                        {step === 3 && (
+                            <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
+                                <div>
+                                    <h2 className="text-4xl font-black text-ocean-950 tracking-tight mb-2">Identidade Visual</h2>
+                                    <p className="text-slate-500 font-medium">Uma imagem vale mais que mil palavras.</p>
+                                </div>
+                                <div className="space-y-8">
+                                    <ImageUpload 
+                                        label="Foto de Capa Principal"
+                                        currentImage={formData.coverImage}
+                                        onImageSelect={(base64) => setFormData({...formData, coverImage: base64})}
+                                    />
+
+                                    {selectedPlan?.showGallery && (
+                                        <div className="space-y-4">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Galeria de Fotos (Opcional)</label>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                                {gallery.map((img, idx) => (
+                                                    <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group shadow-sm border border-slate-100">
+                                                        <img src={img} className="w-full h-full object-cover" />
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => setGallery(prev => prev.filter((_, i) => i !== idx))}
+                                                            className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                                                        >
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                <ImageUpload 
+                                                    allowMultiple 
+                                                    className="aspect-square"
+                                                    onBatchSelect={imgs => setGallery(prev => [...prev, ...imgs])} 
+                                                />
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 4 && (
+                            <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
+                                <div>
+                                    <h2 className="text-4xl font-black text-ocean-950 tracking-tight mb-2">Quase lá!</h2>
+                                    <p className="text-slate-500 font-medium">Últimos detalhes para publicar seu perfil.</p>
+                                </div>
+                                <div className="space-y-6">
                                     <div>
-                                        <ImageUpload 
-                                            label="Foto de Capa"
-                                            currentImage={formData.coverImage}
-                                            onImageSelect={(base64) => setFormData({...formData, coverImage: base64})}
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">WhatsApp de Contato</label>
+                                        <input 
+                                            className="w-full bg-white border border-slate-200 rounded-2xl p-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
+                                            placeholder="(21) 99999-9999"
+                                            value={formData.phone}
+                                            onChange={e => setFormData({...formData, phone: e.target.value})}
                                         />
                                     </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Descrição Breve</label>
-                                    <div className="relative">
-                                        <Info className="absolute left-4 top-4 text-slate-300" size={20} />
+                                    <div>
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Descrição do Negócio</label>
                                         <textarea 
-                                            rows={4}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all resize-none"
-                                            placeholder="Conte um pouco sobre o seu negócio..."
+                                            rows={6}
+                                            className="w-full bg-white border border-slate-200 rounded-2xl p-4 font-bold text-ocean-950 outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all resize-none"
+                                            placeholder="Conte um pouco sobre o seu negócio, sua história e o que você oferece..."
                                             value={formData.description}
                                             onChange={e => setFormData({...formData, description: e.target.value})}
                                         />
                                     </div>
                                 </div>
-
-                                {selectedPlan?.showGallery && (
-                                    <div className="space-y-4">
-                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Galeria de Fotos (Opcional)</label>
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                            {gallery.map((img, idx) => (
-                                                <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group shadow-sm border border-slate-100">
-                                                    <img src={img} className="w-full h-full object-cover" />
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => setGallery(prev => prev.filter((_, i) => i !== idx))}
-                                                        className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
-                                                    >
-                                                        <X size={12} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            <ImageUpload 
-                                                allowMultiple 
-                                                className="aspect-square"
-                                                onBatchSelect={imgs => setGallery(prev => [...prev, ...imgs])} 
-                                            />
-                                        </div>
-                                        <p className="text-[10px] text-slate-400 font-medium">Seu plano permite adicionar fotos para criar uma galeria atraente.</p>
-                                    </div>
-                                )}
                             </div>
+                        )}
 
+                        <div className="flex items-center gap-4 pt-8">
+                            {step > 1 && (
+                                <button 
+                                    type="button"
+                                    onClick={prevStep}
+                                    className="px-8 py-5 rounded-2xl font-black text-xs text-slate-500 bg-slate-100 hover:bg-slate-200 transition-all uppercase tracking-widest"
+                                >
+                                    Voltar
+                                </button>
+                            )}
                             <button 
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-ocean-600 text-white font-black py-6 rounded-3xl shadow-2xl shadow-ocean-600/30 hover:bg-ocean-700 transition-all flex items-center justify-center gap-3 text-lg mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex-1 bg-ocean-600 text-white font-black py-5 rounded-2xl shadow-xl shadow-ocean-600/20 hover:bg-ocean-700 transition-all flex items-center justify-center gap-3 text-sm uppercase tracking-widest disabled:opacity-50"
                             >
-                                {loading ? <Loader2 className="animate-spin" size={24} /> : <CheckCircle2 size={24} />}
-                                FINALIZAR E CRIAR EMPRESA
+                                {loading ? <Loader2 className="animate-spin" size={20} /> : (step === totalSteps ? <CheckCircle2 size={20} /> : null)}
+                                {step === totalSteps ? 'Finalizar Cadastro' : 'Continuar'}
                             </button>
-                        </form>
-                    </div>
+                        </div>
+                    </form>
                 </div>
 
-                <div className="space-y-6">
-                    <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-slate-100 sticky top-24">
+                <div className="hidden lg:block">
+                    <div className="bg-white rounded-[2.5rem] p-8 shadow-xl border border-slate-100 sticky top-32">
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-10 h-10 bg-ocean-50 rounded-xl flex items-center justify-center">
                                 <Zap size={20} className="text-ocean-600" />
@@ -295,7 +342,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                                 </div>
 
                                 <div className="space-y-4">
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">O que você poderá incluir depois:</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Recursos Inclusos:</p>
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-3 text-slate-600">
                                             <Check size={16} className="text-emerald-500 shrink-0" />
@@ -319,17 +366,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                                                 <span className="text-sm font-bold">Links de redes sociais</span>
                                             </div>
                                         )}
-                                        <div className="flex items-center gap-3 text-slate-600">
-                                            <Check size={16} className="text-emerald-500 shrink-0" />
-                                            <span className="text-sm font-bold">Destaque nas pesquisas</span>
-                                        </div>
                                     </div>
-                                </div>
-
-                                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                    <p className="text-xs font-medium text-slate-500 leading-relaxed">
-                                        Após criar sua empresa, você será redirecionado para o painel administrativo onde poderá configurar todos esses recursos.
-                                    </p>
                                 </div>
                             </div>
                         ) : (

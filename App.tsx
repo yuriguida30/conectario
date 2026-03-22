@@ -202,9 +202,11 @@ function AppContent() {
 
   if (page === 'login') return renderPage();
 
+  const isOnboarding = page === 'pricing-plans' || page === 'create-business';
+
   return (
     <div className="min-h-screen font-sans text-ocean-950 bg-slate-50 selection:bg-ocean-200">
-      {page !== 'business-detail' && page !== 'blog-detail' && page !== 'collection-detail' && page !== 'map' && (
+      {page !== 'business-detail' && page !== 'blog-detail' && page !== 'collection-detail' && page !== 'map' && !isOnboarding && (
           <NavBar 
             currentUser={user} 
             onNavigate={handleNavigate} 
@@ -212,7 +214,7 @@ function AppContent() {
             onLogout={handleLogout} 
           />
       )}
-      <main className={`animate-in fade-in duration-500 ${page !== 'business-detail' && page !== 'blog-detail' && page !== 'collection-detail' && page !== 'map' ? 'md:pt-16' : ''}`}>
+      <main className={`animate-in fade-in duration-500 ${page !== 'business-detail' && page !== 'blog-detail' && page !== 'collection-detail' && page !== 'map' && !isOnboarding ? 'md:pt-16' : ''}`}>
         {renderPage()}
       </main>
     </div>

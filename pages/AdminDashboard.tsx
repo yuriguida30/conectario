@@ -385,6 +385,51 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   <>
                       {/* KPIs DE CONVERSÃO */}
                       <div className="lg:col-span-8 space-y-8">
+                          {/* WELCOME / GETTING STARTED FOR NEW BUSINESSES */}
+                          {coupons.length === 0 && (
+                              <div className="bg-gradient-to-br from-ocean-600 to-ocean-800 p-10 rounded-[3rem] text-white shadow-2xl relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-700">
+                                  <div className="relative z-10">
+                                      <div className="flex items-center gap-3 mb-6">
+                                          <div className="w-12 h-12 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center">
+                                              <Zap size={28} className="text-ocean-200" />
+                                          </div>
+                                          <h2 className="text-3xl font-black tracking-tight">Vamos começar a crescer?</h2>
+                                      </div>
+                                      <p className="text-ocean-100 font-medium text-lg mb-8 max-w-xl">
+                                          Sua empresa já está no ar! Agora, siga estes passos simples para atrair seus primeiros clientes.
+                                      </p>
+                                      
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          <button 
+                                              onClick={() => setView('CREATE_COUPON')}
+                                              className="bg-white text-ocean-950 p-6 rounded-2xl flex items-center gap-4 hover:bg-ocean-50 transition-all text-left group"
+                                          >
+                                              <div className="w-10 h-10 bg-ocean-100 rounded-xl flex items-center justify-center text-ocean-600 group-hover:scale-110 transition-transform">
+                                                  <Ticket size={20} />
+                                              </div>
+                                              <div>
+                                                  <p className="font-black text-sm uppercase tracking-tight">Criar Primeiro Cupom</p>
+                                                  <p className="text-xs text-slate-500 font-bold">Atraia clientes com ofertas</p>
+                                              </div>
+                                          </button>
+                                          <button 
+                                              onClick={() => setView('PROFILE')}
+                                              className="bg-white/10 backdrop-blur-md text-white p-6 rounded-2xl flex items-center gap-4 hover:bg-white/20 transition-all text-left group border border-white/10"
+                                          >
+                                              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                                                  <PenTool size={20} />
+                                              </div>
+                                              <div>
+                                                  <p className="font-black text-sm uppercase tracking-tight">Completar Perfil</p>
+                                                  <p className="text-xs text-ocean-200 font-bold">Adicione fotos e horários</p>
+                                              </div>
+                                          </button>
+                                      </div>
+                                  </div>
+                                  <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full -mr-48 -mt-48 blur-3xl"></div>
+                              </div>
+                          )}
+
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                               <div className="bg-ocean-950 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
                                   <MousePointer2 className="absolute -right-4 -bottom-4 w-24 h-24 text-white/5 group-hover:scale-110 transition-transform" />

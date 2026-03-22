@@ -86,9 +86,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </button>
           <button 
             onClick={() => onNavigate('pricing-plans')} 
-            className="bg-gradient-to-tr from-gold-500 to-gold-400 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-gold-500/20 active:scale-95 transition-all flex items-center gap-2"
+            className="bg-gradient-to-tr from-gold-500 to-gold-400 text-white px-6 py-4 rounded-2xl font-black text-xs shadow-lg shadow-gold-500/20 active:scale-95 transition-all flex items-center gap-2 group"
           >
-            <Star size={18} /> MEU PLANO
+            <Star size={18} className="group-hover:rotate-12 transition-transform" /> 
+            <div className="text-left">
+              <p className="leading-none">MEU PLANO</p>
+              {currentUser.plan && <p className="text-[8px] opacity-80 mt-0.5 uppercase tracking-widest">{currentUser.plan}</p>}
+            </div>
           </button>
           <button 
             onClick={() => setView(view === 'PROFILE' ? 'HOME' : 'PROFILE')} 

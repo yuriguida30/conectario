@@ -45,7 +45,11 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   const [nearby, setNearby] = useState(false);
   const [locating, setLocating] = useState(false);
   const [currentLocationName, setCurrentLocationName] = useState('Rio de Janeiro');
-  const [businessesWithCoupons, setBusinessesWithCoupons] = useState<Set<string>>(new Set());
+  const [allCoupons, setAllCoupons] = useState<any[]>([]);
+  const businessesWithCoupons = React.useMemo(() => {
+    const activeCoupons = allCoupons.filter(c => c.active);
+    return new Set(activeCoupons.map(c => c.companyId));
+  }, [allCoupons]);
 
   const [favorites, setFavorites] = useState<string[]>(currentUser?.favorites?.businesses || []);
 
@@ -89,12 +93,6 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
         setLastDoc(newLastDoc);
         setHasMore(more);
 
-        // Fetch coupons
-        const coupons = await getCoupons();
-        const activeCoupons = coupons.filter(c => c.active);
-        const bizIdsWithCoupons = new Set(activeCoupons.map(c => c.companyId));
-        setBusinessesWithCoupons(bizIdsWithCoupons);
-
     } catch (e) {
         console.error("Failed to sync data", e);
     } finally {
@@ -102,6 +100,14 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
         setLoadingMore(false);
     }
   };
+
+  useEffect(() => {
+    const fetchCoupons = async () => {
+        const coupons = await getCoupons();
+        setAllCoupons(coupons);
+    };
+    fetchCoupons();
+  }, []);
 
   useEffect(() => {
     syncData();
@@ -402,7 +408,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                               ))}
                           </div>
                           {businessesWithCoupons.has(business.id) && (
-                              <div className="flex items-center gap-1 bg-orange-50 text-orange-600 px-2 py-1 rounded-lg shrink-0 shadow-sm border border-orange-100" title="Cupom Disponível">
+                              <div className="flex items-center gap-1 bg-red-50 text-red-600 px-2 py-1 rounded-lg shrink-0 shadow-sm border border-red-100" title="Cupom Disponível">
                                   <Ticket size={12} className="animate-pulse" />
                                   <span className="text-[10px] font-black uppercase tracking-wider">Tem Cupom</span>
                               </div>

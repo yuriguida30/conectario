@@ -228,8 +228,8 @@ export const initFirebaseData = () => {
             const bizSnap = await getDocs(query(collection(db, 'businesses'), where('isBlocked', '==', false), limit(20)));
             _businesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
 
-            // Load only first 20 active coupons
-            const couponSnap = await getDocs(query(collection(db, 'coupons'), where('active', '==', true), limit(20)));
+            // Load only first 100 active coupons to ensure badges show up in the guide
+            const couponSnap = await getDocs(query(collection(db, 'coupons'), where('active', '==', true), limit(100)));
             _coupons = couponSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
 
             // Load only first 10 blog posts

@@ -668,6 +668,11 @@ export const saveNeighborhood = async (n: Neighborhood) => {
 };
 
 export const deleteCity = async (id: string) => {
+    // Cascade delete neighborhoods
+    const neighborhoods = _neighborhoods.filter(n => n.cityId === id);
+    for (const n of neighborhoods) {
+        await deleteDoc(doc(db, 'neighborhoods', n.id));
+    }
     await deleteDoc(doc(db, 'cities', id));
 };
 

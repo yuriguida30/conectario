@@ -1993,7 +1993,11 @@ const LocationsManager: React.FC<{ cities: City[]; neighborhoods: Neighborhood[]
     };
 
     const handleDeleteCity = async (id: string) => {
-        if (await confirm({ title: 'Excluir Cidade', message: "Deseja excluir esta cidade?" })) {
+        if (await confirm({ 
+            title: 'Excluir Cidade', 
+            message: "Atenção: Ao excluir esta cidade, TODOS os bairros vinculados a ela também serão excluídos permanentemente. Deseja continuar?",
+            type: 'danger'
+        })) {
             await deleteCity(id);
             onRefresh();
         }

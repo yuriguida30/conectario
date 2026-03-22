@@ -186,7 +186,7 @@ function AppContent() {
       case 'journalist-dashboard':
         return user && user.role === UserRole.JOURNALIST ? <JournalistDashboard currentUser={user} onNavigate={handleNavigate} onLogout={handleLogout} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
       case 'create-business':
-        return user && user.permissions?.canCreateBusiness ? <CreateBusiness currentUser={user} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
+        return user && (user.permissions?.canCreateBusiness || user.role === UserRole.COMPANY) ? <CreateBusiness currentUser={user} onNavigate={handleNavigate} /> : <Login onLogin={handleLoginSuccess} onNavigate={handleNavigate} />;
       case 'pricing-plans':
         return <PricingPlans currentUser={user} onNavigate={handleNavigate} />;
       case 'login':

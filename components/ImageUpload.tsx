@@ -10,6 +10,7 @@ interface ImageUploadProps {
   allowMultiple?: boolean;
   label?: string;
   className?: string;
+  maxWidth?: number;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({ 
@@ -18,7 +19,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     onBatchSelect,
     allowMultiple = false,
     label = "Upload de Imagem", 
-    className = "" 
+    className = "",
+    maxWidth = 800
 }) => {
   const { notify } = useNotification();
   const [loading, setLoading] = useState(false);
@@ -26,6 +28,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
 
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
+      console.log(`Iniciando compressão: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`);
+      
       if (!file.type.startsWith('image/')) {
           reject(new Error("Arquivo não é imagem"));
           return;
@@ -38,13 +42,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800;
           let width = img.width;
           let height = img.height;
 
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
+          if (width > maxWidth) {
+            height *= maxWidth / width;
+            width = maxWidth;
           }
 
           canvas.width = width;
@@ -53,10 +56,12 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           const ctx = canvas.getContext('2d');
           if (ctx) {
               ctx.drawImage(img, 0, 0, width, height);
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.7); 
+              // Qualidade 0.6 para economizar ainda mais espaço sem perder muita nitidez
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.6); 
+              console.log(`Compressão finalizada: ${file.name} -> ${(dataUrl.length / 1024).toFixed(2)} KB`);
               resolve(dataUrl);
           } else {
-              reject(new Error("Canvas context error"));
+              reject(new Error("Erro ao acessar contexto do Canvas"));
           }
         };
         img.onerror = (err) => reject(err);

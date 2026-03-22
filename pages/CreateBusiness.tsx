@@ -45,12 +45,17 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
         if (step === 1 && !formData.name.trim()) return notify('warning', "Por favor, insira o nome da empresa.");
         if (step === 2 && (!formData.cityId || !formData.neighborhoodId || !formData.address)) return notify('warning', "Por favor, preencha todos os dados de localização.");
         setStep(s => Math.min(s + 1, totalSteps));
+        window.scrollTo(0, 0);
     };
 
-    const prevStep = () => setStep(s => Math.max(s - 1, 1));
+    const prevStep = () => {
+        setStep(s => Math.max(s - 1, 1));
+        window.scrollTo(0, 0);
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log("Tentativa de submissão - Passo:", step);
         if (step < totalSteps) return nextStep();
         
         setLoading(true);
@@ -75,19 +80,30 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                 plan: selectedPlan?.id || ''
             };
             console.log("Salvando empresa:", newBiz);
-            await saveBusiness(newBiz);
+            try {
+                await saveBusiness(newBiz);
+            } catch (err) {
+                console.error("Falha no saveBusiness:", err);
+                throw new Error("Erro ao salvar dados da empresa no banco de dados.");
+            }
 
-            const updatedUser: User = {
-                ...currentUser,
-                role: UserRole.COMPANY,
-                permissions: {
-                    ...(currentUser.permissions || { canCreateCoupons: false, canManageBusiness: false }),
-                    canCreateBusiness: false,
-                    canManageBusiness: true,
-                    canCreateCoupons: true
-                }
-            };
-            await updateUser(updatedUser);
+            console.log("Atualizando perfil do usuário...");
+            try {
+                const updatedUser: User = {
+                    ...currentUser,
+                    role: UserRole.COMPANY,
+                    permissions: {
+                        ...(currentUser.permissions || { canCreateCoupons: false, canManageBusiness: false }),
+                        canCreateBusiness: false,
+                        canManageBusiness: true,
+                        canCreateCoupons: true
+                    }
+                };
+                await updateUser(updatedUser);
+            } catch (err) {
+                console.error("Falha no updateUser:", err);
+                throw new Error("Empresa criada, mas erro ao atualizar suas permissões. Contate o suporte.");
+            }
 
             setSuccess(true);
             setTimeout(() => {
@@ -252,13 +268,14 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                                 <div className="space-y-8">
                                     <ImageUpload 
                                         label="Foto de Capa Principal"
+                                        maxWidth={1000} // Capa pode ser maior
                                         currentImage={formData.coverImage}
                                         onImageSelect={(base64) => setFormData({...formData, coverImage: base64})}
                                     />
 
                                     {selectedPlan?.showGallery && (
                                         <div className="space-y-4">
-                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Galeria de Fotos (Opcional)</label>
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Galeria de Fotos (Limite 6)</label>
                                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                                                 {gallery.map((img, idx) => (
                                                     <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group shadow-sm border border-slate-100">
@@ -274,8 +291,15 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                                                 ))}
                                                 <ImageUpload 
                                                     allowMultiple 
+                                                    maxWidth={600} // Galeria pode ser menor
                                                     className="aspect-square"
-                                                    onBatchSelect={imgs => setGallery(prev => [...prev, ...imgs])} 
+                                                    onBatchSelect={imgs => {
+                                                        const newGallery = [...gallery, ...imgs].slice(0, 6);
+                                                        setGallery(newGallery);
+                                                        if (gallery.length + imgs.length > 6) {
+                                                            notify('info', "Limite de 6 fotos na galeria atingido para otimizar o banco de dados.");
+                                                        }
+                                                    }} 
                                                 />
                                             </div>
                                         </div>

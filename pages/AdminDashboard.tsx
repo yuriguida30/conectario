@@ -2077,6 +2077,40 @@ const LocationsManager: React.FC<{ cities: City[]; neighborhoods: Neighborhood[]
                     </div>
                 </div>
             )}
+
+            {editingNeighborhood && (
+                <div className="fixed inset-0 bg-ocean-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 space-y-6">
+                        <h3 className="text-xl font-black text-ocean-950">Configurar Bairro</h3>
+                        <form onSubmit={handleSaveNeighborhood} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Nome do Bairro</label>
+                                <input required className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm" placeholder="Nome do Bairro" value={editingNeighborhood.name} onChange={e => setEditingNeighborhood({...editingNeighborhood, name: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Cidade Pertencente</label>
+                                <select 
+                                    required 
+                                    className="w-full bg-slate-50 p-4 rounded-xl border border-slate-100 font-bold text-sm outline-none"
+                                    value={editingNeighborhood.cityId}
+                                    onChange={e => setEditingNeighborhood({...editingNeighborhood, cityId: e.target.value})}
+                                >
+                                    <option value="">Selecione a Cidade</option>
+                                    {cities.map(c => (
+                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex gap-4 pt-4">
+                                <button type="button" onClick={() => setEditingNeighborhood(null)} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors">CANCELAR</button>
+                                <button type="submit" disabled={isSaving} className="flex-1 px-6 py-4 rounded-2xl font-black text-xs text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all">
+                                    {isSaving ? <Loader2 size={16} className="animate-spin mx-auto" /> : "SALVAR"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

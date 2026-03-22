@@ -143,9 +143,59 @@ export const initFirebaseData = () => {
         notifyListeners();
     }, (err) => handleError(err, 'companyRequests'));
 
-    onSnapshot(collection(db, 'pricingPlans'), (snapshot) => {
-        _plans = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PricingPlan));
-        notifyListeners();
+    onSnapshot(collection(db, 'pricingPlans'), async (snapshot) => {
+        if (snapshot.empty) {
+            try {
+                const defaultPlans: Partial<PricingPlan>[] = [
+                    { 
+                        id: 'basic', 
+                        name: 'Básico', 
+                        price: 49.90, 
+                        period: 'monthly', 
+                        maxCoupons: 3, 
+                        maxBusinesses: 1, 
+                        active: true,
+                        showSocialMedia: true
+                    },
+                    { 
+                        id: 'pro', 
+                        name: 'Pro', 
+                        price: 99.90, 
+                        period: 'monthly', 
+                        maxCoupons: 10, 
+                        maxBusinesses: 1, 
+                        isFeatured: true, 
+                        active: true,
+                        showGallery: true,
+                        showMenu: true,
+                        showSocialMedia: true,
+                        showReviews: true,
+                        hasFreeTrial: true
+                    },
+                    { 
+                        id: 'premium', 
+                        name: 'Premium', 
+                        price: 199.90, 
+                        period: 'monthly', 
+                        maxCoupons: 50, 
+                        maxBusinesses: 3, 
+                        active: true,
+                        showGallery: true,
+                        showMenu: true,
+                        showSocialMedia: true,
+                        showReviews: true
+                    }
+                ];
+                for (const p of defaultPlans) {
+                    await savePricingPlan(p);
+                }
+            } catch (e) {
+                console.warn("Could not seed pricing plans:", e);
+            }
+        } else {
+            _plans = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PricingPlan));
+            notifyListeners();
+        }
     }, (err) => handleError(err, 'pricingPlans'));
 
     onSnapshot(collection(db, 'home_highlights'), (snapshot) => {
@@ -935,6 +985,7 @@ export const savePricingPlan = async (plan: Partial<PricingPlan>) => {
         showMenu: plan.showMenu || false,
         showSocialMedia: plan.showSocialMedia || false,
         showReviews: plan.showReviews || false,
+        hasFreeTrial: plan.hasFreeTrial || false,
         active: plan.active ?? true,
         ...plan
     } as PricingPlan;

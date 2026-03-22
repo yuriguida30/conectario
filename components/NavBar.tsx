@@ -153,6 +153,13 @@ export const NavBar: React.FC<NavBarProps> = ({ currentUser, onNavigate, current
         </button>
         <button onClick={() => onNavigate('blog')} className={`font-medium hover:text-gold-500 ${currentPage === 'blog' ? 'text-ocean-950' : 'text-slate-500'}`}>Dicas & Blog</button>
         
+        <button 
+          onClick={() => onNavigate('pricing-plans')} 
+          className="text-xs font-black uppercase tracking-widest text-ocean-600 hover:text-ocean-800 bg-ocean-50 px-4 py-2 rounded-xl border border-ocean-100 transition-all active:scale-95"
+        >
+          Anuncie Conosco
+        </button>
+        
         {currentUser ? (
              <button onClick={() => {
                  if (currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.COMPANY) {

@@ -19,6 +19,7 @@ export interface PricingPlan {
   showMenu: boolean;
   showSocialMedia: boolean;
   showReviews: boolean;
+  hasFreeTrial?: boolean;
   active: boolean;
 }
 

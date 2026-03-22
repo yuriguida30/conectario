@@ -418,6 +418,26 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
             </div>
         )}
 
+        {/* BUSINESS CTA */}
+        <div className="bg-white rounded-[3rem] p-8 md:p-12 border border-slate-100 shadow-xl overflow-hidden relative group">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-ocean-50 rounded-full -mr-32 -mt-32 blur-3xl transition-all group-hover:bg-ocean-100"></div>
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                <div className="max-w-xl text-center md:text-left">
+                    <h3 className="text-3xl font-black text-ocean-950 mb-4 tracking-tight leading-tight">Tem um negócio no Rio?</h3>
+                    <p className="text-slate-500 font-medium text-lg leading-relaxed">
+                        Aumente suas vendas e visibilidade aparecendo para milhares de turistas e moradores. 
+                        <span className="text-ocean-600 font-bold"> Experimente 30 dias grátis!</span>
+                    </p>
+                </div>
+                <button 
+                    onClick={() => onNavigate('pricing-plans')}
+                    className="bg-ocean-600 text-white font-black px-10 py-5 rounded-3xl shadow-2xl shadow-ocean-600/30 hover:bg-ocean-700 active:scale-95 transition-all text-lg flex items-center gap-3 shrink-0"
+                >
+                    Ver Planos do Conecta Rio <ArrowRight size={24} />
+                </button>
+            </div>
+        </div>
+
       </div>
 
       {selectedCoupon && (

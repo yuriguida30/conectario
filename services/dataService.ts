@@ -41,6 +41,7 @@ let _plans: PricingPlan[] = [];
 let _highlights: HomeHighlight[] = [];
 let _cities: City[] = [];
 let _neighborhoods: Neighborhood[] = [];
+let _reviews: Review[] = [];
 let _isInitialized = false;
 
 let _collections: Collection[] = [];
@@ -82,6 +83,11 @@ const cleanObject = (obj: any) => {
 export const initFirebaseData = () => {
     if (_isInitialized) return;
     _isInitialized = true;
+
+    onSnapshot(collection(db, 'reviews'), (snapshot) => {
+        _reviews = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Review));
+        notifyListeners();
+    });
 
     onSnapshot(collection(db, 'businesses'), (snapshot) => {
         _businesses = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
@@ -315,13 +321,36 @@ export const addReview = async (businessId: string, review: Omit<Review, 'id' | 
     const business = _businesses.find(b => b.id === businessId);
     if (!business) throw new Error('Business not found');
 
+    const newReviewId = doc(collection(db, 'reviews')).id;
     const newReview: Review = {
         ...review,
-        id: Math.random().toString(36).substring(2, 9),
-        date: new Date().toISOString()
+        id: newReviewId,
+        date: new Date().toISOString(),
+        status: 'pending',
+        businessId: businessId,
+        businessName: business.name
     };
 
-    const updatedReviews = [newReview, ...(business.reviews || [])];
+    await setDoc(doc(db, 'reviews', newReviewId), cleanObject(newReview));
+    notifyListeners();
+    return newReview;
+};
+
+export const getPendingReviews = () => {
+    return _reviews.filter(r => r.status === 'pending');
+};
+
+export const approveReview = async (reviewId: string) => {
+    const review = _reviews.find(r => r.id === reviewId);
+    if (!review || !review.businessId) throw new Error('Review not found');
+
+    const business = _businesses.find(b => b.id === review.businessId);
+    if (!business) throw new Error('Business not found');
+
+    review.status = 'approved';
+    await setDoc(doc(db, 'reviews', reviewId), cleanObject(review), { merge: true });
+
+    const updatedReviews = [review, ...(business.reviews || [])];
     const newCount = updatedReviews.length;
     const newRating = updatedReviews.reduce((acc, r) => acc + r.rating, 0) / newCount;
 
@@ -329,9 +358,17 @@ export const addReview = async (businessId: string, review: Omit<Review, 'id' | 
     business.reviewCount = newCount;
     business.rating = newRating;
 
-    await setDoc(doc(db, 'businesses', businessId), cleanObject(business), { merge: true });
+    await setDoc(doc(db, 'businesses', business.id), cleanObject(business), { merge: true });
     notifyListeners();
-    return newReview;
+};
+
+export const rejectReview = async (reviewId: string) => {
+    const review = _reviews.find(r => r.id === reviewId);
+    if (!review) throw new Error('Review not found');
+
+    review.status = 'rejected';
+    await setDoc(doc(db, 'reviews', reviewId), cleanObject(review), { merge: true });
+    notifyListeners();
 };
 export const getDicasCategories = () => _dicasCategories;
 export const getAllUsers = () => _users;

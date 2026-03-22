@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNotification } from '../components/NotificationSystem';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
@@ -21,7 +21,7 @@ const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
   const { notify, confirm } = useNotification();
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS' | 'COLLECTIONS'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS' | 'COLLECTIONS' | 'REVIEWS'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -36,6 +36,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const [cities, setCities] = useState<City[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<Neighborhood[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [pendingReviews, setPendingReviews] = useState<any[]>([]);
   const [newJournalist, setNewJournalist] = useState({ name: '', email: '', password: '' });
 
   const [editBusiness, setEditBusiness] = useState<Partial<BusinessProfile>>({});
@@ -122,6 +123,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
         setHighlights(getAllHomeHighlights());
         setCollections(getCollections());
         setUsers(getAllUsers());
+        setPendingReviews(getPendingReviews());
     }
     setLoading(false);
   };
@@ -1691,6 +1693,87 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
             onBack={() => setView('HOME')} 
             onRefresh={refreshData} 
           />
+      )}
+      {view === 'REVIEWS' && currentUser.role === UserRole.SUPER_ADMIN && (
+          <div className="space-y-6 animate-fade-in">
+              <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                      <button onClick={() => setView('HOME')} className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400 hover:text-ocean-600 transition-colors">
+                          <ChevronLeft size={20} />
+                      </button>
+                      <div>
+                          <h2 className="text-2xl font-black text-ocean-950 tracking-tight">Avaliações Pendentes</h2>
+                          <p className="text-sm font-medium text-slate-500">Aprove ou rejeite as avaliações dos usuários</p>
+                      </div>
+                  </div>
+              </div>
+
+              {pendingReviews.length === 0 ? (
+                  <div className="bg-white rounded-[2.5rem] p-12 text-center border border-slate-100 shadow-sm">
+                      <div className="w-20 h-20 bg-ocean-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                          <CheckCircle2 size={32} className="text-ocean-500" />
+                      </div>
+                      <h3 className="text-xl font-black text-ocean-950 mb-2">Tudo limpo!</h3>
+                      <p className="text-slate-500">Não há avaliações pendentes no momento.</p>
+                  </div>
+              ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {pendingReviews.map(review => (
+                          <div key={review.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100 flex flex-col gap-4">
+                              <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                      {review.userAvatar ? (
+                                          <img src={review.userAvatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+                                      ) : (
+                                          <div className="w-10 h-10 bg-ocean-100 text-ocean-600 rounded-full flex items-center justify-center font-bold">
+                                              {review.userName[0]}
+                                          </div>
+                                      )}
+                                      <div>
+                                          <p className="font-bold text-ocean-950">{review.userName}</p>
+                                          <p className="text-xs text-slate-500">{new Date(review.date).toLocaleDateString()}</p>
+                                      </div>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-gold-500">
+                                      <Star size={16} className="fill-current" />
+                                      <span className="font-bold text-sm">{review.rating}</span>
+                                  </div>
+                              </div>
+                              
+                              <div className="bg-slate-50 p-4 rounded-2xl">
+                                  <p className="text-xs font-bold text-ocean-600 uppercase mb-2">Empresa: {review.businessName}</p>
+                                  <p className="text-sm text-slate-700 italic">&quot;{review.comment}&quot;</p>
+                              </div>
+
+                              <div className="flex gap-3 mt-auto pt-4">
+                                  <button 
+                                      onClick={async () => {
+                                          if(await confirm({title: 'Rejeitar', message: 'Rejeitar esta avaliação?', type: 'danger'})) {
+                                              await rejectReview(review.id);
+                                              refreshData();
+                                              notify('success', 'Avaliação rejeitada.');
+                                          }
+                                      }}
+                                      className="flex-1 py-3 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors"
+                                  >
+                                      REJEITAR
+                                  </button>
+                                  <button 
+                                      onClick={async () => {
+                                          await approveReview(review.id);
+                                          refreshData();
+                                          notify('success', 'Avaliação aprovada!');
+                                      }}
+                                      className="flex-1 py-3 bg-ocean-600 text-white font-bold rounded-xl hover:bg-ocean-700 transition-colors shadow-lg shadow-ocean-600/20"
+                                  >
+                                      APROVAR
+                                  </button>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              )}
+          </div>
       )}
     </div>
   );

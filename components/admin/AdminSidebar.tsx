@@ -69,6 +69,12 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           >
             <Layers size={18} /> COLEÇÕES
           </button>
+          <button 
+            onClick={() => setView('REVIEWS')} 
+            className={`px-6 py-4 rounded-2xl font-black text-xs transition-all flex items-center gap-2 ${view === 'REVIEWS' ? 'bg-ocean-600 text-white shadow-lg' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
+          >
+            <Star size={18} /> AVALIAÇÕES
+          </button>
         </>
       ) : (
         <>

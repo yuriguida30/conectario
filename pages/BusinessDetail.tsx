@@ -41,26 +41,16 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
       }
       setIsSubmittingReview(true);
       try {
-          const newReview = await addReview(businessId, {
+          await addReview(businessId, {
               userId: currentUser.id,
               userName: `${currentUser.name} ${currentUser.surname || ''}`.trim(),
               userAvatar: currentUser.avatarUrl,
               rating: newReviewRating,
               comment: newReviewComment
           });
-          setBusiness(prev => {
-              if (!prev) return prev;
-              const updatedReviews = [newReview, ...(prev.reviews || [])];
-              return {
-                  ...prev,
-                  reviews: updatedReviews,
-                  reviewCount: updatedReviews.length,
-                  rating: updatedReviews.reduce((acc, r) => acc + r.rating, 0) / updatedReviews.length
-              };
-          });
           setNewReviewComment('');
           setNewReviewRating(5);
-          notify('success', 'Avaliação enviada com sucesso!');
+          notify('success', 'Avaliação enviada com sucesso! Ela será analisada por nossa equipe.');
       } catch (error) {
           notify('error', 'Erro ao enviar avaliação.');
       } finally {

@@ -223,6 +223,9 @@ export interface Review {
   rating: number;
   comment: string;
   date: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  businessId?: string;
+  businessName?: string;
 }
 
 export interface BlogPost {

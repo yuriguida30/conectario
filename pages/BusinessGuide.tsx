@@ -56,7 +56,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   const [favorites, setFavorites] = useState<string[]>(currentUser?.favorites?.businesses || []);
 
   // --- PAGINATION STATE (PROMPT 1) ---
-  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [lastIndex, setLastIndex] = useState<number>(0);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -83,13 +83,14 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
             const isCity = cities.some(c => c.id === selectedLocation);
             const isNeighborhood = neighborhoods.some(n => n.id === selectedLocation);
 
-            const { docs, lastDoc: newLastDoc, hasMore: more } = await getBusinessesPaginated(
+            const { docs, lastIndex: newLastIndex, hasMore: more } = await getBusinessesPaginated(
                 12, 
-                isLoadMore ? lastDoc : null,
+                null,
                 selectedCategory,
                 selectedLocation,
                 isCity ? 'city' : (isNeighborhood ? 'neighborhood' : undefined),
-                selectedSubCategory
+                selectedSubCategory,
+                isLoadMore ? lastIndex : 0
             );
 
             if (isLoadMore) {
@@ -98,7 +99,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
                 setBusinesses(docs);
             }
             
-            setLastDoc(newLastDoc);
+            setLastIndex(newLastIndex);
             setHasMore(more);
         }
 

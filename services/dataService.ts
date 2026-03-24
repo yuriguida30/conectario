@@ -37,6 +37,7 @@ import {
 const SESSION_KEY = 'cr_session_v4';
 
 let _businesses: BusinessProfile[] = [];
+let _allBusinessesLoaded = false;
 let _coupons: Coupon[] = [];
 let _users: User[] = [];
 let _categories: AppCategory[] = [];
@@ -347,16 +348,16 @@ export const getBusinesses = async (forceRefresh = false) => {
         const snap = await getDocs(query(collection(db, 'businesses'), where('isBlocked', '==', false), limit(50)));
         _businesses = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
     }
-    return _businesses.filter(b => !b.isBlocked);
+    return _businesses;
 };
 
 export const getAllBusinesses = async () => {
     // Fetch all businesses if not already fully loaded
-    // We assume if it's less than a large number, it might be just the initial partial load
-    if (_businesses.length < 50) { 
+    if (!_allBusinessesLoaded) { 
         const snap = await getDocs(collection(db, 'businesses'));
         trackRead('businesses', snap.size, 'getAllBusinesses');
         _businesses = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
+        _allBusinessesLoaded = true;
     }
     return _businesses;
 };
@@ -368,60 +369,73 @@ export const getBusinessesPaginated = async (
     category?: string,
     locationId?: string,
     locationType?: 'city' | 'neighborhood',
-    subcategory?: string
+    subcategory?: string,
+    lastIndex: number = 0 // Use index for in-memory pagination
 ) => {
-    let q = query(collection(db, 'businesses'), where('isBlocked', '==', false), orderBy('name'), limit(pageSize));
-    
+    // Fetch all businesses if not already loaded
+    if (!_allBusinessesLoaded) {
+        const snap = await getDocs(collection(db, 'businesses'));
+        trackRead('businesses', snap.size, 'getBusinessesPaginated_FullLoad');
+        _businesses = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
+        _allBusinessesLoaded = true;
+    }
+
+    // Filter in memory
+    let filtered = _businesses.filter(b => !b.isBlocked);
+
     if (category && category !== 'Todos') {
-        q = query(q, where('category', '==', category));
+        filtered = filtered.filter(b => b.category === category);
     }
     
     if (subcategory && subcategory !== 'Todos') {
-        q = query(q, where('subcategory', '==', subcategory));
+        filtered = filtered.filter(b => b.subcategory === subcategory);
     }
     
     if (locationId && locationId !== 'Todos') {
         if (locationType === 'neighborhood') {
-            q = query(q, where('neighborhoodId', '==', locationId));
+            filtered = filtered.filter(b => b.neighborhoodId === locationId);
         } else if (locationType === 'city') {
-            q = query(q, where('cityId', '==', locationId));
+            filtered = filtered.filter(b => b.cityId === locationId);
         } else {
             // Fallback: guess from cache
             const isNeighborhood = _neighborhoods.some(n => n.id === locationId);
             if (isNeighborhood) {
-                q = query(q, where('neighborhoodId', '==', locationId));
+                filtered = filtered.filter(b => b.neighborhoodId === locationId);
             } else {
-                q = query(q, where('cityId', '==', locationId));
+                filtered = filtered.filter(b => b.cityId === locationId);
             }
         }
     }
-    
-    if (lastVisible) {
-        q = query(q, startAfter(lastVisible));
-    }
-    
-    const snap = await getDocs(q);
-    trackRead('businesses', snap.size, 'getBusinessesPaginated');
-    
-    const docs = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
-    const lastDoc = snap.docs[snap.docs.length - 1] || null;
-    
-    return { docs, lastDoc, hasMore: snap.size === pageSize };
+
+    // Sort by name (since we removed orderBy('name') from the query)
+    filtered.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Paginate in memory
+    const startIndex = lastIndex;
+    const endIndex = startIndex + pageSize;
+    const paginatedDocs = filtered.slice(startIndex, endIndex);
+
+    return { 
+        docs: paginatedDocs, 
+        lastDoc: null, // Not used anymore, we use lastIndex
+        lastIndex: endIndex,
+        hasMore: endIndex < filtered.length 
+    };
 };
 
 export const getCoupons = async (forceRefresh = false, includeInactive = false) => {
     if (_coupons.length === 0 || forceRefresh) {
-        const q = includeInactive 
-            ? query(collection(db, 'coupons'), limit(100))
-            : query(collection(db, 'coupons'), where('active', '==', true), limit(100)); // Increased limit
+        const q = query(collection(db, 'coupons'), limit(100)); // Increased limit
         const snap = await getDocs(q);
         trackRead('coupons', snap.size, 'getCoupons');
         _coupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
     }
     
+    const resultCoupons = includeInactive ? _coupons : _coupons.filter(c => c.active !== false);
+    
     // REMOVED: Filtering by _businesses.length because with pagination _businesses is often incomplete.
     // This was causing coupon icons to disappear for businesses not in the initial 20-item cache.
-    return _coupons.map(c => {
+    return resultCoupons.map(c => {
         if (!c.companyName || c.companyName === 'Minha Empresa') {
             const biz = _businesses.find(b => b.id === c.companyId);
             if (biz) return { ...c, companyName: biz.name };
@@ -926,16 +940,16 @@ export const getFeaturedConfig = () => null;
 
 export const getHomeHighlights = async () => {
     if (_highlights.length === 0) {
-        const snap = await getDocs(query(collection(db, 'home_highlights'), where('active', '==', true), orderBy('order')));
-        _highlights = snap.docs.map(d => ({ id: d.id, ...d.data() } as HomeHighlight));
+        const snap = await getDocs(query(collection(db, 'home_highlights')));
+        _highlights = snap.docs.map(d => ({ id: d.id, ...d.data() } as HomeHighlight)).sort((a, b) => a.order - b.order);
     }
     return _highlights.filter(h => h.active);
 };
 
 export const getAllHomeHighlights = async () => {
     if (_highlights.length === 0) {
-        const snap = await getDocs(query(collection(db, 'home_highlights'), orderBy('order')));
-        _highlights = snap.docs.map(d => ({ id: d.id, ...d.data() } as HomeHighlight));
+        const snap = await getDocs(query(collection(db, 'home_highlights')));
+        _highlights = snap.docs.map(d => ({ id: d.id, ...d.data() } as HomeHighlight)).sort((a, b) => a.order - b.order);
     }
     return _highlights;
 };

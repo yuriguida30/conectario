@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, PricingPlan, Review } from '../types';
-import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest, getPricingPlans, addReview, getReviewsByBusinessId } from '../services/dataService';
+import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest, getPricingPlans, addReview, getReviewsByBusinessId, isSubscriptionExpired } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 import { useNotification } from '../components/NotificationSystem';
@@ -74,7 +74,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             ]);
             
             const busPlan = allPlans.find(p => p.name === busData.plan);
-            setPlan(busPlan);
+            setPlan(isSubscriptionExpired(busData) ? undefined : busPlan);
 
             incrementBusinessView(businessId);
             setIsOpen(checkIfOpen(busData.openingHours));
@@ -103,7 +103,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
             ]);
             
             const busPlan = allPlans.find(p => p.name === busData.plan);
-            setPlan(busPlan);
+            setPlan(isSubscriptionExpired(busData) ? undefined : busPlan);
             setIsOpen(checkIfOpen(busData.openingHours));
             setCoupons(allCoupons.filter(c => c.companyId === businessId && c.active));
             const user = getCurrentUser();

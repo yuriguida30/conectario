@@ -20,6 +20,7 @@ export interface PricingPlan {
   showSocialMedia: boolean;
   showReviews: boolean;
   hasFreeTrial?: boolean;
+  trialDays?: number;
   active: boolean;
 }
 
@@ -94,6 +95,7 @@ export interface BusinessProfile {
   isBlocked?: boolean;
   canBeClaimed?: boolean;
   plan?: string;
+  subscriptionEndsAt?: string;
   cityId?: string;
   neighborhoodId?: string;
 }

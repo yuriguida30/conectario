@@ -421,7 +421,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                     <h3 className="text-3xl font-black text-ocean-950 mb-4 tracking-tight leading-tight">Tem um negócio no Rio?</h3>
                     <p className="text-slate-500 font-medium text-lg leading-relaxed">
                         Aumente suas vendas e visibilidade aparecendo para milhares de turistas e moradores. 
-                        <span className="text-ocean-600 font-bold"> Experimente 30 dias grátis!</span>
+                        <span className="text-ocean-600 font-bold"> Experimente grátis!</span>
                     </p>
                 </div>
                 <button 

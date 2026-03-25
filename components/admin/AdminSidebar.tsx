@@ -85,8 +85,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             <Utensils size={16} className="md:w-[18px] md:h-[18px]" /> CARDÁPIO
           </button>
           <button 
-            onClick={() => onNavigate('pricing-plans')} 
-            className="bg-gradient-to-tr from-gold-500 to-gold-400 text-white px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs shadow-lg shadow-gold-500/20 active:scale-95 transition-all flex items-center gap-2 group whitespace-nowrap"
+            onClick={() => setView('MY_PLAN')} 
+            className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs shadow-lg transition-all flex items-center gap-2 group whitespace-nowrap ${view === 'MY_PLAN' ? 'bg-gold-600 text-white' : 'bg-gradient-to-tr from-gold-500 to-gold-400 text-white shadow-gold-500/20'}`}
           >
             <Star size={16} className="md:w-[18px] md:h-[18px] group-hover:rotate-12 transition-transform" /> 
             <div className="text-left">

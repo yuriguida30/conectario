@@ -10,7 +10,8 @@ import {
   LayoutDashboard, Store, CheckCircle, Clock, 
   ChevronRight, Loader2, Users, Ticket, 
   Settings, Bell, Shield, Search, Edit, Key, Trash2,
-  PieChart as PieIcon, DollarSign, Mail, X, Save, CheckCircle2, PenTool
+  PieChart as PieIcon, DollarSign, Mail, X, Save, CheckCircle2, PenTool,
+  RefreshCw
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'recharts';
 import { useNotification } from '../components/NotificationSystem';
@@ -191,7 +192,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
              <button onClick={() => setView('COMPANIES')} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${view === 'COMPANIES' ? 'bg-ocean-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
                  <Store size={18} /> Empresas
              </button>
-             <button onClick={() => setView('USERS')} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${view === 'USERS' ? 'bg-ocean-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
+             <button onClick={() => { setView('USERS'); loadData(); }} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${view === 'USERS' ? 'bg-ocean-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
                  <Users size={18} /> Usuários
              </button>
              <button onClick={() => setView('REQUESTS')} className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold transition-all ${view === 'REQUESTS' ? 'bg-ocean-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
@@ -260,6 +261,54 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
 
               {view === 'USERS' && (
                   <div className="space-y-8">
+                      {/* BULK RECOVERY SECTION */}
+                      <div className="bg-orange-50 border border-orange-100 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+                          <div className="flex items-center gap-5">
+                              <div className="bg-orange-100 p-4 rounded-3xl text-orange-600 shadow-inner">
+                                  <Key size={32} />
+                              </div>
+                              <div>
+                                  <h3 className="font-black text-orange-900 text-base uppercase tracking-widest mb-1">Recuperação de Acesso em Massa</h3>
+                                  <p className="text-sm text-orange-700 font-medium max-w-md leading-relaxed">
+                                      Redefina a senha de todos os usuários para <span className="font-black bg-orange-200 px-2 py-0.5 rounded">123456</span>. 
+                                      Isso permitirá que usuários antigos recuperem o acesso imediatamente.
+                                  </p>
+                              </div>
+                          </div>
+                          <button 
+                              onClick={async () => {
+                                  if (await confirm({ 
+                                      title: 'Confirmar Recuperação em Massa', 
+                                      message: 'Esta ação irá alterar a senha de TODOS os usuários (exceto administradores) para "123456". Tem certeza que deseja prosseguir?' 
+                                  })) {
+                                      setIsSaving(true);
+                                      try {
+                                          const { setManualPassword } = await import('../services/dataService');
+                                          let count = 0;
+                                          const usersToUpdate = [...allUsers].filter(u => u.role !== UserRole.SUPER_ADMIN);
+                                          
+                                          for (const u of usersToUpdate) {
+                                              await setManualPassword(u.id, '123456');
+                                              count++;
+                                          }
+                                          
+                                          notify('success', `Sucesso! ${count} usuários agora podem acessar com a senha "123456".`);
+                                          await loadData();
+                                      } catch (error: any) {
+                                          notify('error', 'Erro na recuperação: ' + error.message);
+                                      } finally {
+                                          setIsSaving(false);
+                                      }
+                                  }
+                              }}
+                              disabled={isSaving}
+                              className="bg-orange-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-orange-200 hover:bg-orange-700 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                          >
+                              {isSaving ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}
+                              {isSaving ? 'Processando...' : 'Resetar Todos para 123456'}
+                          </button>
+                      </div>
+
                       <div className="bg-white p-6 md:p-8 rounded-[2rem] border border-slate-100 shadow-sm">
                           <h3 className="text-lg font-black text-ocean-950 mb-4">Criar Novo Jornalista</h3>
                           <p className="text-sm text-slate-500 mb-6">Crie um novo usuário com acesso direto ao Painel do Jornalista.</p>

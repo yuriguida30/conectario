@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, PricingPlan, UserRole } from '../types';
-import { getPricingPlans, updateUser } from '../services/dataService';
+import { getPricingPlans, updateUser, getBusinesses, updateBusinessPlan } from '../services/dataService';
 import { Check, ArrowRight, Star, Shield, Zap, Loader2, CreditCard, Lock, Calendar, Info, X, Gem, Compass } from 'lucide-react';
 import { useNotification } from '../components/NotificationSystem';
 
@@ -40,7 +40,7 @@ const PaymentModal: React.FC<{
                     </button>
                     <h2 className="text-3xl font-black mb-2">Finalizar Assinatura</h2>
                     <p className="text-ocean-100 font-medium">
-                        {isTrial ? 'Ative seus 30 dias grátis agora' : `Plano ${plan.name} - R$ ${plan.price}/${plan.period === 'monthly' ? 'mês' : 'ano'}`}
+                        {isTrial ? `Ative seus ${plan.trialDays || 30} dias grátis agora` : `Plano ${plan.name} - R$ ${plan.price}/${plan.period === 'monthly' ? 'mês' : 'ano'}`}
                     </p>
                 </div>
 
@@ -49,7 +49,7 @@ const PaymentModal: React.FC<{
                         <Info size={20} className="text-ocean-600 shrink-0 mt-0.5" />
                         <p className="text-xs text-ocean-800 font-medium leading-relaxed">
                             {isTrial 
-                                ? 'Você não será cobrado hoje. Após os 30 dias, a assinatura será renovada automaticamente. Cancele a qualquer momento.'
+                                ? `Você não será cobrado hoje. Após os ${plan.trialDays || 30} dias, a assinatura será renovada automaticamente. Cancele a qualquer momento.`
                                 : 'Sua assinatura será ativada imediatamente após a confirmação do pagamento.'}
                         </p>
                     </div>
@@ -171,6 +171,36 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
         if (!selecting || !currentUser) return;
         
         try {
+            if (!isTrialSelection && selecting.price > 0) {
+                // Redirect to Stripe Checkout
+                const response = await fetch('/api/create-checkout-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        planId: selecting.id,
+                        planName: selecting.name,
+                        price: selecting.price,
+                        period: selecting.period,
+                        businessId: currentUser.id,
+                        userId: currentUser.id,
+                    }),
+                });
+
+                const session = await response.json();
+
+                if (session.error) {
+                    notify('error', `Erro no pagamento: ${session.error}`);
+                    return;
+                }
+
+                if (session.url) {
+                    window.location.href = session.url;
+                    return;
+                }
+            }
+
             const updatedUser: User = {
                 ...currentUser,
                 role: UserRole.COMPANY,
@@ -184,11 +214,24 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
                 }
             };
             await updateUser(updatedUser);
+            
+            // Check if user already has a business
+            const businesses = await getBusinesses();
+            const userBusiness = businesses.find(b => b.id === currentUser.id);
+            
+            if (userBusiness) {
+                await updateBusinessPlan(userBusiness.id, selecting.id);
+            }
+
             setSelecting(null);
             setShowSuccess(true);
             
             setTimeout(() => {
-                onNavigate('create-business');
+                if (userBusiness) {
+                    onNavigate('admin');
+                } else {
+                    onNavigate('create-business');
+                }
             }, 3000);
         } catch (error: any) {
             console.error("Erro ao processar assinatura:", error);
@@ -332,7 +375,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
                                         onClick={() => handleSelectPlan(plan, true)}
                                         className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all text-emerald-600 hover:bg-emerald-50 border border-emerald-100"
                                     >
-                                        Ou comece com 30 dias grátis
+                                        Ou comece com {plan.trialDays || 30} dias grátis
                                     </button>
                                 )}
                             </div>

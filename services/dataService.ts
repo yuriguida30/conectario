@@ -249,9 +249,25 @@ export const initFirebaseData = () => {
 initFirebaseData();
 
 export const login = async (email: string, pass: string): Promise<User | null> => {
-    // Check for master password or manual password first
-    const foundUser = _users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
+    // 1. Try to find in local cache first
+    let foundUser = _users.find(u => (u.email || '').toLowerCase() === email.toLowerCase());
     
+    // 2. If not in cache, try to fetch from Firestore by email
+    if (!foundUser) {
+        try {
+            const q = query(collection(db, 'users'), where('email', '==', email));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                const doc = snap.docs[0];
+                foundUser = { id: doc.id, ...doc.data() } as User;
+                // Add to cache
+                _users.push(foundUser);
+            }
+        } catch (e) {
+            console.warn("Error fetching user during login:", e);
+        }
+    }
+
     if (foundUser) {
         if (foundUser.isBlocked) throw new Error("Sua conta está inativa. Entre em contato com o suporte.");
         
@@ -277,8 +293,6 @@ export const login = async (email: string, pass: string): Promise<User | null> =
             return userData;
         }
     } catch (error: any) {
-        // If Firebase login fails, but we already checked manual password above, 
-        // we just re-throw or return null if it wasn't a manual password match.
         if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
             return null;
         }
@@ -299,11 +313,14 @@ export const loginWithGoogle = async (): Promise<User | null> => {
             throw new Error("Sua conta está inativa. Entre em contato com o suporte.");
         }
     } else {
+        const isAdminEmail = (res.user.email || '').toLowerCase() === 'sea.angelshotel@gmail.com' || (res.user.email || '').toLowerCase() === 'yurirmg@gmail.com';
+        const role = isAdminEmail ? UserRole.SUPER_ADMIN : UserRole.CUSTOMER;
+
         userData = {
             id: res.user.uid,
             name: res.user.displayName || 'Usuário',
             email: res.user.email || '',
-            role: UserRole.CUSTOMER,
+            role,
             favorites: { coupons: [], businesses: [] },
             history: [],
             savedAmount: 0,
@@ -341,6 +358,11 @@ export const logout = async () => {
     await auth.signOut();
     localStorage.removeItem(SESSION_KEY);
     notifyListeners();
+};
+
+export const isSubscriptionExpired = (business: BusinessProfile | null): boolean => {
+    if (!business || !business.subscriptionEndsAt) return false;
+    return new Date(business.subscriptionEndsAt) < new Date();
 };
 
 export const getBusinesses = async (forceRefresh = false) => {
@@ -1155,9 +1177,24 @@ export const updateClaimableStatus = async (id: string, canBeClaimed: boolean) =
 
 export const updateBusinessPlan = async (businessId: string, planId: string) => {
     const plan = _plans.find(p => p.id === planId);
+    
+    let subscriptionEndsAt = undefined;
+    if (plan) {
+        const now = new Date();
+        if (plan.hasFreeTrial && plan.trialDays) {
+            now.setDate(now.getDate() + plan.trialDays);
+        } else if (plan.period === 'yearly') {
+            now.setFullYear(now.getFullYear() + 1);
+        } else {
+            now.setMonth(now.getMonth() + 1);
+        }
+        subscriptionEndsAt = now.toISOString();
+    }
+
     const updates: any = { 
         plan: planId,
-        isFeatured: plan ? plan.isFeatured : false
+        isFeatured: plan ? plan.isFeatured : false,
+        subscriptionEndsAt
     };
     
     await updateDoc(doc(db, 'businesses', businessId), updates);
@@ -1166,6 +1203,7 @@ export const updateBusinessPlan = async (businessId: string, planId: string) => 
     if (biz) {
         biz.plan = planId as any;
         biz.isFeatured = plan ? plan.isFeatured : false;
+        biz.subscriptionEndsAt = subscriptionEndsAt;
     }
     
     notifyListeners();
@@ -1173,7 +1211,12 @@ export const updateBusinessPlan = async (businessId: string, planId: string) => 
 
 export const registerUser = async (name: string, email: string, pass: string): Promise<User> => {
     const res = await createUserWithEmailAndPassword(auth, email, pass);
-    const newUser: User = { id: res.user.uid, name, email, role: UserRole.CUSTOMER, favorites: { coupons: [], businesses: [] }, history: [], savedAmount: 0 };
+    
+    // Check if this is an admin email
+    const isAdminEmail = email.toLowerCase() === 'sea.angelshotel@gmail.com' || email.toLowerCase() === 'yurirmg@gmail.com';
+    const role = isAdminEmail ? UserRole.SUPER_ADMIN : UserRole.CUSTOMER;
+    
+    const newUser: User = { id: res.user.uid, name, email, role, favorites: { coupons: [], businesses: [] }, history: [], savedAmount: 0 };
     await setDoc(doc(db, 'users', newUser.id), cleanObject(newUser));
     localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
     notifyListeners();
@@ -1327,6 +1370,7 @@ export const savePricingPlan = async (plan: Partial<PricingPlan>) => {
         showSocialMedia: plan.showSocialMedia || false,
         showReviews: plan.showReviews || false,
         hasFreeTrial: plan.hasFreeTrial || false,
+        trialDays: plan.trialDays || 30,
         active: plan.active ?? true,
         ...plan
     } as PricingPlan;

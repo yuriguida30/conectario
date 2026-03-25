@@ -72,6 +72,19 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
         
         setLoading(true);
         try {
+            let subscriptionEndsAt = undefined;
+            if (selectedPlan) {
+                const now = new Date();
+                if (selectedPlan.hasFreeTrial && selectedPlan.trialDays) {
+                    now.setDate(now.getDate() + selectedPlan.trialDays);
+                } else if (selectedPlan.period === 'yearly') {
+                    now.setFullYear(now.getFullYear() + 1);
+                } else {
+                    now.setMonth(now.getMonth() + 1);
+                }
+                subscriptionEndsAt = now.toISOString();
+            }
+
             const newBiz: BusinessProfile = {
                 id: currentUser.id,
                 name: formData.name,
@@ -89,7 +102,8 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                 views: 0,
                 shares: 0,
                 isClaimed: true,
-                plan: selectedPlan?.id || ''
+                plan: selectedPlan?.id || '',
+                subscriptionEndsAt
             };
             console.log("Salvando empresa:", newBiz);
             try {

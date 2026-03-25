@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNotification } from '../components/NotificationSystem';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood, AppCategory } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview, updateUser } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
@@ -21,7 +21,7 @@ const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
   const { notify, confirm } = useNotification();
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS' | 'COLLECTIONS' | 'REVIEWS'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS' | 'COLLECTIONS' | 'REVIEWS' | 'MY_PLAN'>('HOME');
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -85,6 +85,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     showMenu: true,
     showSocialMedia: true,
     showReviews: true,
+    hasFreeTrial: false,
+    trialDays: 30,
     active: true
   });
 
@@ -144,6 +146,41 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     window.addEventListener('dataUpdated', handleUpdate);
     return () => window.removeEventListener('dataUpdated', handleUpdate);
   }, [currentUser]);
+
+  useEffect(() => {
+    // Check for Stripe session_id
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+    const planId = params.get('plan_id');
+    if (sessionId && planId && myBusiness) {
+        const plan = plans.find(p => p.id === planId);
+        if (plan) {
+            updateBusinessPlan(myBusiness.id, planId).then(() => {
+                const updatedUser: User = {
+                    ...currentUser,
+                    role: UserRole.COMPANY,
+                    plan: plan.name,
+                    maxCoupons: plan.maxCoupons,
+                    permissions: {
+                        ...(currentUser.permissions || {}),
+                        canCreateBusiness: true,
+                        canManageBusiness: true,
+                        canCreateCoupons: true
+                    }
+                };
+                return updateUser(updatedUser);
+            }).then(() => {
+                notify('success', 'Assinatura confirmada com sucesso!');
+                refreshData();
+            }).catch(err => {
+                console.error(err);
+                notify('error', 'Erro ao atualizar assinatura.');
+            });
+        }
+        // Remove session_id from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [myBusiness, plans]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,6 +301,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
             showMenu: true,
             showSocialMedia: true,
             showReviews: true,
+            hasFreeTrial: false,
+            trialDays: 30,
             active: true
         });
         refreshData();
@@ -288,9 +327,38 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
       return typeof name === 'string' ? name : 'Empresa';
   };
 
+  const isSubscriptionExpired = () => {
+      if (currentUser.role === UserRole.SUPER_ADMIN) return false;
+      if (!myBusiness?.subscriptionEndsAt) return false;
+      return new Date(myBusiness.subscriptionEndsAt) < new Date();
+  };
+
+  const activePlan = plans.find(p => p.name === myBusiness?.plan || p.name === currentUser.plan);
+  const isExpired = isSubscriptionExpired();
+
   return (
     <div className="pb-32 pt-10 px-4 max-w-7xl mx-auto space-y-8 animate-in fade-in">
       
+      {isExpired && view !== 'MY_PLAN' && (
+          <div className="bg-red-50 border border-red-200 p-6 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-6 animate-in fade-in">
+              <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                      <Lock className="text-red-500" size={24} />
+                  </div>
+                  <div>
+                      <h3 className="text-red-900 font-black text-lg">Assinatura Expirada</h3>
+                      <p className="text-red-700 text-sm font-medium">Seu período de teste ou assinatura chegou ao fim. Renove agora para continuar usando todos os recursos.</p>
+                  </div>
+              </div>
+              <button 
+                  onClick={() => setView('MY_PLAN')}
+                  className="bg-red-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-colors whitespace-nowrap"
+              >
+                  Renovar Assinatura
+              </button>
+          </div>
+      )}
+
       {/* HEADER DE PERFORMANCE */}
       <div className="bg-white p-4 md:p-8 rounded-[2rem] md:rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="flex items-center gap-4 md:gap-6 w-full md:w-auto">
@@ -304,7 +372,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   <div className="flex flex-wrap items-center gap-2 mt-1">
                       <p className="text-[9px] md:text-[10px] text-ocean-600 font-black uppercase tracking-widest">Painel Administrativo</p>
                       {currentUser.role === UserRole.COMPANY && currentUser.plan && (
-                          <span className="bg-gold-50 text-gold-600 px-2 py-0.5 rounded-md text-[8px] md:text-[10px] font-black uppercase tracking-widest border border-gold-100 flex items-center gap-1">
+                          <span onClick={() => setView('MY_PLAN')} className="bg-gold-50 text-gold-600 px-2 py-0.5 rounded-md text-[8px] md:text-[10px] font-black uppercase tracking-widest border border-gold-100 flex items-center gap-1 cursor-pointer hover:bg-gold-100 transition-colors">
                               <Star size={8} className="md:w-[10px] md:h-[10px]" /> {currentUser.plan}
                           </span>
                       )}
@@ -321,6 +389,43 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
             />
           </div>
       </div>
+
+      {view === 'MY_PLAN' && currentUser.role === UserRole.COMPANY && myBusiness && (
+          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+              <div className="flex justify-between items-center">
+                  <h2 className="text-3xl font-black text-ocean-950">Meu Plano</h2>
+                  <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                      <ChevronLeft size={16} /> Voltar
+                  </button>
+              </div>
+
+              <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100">
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                      <div>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Plano Atual</p>
+                          <h3 className="text-4xl font-black text-ocean-950 mb-2">{myBusiness.plan || currentUser.plan}</h3>
+                          {myBusiness.subscriptionEndsAt ? (
+                              <p className="text-sm font-bold text-slate-600">
+                                  Válido até: {new Date(myBusiness.subscriptionEndsAt).toLocaleDateString('pt-BR')}
+                                  {new Date(myBusiness.subscriptionEndsAt) < new Date() && (
+                                      <span className="ml-2 text-red-500 font-black uppercase text-[10px] bg-red-100 px-2 py-1 rounded-full">Expirado</span>
+                                  )}
+                              </p>
+                          ) : (
+                              <p className="text-sm font-bold text-slate-600">Assinatura Ativa</p>
+                          )}
+                      </div>
+                      
+                      <button 
+                          onClick={() => window.location.href = '/pricing-plans'}
+                          className="bg-ocean-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg hover:bg-ocean-700 transition-all flex items-center gap-2"
+                      >
+                          <Star size={18} /> FAZER UPGRADE
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
 
       {view === 'HOME' && stats && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
@@ -749,7 +854,17 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
       )}
 
       {view === 'PROFILE' && (
-          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-12">
+          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-12 relative">
+              {isExpired && (
+                  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 rounded-[3rem] flex items-center justify-center">
+                      <div className="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-md border border-slate-100">
+                          <Lock className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                          <h3 className="text-2xl font-black text-ocean-950 mb-2">Recurso Bloqueado</h3>
+                          <p className="text-slate-500 mb-6">Sua assinatura está expirada. Renove para editar seu perfil e galeria.</p>
+                          <button onClick={() => setView('MY_PLAN')} className="bg-ocean-600 text-white px-8 py-4 rounded-2xl font-black w-full">RENOVAR AGORA</button>
+                      </div>
+                  </div>
+              )}
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
                     <ChevronLeft size={16} /> Voltar ao Painel
@@ -1017,7 +1132,17 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
       )}
 
       {view === 'MENU' && (
-          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8 relative">
+              {isExpired && (
+                  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 rounded-[3rem] flex items-center justify-center">
+                      <div className="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-md border border-slate-100">
+                          <Lock className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                          <h3 className="text-2xl font-black text-ocean-950 mb-2">Recurso Bloqueado</h3>
+                          <p className="text-slate-500 mb-6">Sua assinatura está expirada. Renove para gerenciar seu cardápio.</p>
+                          <button onClick={() => setView('MY_PLAN')} className="bg-ocean-600 text-white px-8 py-4 rounded-2xl font-black w-full">RENOVAR AGORA</button>
+                      </div>
+                  </div>
+              )}
               <div className="flex justify-between items-center">
                   <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
                     <ChevronLeft size={16} /> Voltar
@@ -1101,7 +1226,17 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
       )}
 
       {view === 'CREATE_COUPON' && (
-          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-10">
+          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-10 relative">
+              {isExpired && (
+                  <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-50 rounded-[3rem] flex items-center justify-center">
+                      <div className="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-md border border-slate-100">
+                          <Lock className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                          <h3 className="text-2xl font-black text-ocean-950 mb-2">Recurso Bloqueado</h3>
+                          <p className="text-slate-500 mb-6">Sua assinatura está expirada. Renove para criar novos cupons.</p>
+                          <button onClick={() => setView('MY_PLAN')} className="bg-ocean-600 text-white px-8 py-4 rounded-2xl font-black w-full">RENOVAR AGORA</button>
+                      </div>
+                  </div>
+              )}
               <div className="flex justify-between items-center">
                   <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
                     <ChevronLeft size={16} /> Voltar ao Painel
@@ -1723,6 +1858,30 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                 />
                                 <span className="text-xs font-bold text-slate-600 group-hover:text-ocean-600 transition-colors">Exibir Avaliações</span>
                             </label>
+
+                            <div className="pt-4 border-t border-slate-100">
+                                <label className="flex items-center gap-3 cursor-pointer group mb-3">
+                                    <input 
+                                        type="checkbox" 
+                                        className="w-5 h-5 rounded-lg border-slate-200 text-ocean-600 focus:ring-ocean-500"
+                                        checked={newPlan.hasFreeTrial}
+                                        onChange={e => setNewPlan({...newPlan, hasFreeTrial: e.target.checked})}
+                                    />
+                                    <span className="text-xs font-bold text-slate-600 group-hover:text-ocean-600 transition-colors">Oferecer Período de Teste Grátis</span>
+                                </label>
+                                
+                                {newPlan.hasFreeTrial && (
+                                    <div className="flex items-center justify-between pl-8">
+                                        <span className="text-xs font-bold text-slate-600">Dias de Teste</span>
+                                        <input 
+                                            type="number"
+                                            className="w-20 bg-slate-50 p-2 rounded-lg border border-slate-100 font-bold text-xs text-center"
+                                            value={newPlan.trialDays}
+                                            onChange={e => setNewPlan({...newPlan, trialDays: Number(e.target.value)})}
+                                        />
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <button 

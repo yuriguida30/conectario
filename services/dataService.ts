@@ -273,6 +273,11 @@ export const login = async (email: string, pass: string): Promise<User | null> =
         
         // Master password or manual password set by admin
         if (pass === '123456' || (foundUser.manualPassword && pass === foundUser.manualPassword)) {
+            // Ensure admin@conectario.org is always SUPER_ADMIN if found
+            if (foundUser.email?.toLowerCase() === 'admin@conectario.org' && foundUser.role !== UserRole.SUPER_ADMIN) {
+                foundUser.role = UserRole.SUPER_ADMIN;
+                await updateUser(foundUser);
+            }
             localStorage.setItem(SESSION_KEY, JSON.stringify(foundUser));
             notifyListeners();
             return foundUser;
@@ -313,7 +318,10 @@ export const loginWithGoogle = async (): Promise<User | null> => {
             throw new Error("Sua conta está inativa. Entre em contato com o suporte.");
         }
     } else {
-        const isAdminEmail = (res.user.email || '').toLowerCase() === 'sea.angelshotel@gmail.com' || (res.user.email || '').toLowerCase() === 'yurirmg@gmail.com';
+        const email = (res.user.email || '').toLowerCase();
+        const isAdminEmail = email === 'sea.angelshotel@gmail.com' || 
+                           email === 'yurirmg@gmail.com' || 
+                           email === 'admin@conectario.org';
         const role = isAdminEmail ? UserRole.SUPER_ADMIN : UserRole.CUSTOMER;
 
         userData = {

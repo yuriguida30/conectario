@@ -1,15 +1,27 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import Stripe from "stripe";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
+import { initializeApp, getApps } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+import admin from "firebase-admin";
 
 dotenv.config();
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_placeholder', {
-  apiVersion: '2023-10-16' as any,
-});
+// Initialize Firebase Admin
+if (getApps().length === 0) {
+  initializeApp({
+    credential: admin.credential.applicationDefault(),
+  });
+}
+
+const db = getFirestore();
+
+const PAGBANK_TOKEN = process.env.PAGBANK_TOKEN;
+const PAGBANK_BASE_URL = process.env.PAGBANK_ENV === 'production' 
+  ? 'https://api.pagseguro.com' 
+  : 'https://sandbox.api.pagseguro.com';
 
 async function startServer() {
   const app = express();
@@ -17,47 +29,51 @@ async function startServer() {
 
   app.use(cors());
   
-  // Webhook endpoint needs raw body
-  app.post('/api/webhook', express.raw({type: 'application/json'}), async (request, response) => {
-    const sig = request.headers['stripe-signature'];
-    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  // Webhook endpoint for PagBank
+  app.post('/api/webhook', express.json(), async (request, response) => {
+    const payload = request.body;
+    
+    // PagBank sends notifications for various events
+    // For simplicity, we'll look for payment success
+    // Note: In production, you should verify the authenticity of the webhook
+    
+    console.log('PagBank Webhook received:', JSON.stringify(payload));
 
-    let event;
+    const { reference, status } = payload;
+    
+    // Status 3 means 'Paid' in PagBank
+    if (status === 3 || status === 'PAID' || (payload.charges && payload.charges[0]?.status === 'PAID')) {
+      // Reference usually contains our internal IDs
+      // We'll assume reference is "userId:businessId:planId:planName"
+      if (reference) {
+        const [userId, businessId, planId, planName] = reference.split(':');
+        
+        try {
+          // Update User
+          if (userId) {
+            await db.collection('users').doc(userId).update({
+              paymentSubscriptionStatus: 'active',
+              plan: planName,
+              role: 'COMPANY'
+            });
+          }
 
-    try {
-      if (endpointSecret && sig) {
-        event = stripe.webhooks.constructEvent(request.body, sig, endpointSecret);
-      } else {
-        event = JSON.parse(request.body.toString());
+          // Update Business
+          if (businessId) {
+            await db.collection('businesses').doc(businessId).update({
+              paymentSubscriptionStatus: 'active',
+              plan: planName,
+              planId: planId
+            });
+          }
+          console.log(`Successfully updated plan for ${businessId} via PagBank`);
+        } catch (error) {
+          console.error('Error updating Firestore from PagBank webhook:', error);
+        }
       }
-    } catch (err: any) {
-      response.status(400).send(`Webhook Error: ${err.message}`);
-      return;
     }
 
-    // Handle the event
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
-        // Here you would typically update the user's subscription status in your database
-        console.log('Checkout Session Completed:', session.id);
-        break;
-      }
-      case 'invoice.payment_succeeded': {
-        const invoice = event.data.object as Stripe.Invoice;
-        console.log('Invoice Payment Succeeded:', invoice.id);
-        break;
-      }
-      case 'invoice.payment_failed': {
-        const failedInvoice = event.data.object as Stripe.Invoice;
-        console.log('Invoice Payment Failed:', failedInvoice.id);
-        break;
-      }
-      default:
-        console.log(`Unhandled event type ${event.type}`);
-    }
-
-    response.send();
+    response.send({ received: true });
   });
 
   // Regular API routes need JSON body parser
@@ -69,46 +85,62 @@ async function startServer() {
 
   app.post("/api/create-checkout-session", async (req, res) => {
     try {
-      const { planId, planName, price, period, businessId, userId } = req.body;
+      const { planId, planName, price, period, businessId, userId, userEmail, userName } = req.body;
 
-      if (!process.env.STRIPE_SECRET_KEY) {
-        return res.status(500).json({ error: "Stripe is not configured" });
+      if (!PAGBANK_TOKEN) {
+        return res.status(500).json({ error: "PagBank is not configured" });
       }
 
-      // Create a Checkout Session
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [
-          {
-            price_data: {
-              currency: 'brl',
-              product_data: {
-                name: `Plano ${planName}`,
-                description: `Assinatura ${period === 'monthly' ? 'Mensal' : 'Anual'}`,
-              },
-              unit_amount: Math.round(price * 100), // Stripe expects amounts in cents
-              recurring: {
-                interval: period === 'monthly' ? 'month' : 'year',
-              },
-            },
-            quantity: 1,
-          },
-        ],
-        mode: 'subscription',
-        success_url: `${req.headers.origin}/admin-dashboard?session_id={CHECKOUT_SESSION_ID}&plan_id=${planId}`,
-        cancel_url: `${req.headers.origin}/pricing-plans`,
-        client_reference_id: businessId,
-        metadata: {
-          businessId,
-          userId,
-          planId,
-          planName,
+      // Create a PagBank Checkout
+      // Reference: https://developer.pagbank.com.br/reference/criar-checkout
+      const reference = `${userId}:${businessId}:${planId}:${planName}`;
+      
+      const payload = {
+        reference: reference,
+        customer: {
+          name: userName || "Cliente Conecta Rio",
+          email: userEmail,
         },
+        items: [
+          {
+            reference: planId,
+            name: `Plano ${planName} - ${period === 'monthly' ? 'Mensal' : 'Anual'}`,
+            quantity: 1,
+            unit_amount: Math.round(price * 100), // PagBank expects amounts in cents
+          }
+        ],
+        payment_methods: [
+          { type: "CREDIT_CARD" },
+          { type: "BOLETO" },
+          { type: "PIX" }
+        ],
+        redirect_url: `${req.headers.origin}/admin-dashboard?plan_id=${planId}&status=success`,
+        notification_urls: [`${req.headers.origin}/api/webhook`]
+      };
+
+      const response = await fetch(`${PAGBANK_BASE_URL}/checkouts`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PAGBANK_TOKEN}`,
+          'Content-Type': 'application/json',
+          'accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
       });
 
-      res.json({ id: session.id, url: session.url });
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("PagBank API Error:", data);
+        throw new Error(data.error_messages?.[0]?.description || "Erro ao criar checkout no PagBank");
+      }
+
+      // PagBank returns a link to the checkout page
+      const checkoutUrl = data.links.find((l: any) => l.rel === 'PAY')?.href;
+
+      res.json({ id: data.id, url: checkoutUrl });
     } catch (error: any) {
-      console.error("Stripe Checkout Error:", error);
+      console.error("PagBank Checkout Error:", error);
       res.status(500).json({ error: error.message });
     }
   });

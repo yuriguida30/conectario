@@ -31,7 +31,7 @@ import { auth, db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, SavingsRecord, 
     CompanyRequest, AppCategory, Subcategory, DEFAULT_CATEGORIES, 
-    DEFAULT_AMENITIES, AppConfig, Collection, PricingPlan, HomeHighlight, City, Neighborhood, Review
+    DEFAULT_AMENITIES, AppConfig, Collection, PricingPlan, HomeHighlight, City, Neighborhood, Review, PaymentSettings
 } from '../types';
 
 const SESSION_KEY = 'cr_session_v4';
@@ -1398,4 +1398,30 @@ export const savePricingPlan = async (plan: Partial<PricingPlan>) => {
 
 export const deletePricingPlan = async (id: string) => {
     await deleteDoc(doc(db, 'pricingPlans', id));
+};
+
+export const getPaymentSettings = async (): Promise<PaymentSettings> => {
+    try {
+        const settingsDoc = await getDoc(doc(db, 'settings', 'payment'));
+        if (settingsDoc.exists()) {
+            return settingsDoc.data() as PaymentSettings;
+        }
+        // Default settings
+        return {
+            isPaymentActive: true,
+            isTestMode: true
+        };
+    } catch (error) {
+        console.error("Error fetching payment settings:", error);
+        return { isPaymentActive: true, isTestMode: true };
+    }
+};
+
+export const savePaymentSettings = async (settings: PaymentSettings): Promise<void> => {
+    try {
+        await setDoc(doc(db, 'settings', 'payment'), settings);
+    } catch (error) {
+        console.error("Error saving payment settings:", error);
+        throw error;
+    }
 };

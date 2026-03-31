@@ -60,6 +60,9 @@ export interface User {
       coupons: string[];
       businesses: string[];
   };
+  paymentCustomerId?: string;
+  paymentSubscriptionStatus?: string;
+  paymentSubscriptionId?: string;
 }
 
 export interface BusinessProfile {
@@ -98,6 +101,9 @@ export interface BusinessProfile {
   subscriptionEndsAt?: string;
   cityId?: string;
   neighborhoodId?: string;
+  paymentCustomerId?: string;
+  paymentSubscriptionStatus?: string;
+  paymentSubscriptionId?: string;
 }
 
 export interface CompanyRequest {
@@ -276,6 +282,13 @@ export interface FeaturedConfig {
   subtitle: string;
   imageUrl: string;
   buttonText: string;
+}
+
+export interface PaymentSettings {
+  isPaymentActive: boolean;
+  isTestMode: boolean;
+  pagbankToken?: string;
+  pagbankWebhookSecret?: string;
 }
 
 export const PROTECTED_CATEGORIES = ['Gastronomia', 'Hospedagem', 'Comércio', 'Serviços'];

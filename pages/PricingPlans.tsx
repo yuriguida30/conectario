@@ -158,13 +158,55 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
         return () => window.removeEventListener('dataUpdated', handleUpdate);
     }, []);
 
-    const handleSelectPlan = (plan: PricingPlan, isTrial: boolean = false) => {
+    const handleSelectPlan = async (plan: PricingPlan, isTrial: boolean = false) => {
         if (!currentUser) {
             onNavigate('login');
             return;
         }
-        setSelecting(plan);
-        setIsTrialSelection(isTrial);
+
+        if (isTrial || plan.price === 0) {
+            setSelecting(plan);
+            setIsTrialSelection(isTrial);
+            return;
+        }
+
+        // Direct redirect to PagBank for paid plans
+        setLoading(true);
+        try {
+            const response = await fetch('/api/create-checkout-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    planId: plan.id,
+                    planName: plan.name,
+                    price: plan.price,
+                    period: plan.period,
+                    businessId: currentUser.id,
+                    userId: currentUser.id,
+                    userEmail: currentUser.email,
+                    userName: currentUser.name + (currentUser.surname ? ' ' + currentUser.surname : ''),
+                }),
+            });
+
+            const session = await response.json();
+
+            if (session.error) {
+                notify('error', `Erro no pagamento: ${session.error}`);
+                setLoading(false);
+                return;
+            }
+
+            if (session.url) {
+                window.location.href = session.url;
+                return;
+            }
+        } catch (error) {
+            console.error("PagBank Checkout Error:", error);
+            notify('error', "Erro ao iniciar checkout.");
+            setLoading(false);
+        }
     };
 
     const confirmPlan = async () => {
@@ -172,7 +214,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
         
         try {
             if (!isTrialSelection && selecting.price > 0) {
-                // Redirect to Stripe Checkout
+                // Redirect to PagBank Checkout
                 const response = await fetch('/api/create-checkout-session', {
                     method: 'POST',
                     headers: {
@@ -185,6 +227,8 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
                         period: selecting.period,
                         businessId: currentUser.id,
                         userId: currentUser.id,
+                        userEmail: currentUser.email,
+                        userName: currentUser.name + (currentUser.surname ? ' ' + currentUser.surname : ''),
                     }),
                 });
 

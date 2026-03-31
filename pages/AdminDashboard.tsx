@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNotification } from '../components/NotificationSystem';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood, AppCategory } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview, updateUser } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview, updateUser, getPaymentSettings, savePaymentSettings } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers, Zap,
-  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool, Users, Image as ImageIcon
+  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool, Users, Image as ImageIcon, CreditCard
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -16,12 +16,14 @@ import { LocationPicker } from '../components/LocationPicker';
 import { BusinessHoursEditor } from '../components/BusinessHoursEditor';
 import { AdminStats } from '../components/admin/AdminStats';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
+import { PaymentSettings } from '../types';
 
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
   const { notify, confirm } = useNotification();
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS' | 'COLLECTIONS' | 'REVIEWS' | 'MY_PLAN'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS' | 'COLLECTIONS' | 'REVIEWS' | 'MY_PLAN' | 'PAYMENT_SETTINGS'>('HOME');
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ isPaymentActive: true, isTestMode: true });
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -127,16 +129,18 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     setNeighborhoods(nbs);
     
     if (currentUser.role === UserRole.SUPER_ADMIN) {
-        const [allRequests, allPlans, allHighlights, allCollections] = await Promise.all([
+        const [allRequests, allPlans, allHighlights, allCollections, paySettings] = await Promise.all([
             getCompanyRequests(),
             getPricingPlans(),
             getAllHomeHighlights(),
-            getCollections()
+            getCollections(),
+            getPaymentSettings()
         ]);
         setRequests(allRequests.filter(r => r.status === 'PENDING'));
         setPlans(allPlans);
         setHighlights(allHighlights);
         setCollections(allCollections);
+        setPaymentSettings(paySettings);
         const allU = await getAllUsers();
         setUsers(allU);
         const pReviews = await getPendingReviews();
@@ -153,11 +157,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   }, [currentUser]);
 
   useEffect(() => {
-    // Check for Stripe session_id
+    // Check for payment status in URL
     const params = new URLSearchParams(window.location.search);
-    const sessionId = params.get('session_id');
+    const status = params.get('status');
     const planId = params.get('plan_id');
-    if (sessionId && planId && myBusiness) {
+    if (status === 'success' && planId && myBusiness) {
         const plan = plans.find(p => p.id === planId);
         if (plan) {
             updateBusinessPlan(myBusiness.id, planId).then(() => {
@@ -182,7 +186,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                 notify('error', 'Erro ao atualizar assinatura.');
             });
         }
-        // Remove session_id from URL
+        // Remove params from URL
         window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [myBusiness, plans]);
@@ -318,6 +322,22 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     }
   };
 
+  const handleSavePaymentSettings = async () => {
+    setIsSaving(true);
+    try {
+        await savePaymentSettings(paymentSettings);
+        notify('success', 'Configurações de pagamento salvas com sucesso!');
+    } catch (error) {
+        notify('error', 'Erro ao salvar configurações de pagamento.');
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    notify('info', 'Para gerenciar sua assinatura, acesse sua conta no PagBank ou entre em contato com nosso suporte.');
+  };
+
   const handleDeletePlan = async (id: string) => {
     if (await confirm({ title: 'Excluir Plano', message: "Deseja excluir este plano?" })) {
         await deletePricingPlan(id);
@@ -421,12 +441,23 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                           )}
                       </div>
                       
-                      <button 
-                          onClick={() => window.location.href = '/pricing-plans'}
-                          className="bg-ocean-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg hover:bg-ocean-700 transition-all flex items-center gap-2"
-                      >
-                          <Star size={18} /> FAZER UPGRADE
-                      </button>
+                      <div className="flex flex-wrap gap-4">
+                          <button 
+                              onClick={() => window.location.href = '/pricing-plans'}
+                              className="bg-ocean-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg hover:bg-ocean-700 transition-all flex items-center gap-2"
+                          >
+                              <Star size={18} /> FAZER UPGRADE
+                          </button>
+                          {(currentUser.paymentCustomerId || myBusiness.paymentCustomerId) && (
+                              <button 
+                                  onClick={handleManageSubscription}
+                                  disabled={isSaving}
+                                  className="bg-white border-2 border-slate-100 text-ocean-950 px-8 py-4 rounded-2xl font-black hover:bg-slate-50 transition-all flex items-center gap-2 disabled:opacity-50"
+                              >
+                                  {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Settings size={18} />} GERENCIAR ASSINATURA
+                              </button>
+                          )}
+                      </div>
                   </div>
               </div>
           </div>
@@ -2156,6 +2187,16 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               </div>
           </div>
       )}
+
+      {view === 'PAYMENT_SETTINGS' && currentUser.role === UserRole.SUPER_ADMIN && (
+          <PaymentSettingsManager 
+              settings={paymentSettings} 
+              setSettings={setPaymentSettings} 
+              onSave={handleSavePaymentSettings} 
+              isSaving={isSaving} 
+              onBack={() => setView('HOME')} 
+          />
+      )}
     </div>
   );
 };
@@ -2667,6 +2708,85 @@ const CollectionsManager: React.FC<{ collections: any[]; businesses: BusinessPro
                     )}
                 </div>
             )}
+        </div>
+    );
+};
+
+const PaymentSettingsManager: React.FC<{ settings: PaymentSettings; setSettings: (s: PaymentSettings) => void; onSave: () => void; isSaving: boolean; onBack: () => void }> = ({ settings, setSettings, onSave, isSaving, onBack }) => {
+    return (
+        <div className="space-y-6 animate-fade-in">
+            <div className="flex items-center gap-4 mb-8">
+                <button onClick={onBack} className="p-3 bg-white rounded-2xl shadow-sm border border-slate-100 text-slate-400 hover:text-ocean-600 transition-colors">
+                    <ChevronLeft size={20} />
+                </button>
+                <div>
+                    <h2 className="text-2xl font-black text-ocean-950 tracking-tight">Configurações de Pagamento</h2>
+                    <p className="text-sm font-medium text-slate-500">Gerencie o sistema de pagamentos PagBank</p>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                            <div>
+                                <h3 className="font-black text-ocean-950">Sistema de Pagamento</h3>
+                                <p className="text-xs text-slate-500 font-bold">Ativar ou desativar cobranças no sistema</p>
+                            </div>
+                            <button 
+                                onClick={() => setSettings({...settings, isPaymentActive: !settings.isPaymentActive})}
+                                className={`w-14 h-8 rounded-full transition-all relative ${settings.isPaymentActive ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                            >
+                                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${settings.isPaymentActive ? 'left-7' : 'left-1'}`} />
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                            <div>
+                                <h3 className="font-black text-ocean-950">Modo de Teste (Sandbox)</h3>
+                                <p className="text-xs text-slate-500 font-bold">Usar ambiente de testes do PagBank</p>
+                            </div>
+                            <button 
+                                onClick={() => setSettings({...settings, isTestMode: !settings.isTestMode})}
+                                className={`w-14 h-8 rounded-full transition-all relative ${settings.isTestMode ? 'bg-amber-500' : 'bg-slate-300'}`}
+                            >
+                                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${settings.isTestMode ? 'left-7' : 'left-1'}`} />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100">
+                            <h4 className="font-black text-blue-900 text-sm mb-2 flex items-center gap-2">
+                                <ShieldCheck size={16} /> Informações de Segurança
+                            </h4>
+                            <p className="text-xs text-blue-700 leading-relaxed font-medium">
+                                O **Modo de Teste** permite que você realize transações fictícias usando os cartões de teste do PagBank. 
+                                Certifique-se de desativar este modo antes de ir para produção.
+                            </p>
+                        </div>
+                        
+                        <div className="p-6 bg-purple-50 rounded-3xl border border-purple-100">
+                            <h4 className="font-black text-purple-900 text-sm mb-2 flex items-center gap-2">
+                                <Zap size={16} /> Webhook
+                            </h4>
+                            <p className="text-xs text-purple-700 leading-relaxed font-medium">
+                                O Webhook é essencial para que o sistema saiba quando um pagamento foi aprovado e ative o plano automaticamente.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end pt-6 border-t border-slate-100">
+                    <button 
+                        onClick={onSave}
+                        disabled={isSaving}
+                        className="bg-ocean-600 text-white px-10 py-4 rounded-2xl font-black shadow-lg shadow-ocean-600/20 hover:bg-ocean-700 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} SALVAR CONFIGURAÇÕES
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };

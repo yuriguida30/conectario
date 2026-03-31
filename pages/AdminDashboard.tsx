@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNotification } from '../components/NotificationSystem';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood, AppCategory } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview, updateUser, getPaymentSettings, savePaymentSettings } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview, updateUser, getPaymentSettings, savePaymentSettings, loginWithGoogle } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers, Zap,
-  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool, Users, Image as ImageIcon, CreditCard
+  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool, Users, Image as ImageIcon, CreditCard, LogIn
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -17,6 +17,7 @@ import { BusinessHoursEditor } from '../components/BusinessHoursEditor';
 import { AdminStats } from '../components/admin/AdminStats';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
 import { PaymentSettings } from '../types';
+import { auth } from '../services/firebase';
 
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 
@@ -2713,6 +2714,29 @@ const CollectionsManager: React.FC<{ collections: any[]; businesses: BusinessPro
 };
 
 const PaymentSettingsManager: React.FC<{ settings: PaymentSettings; setSettings: (s: PaymentSettings) => void; onSave: () => void; isSaving: boolean; onBack: () => void }> = ({ settings, setSettings, onSave, isSaving, onBack }) => {
+    const [isAuthValid, setIsAuthValid] = useState(!!auth.currentUser);
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
+    const { notify } = useNotification();
+
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+            setIsAuthValid(!!user);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleGoogleLogin = async () => {
+        setIsLoggingIn(true);
+        try {
+            await loginWithGoogle();
+            notify('success', 'Autenticado com sucesso via Google!');
+        } catch (error) {
+            notify('error', 'Erro ao autenticar com Google.');
+        } finally {
+            setIsLoggingIn(false);
+        }
+    };
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex items-center gap-4 mb-8">
@@ -2724,6 +2748,26 @@ const PaymentSettingsManager: React.FC<{ settings: PaymentSettings; setSettings:
                     <p className="text-sm font-medium text-slate-500">Gerencie o sistema de pagamentos PagBank</p>
                 </div>
             </div>
+
+            {!isAuthValid && (
+                <div className="bg-red-50 border border-red-100 p-6 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 text-red-700">
+                        <ShieldAlert size={24} className="shrink-0" />
+                        <div>
+                            <p className="font-black text-sm uppercase tracking-wider">Sessão Firebase Inativa</p>
+                            <p className="text-xs font-bold opacity-80">Você está logado via senha manual. Para salvar configurações no banco de dados, é necessário uma sessão ativa do Firebase Auth.</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={handleGoogleLogin}
+                        disabled={isLoggingIn}
+                        className="bg-red-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {isLoggingIn ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
+                        LOGAR COM GOOGLE PARA ATIVAR GRAVAÇÃO
+                    </button>
+                </div>
+            )}
 
             <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -2780,7 +2824,7 @@ const PaymentSettingsManager: React.FC<{ settings: PaymentSettings; setSettings:
                 <div className="flex justify-end pt-6 border-t border-slate-100">
                     <button 
                         onClick={onSave}
-                        disabled={isSaving}
+                        disabled={isSaving || !isAuthValid}
                         className="bg-ocean-600 text-white px-10 py-4 rounded-2xl font-black shadow-lg shadow-ocean-600/20 hover:bg-ocean-700 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                         {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} SALVAR CONFIGURAÇÕES

@@ -142,9 +142,17 @@ function AppContent() {
   const handleLoginSuccess = async () => {
     const u = getCurrentUser();
     setUser(u);
-    if (u?.role === UserRole.COMPANY || u?.role === UserRole.SUPER_ADMIN) {
+    
+    if (!u) {
+      handleNavigate('home');
+      return;
+    }
+
+    if (u.role === UserRole.SUPER_ADMIN) {
       handleNavigate('admin-dashboard');
-    } else if (u?.role === UserRole.JOURNALIST) {
+    } else if (u.role === UserRole.COMPANY) {
+      handleNavigate('admin-dashboard');
+    } else if (u.role === UserRole.JOURNALIST) {
       handleNavigate('journalist-dashboard');
     } else {
       handleNavigate('home');

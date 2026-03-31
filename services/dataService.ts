@@ -359,6 +359,8 @@ export const login = async (email: string, pass: string): Promise<User | null> =
 
 export const loginWithGoogle = async (): Promise<User | null> => {
     const provider = new GoogleAuthProvider();
+    // Force account selection to avoid automatic login with wrong account
+    provider.setCustomParameters({ prompt: 'select_account' });
     const res = await signInWithPopup(auth, provider);
     const userDoc = await getDoc(doc(db, 'users', res.user.uid));
     let userData: User;
@@ -368,10 +370,14 @@ export const loginWithGoogle = async (): Promise<User | null> => {
             await auth.signOut();
             throw new Error("Sua conta está inativa. Entre em contato com o suporte.");
         }
+        // Fix for yurirmg@gmail.com who was accidentally made SUPER_ADMIN
+        if (userData.email?.toLowerCase() === 'yurirmg@gmail.com' && userData.role === UserRole.SUPER_ADMIN) {
+            userData.role = UserRole.COMPANY;
+            await updateDoc(doc(db, 'users', userData.id), { role: UserRole.COMPANY });
+        }
     } else {
         const email = (res.user.email || '').toLowerCase();
         const isAdminEmail = email === 'sea.angelshotel@gmail.com' || 
-                           email === 'yurirmg@gmail.com' || 
                            email === 'admin@conectario.org';
         const role = isAdminEmail ? UserRole.SUPER_ADMIN : UserRole.CUSTOMER;
 
@@ -1231,7 +1237,9 @@ export const registerUser = async (name: string, email: string, pass: string): P
     const res = await createUserWithEmailAndPassword(auth, email, pass);
     
     // Check if this is an admin email
-    const isAdminEmail = email.toLowerCase() === 'sea.angelshotel@gmail.com' || email.toLowerCase() === 'yurirmg@gmail.com';
+    const emailLower = email.toLowerCase();
+    const isAdminEmail = emailLower === 'sea.angelshotel@gmail.com' || 
+                       emailLower === 'admin@conectario.org';
     const role = isAdminEmail ? UserRole.SUPER_ADMIN : UserRole.CUSTOMER;
     
     const newUser: User = { id: res.user.uid, name, email, role, favorites: { coupons: [], businesses: [] }, history: [], savedAmount: 0 };

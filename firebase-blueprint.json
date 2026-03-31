@@ -77,6 +77,18 @@
         "active": { "type": "boolean" }
       },
       "required": ["id", "companyId", "title", "originalPrice", "discountedPrice", "code"]
+    },
+    "PaymentSettings": {
+      "title": "Payment Settings",
+      "description": "Global payment configuration",
+      "type": "object",
+      "properties": {
+        "isPaymentActive": { "type": "boolean" },
+        "isTestMode": { "type": "boolean" },
+        "pagbankToken": { "type": "string" },
+        "pagbankWebhookSecret": { "type": "string" }
+      },
+      "required": ["isPaymentActive", "isTestMode"]
     }
   },
   "firestore": {
@@ -111,6 +123,10 @@
     "/neighborhoods/{neighborhoodId}": {
       "schema": "Neighborhood",
       "description": "Neighborhoods"
+    },
+    "/settings/{settingId}": {
+      "schema": "PaymentSettings",
+      "description": "Global application settings"
     }
   }
 }

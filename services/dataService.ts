@@ -48,6 +48,57 @@ let _highlights: HomeHighlight[] = [];
 let _cities: City[] = [];
 let _neighborhoods: Neighborhood[] = [];
 const _reviews: Review[] = [];
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 let _isInitialized = false;
 
 let _collections: Collection[] = [];
@@ -581,57 +632,6 @@ export const getPendingReviews = async () => {
     const snap = await getDocs(query(collection(db, 'reviews'), where('status', '==', 'pending')));
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as Review));
 };
-
-enum OperationType {
-    CREATE = 'create',
-    UPDATE = 'update',
-    DELETE = 'delete',
-    LIST = 'list',
-    GET = 'get',
-    WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-    error: string;
-    operationType: OperationType;
-    path: string | null;
-    authInfo: {
-        userId: string | undefined;
-        email: string | null | undefined;
-        emailVerified: boolean | undefined;
-        isAnonymous: boolean | undefined;
-        tenantId: string | null | undefined;
-        providerInfo: {
-            providerId: string;
-            displayName: string | null;
-            email: string | null;
-            photoUrl: string | null;
-        }[];
-    }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-    const errInfo: FirestoreErrorInfo = {
-        error: error instanceof Error ? error.message : String(error),
-        authInfo: {
-            userId: auth.currentUser?.uid,
-            email: auth.currentUser?.email,
-            emailVerified: auth.currentUser?.emailVerified,
-            isAnonymous: auth.currentUser?.isAnonymous,
-            tenantId: auth.currentUser?.tenantId,
-            providerInfo: auth.currentUser?.providerData.map(provider => ({
-                providerId: provider.providerId,
-                displayName: provider.displayName,
-                email: provider.email,
-                photoUrl: provider.photoURL
-            })) || []
-        },
-        operationType,
-        path
-    }
-    console.error('Firestore Error: ', JSON.stringify(errInfo));
-    throw new Error(JSON.stringify(errInfo));
-}
 
 export const saveBusiness = async (b: BusinessProfile) => {
     try {
@@ -1418,10 +1418,10 @@ export const getPaymentSettings = async (): Promise<PaymentSettings> => {
 };
 
 export const savePaymentSettings = async (settings: PaymentSettings): Promise<void> => {
+    const path = 'settings/payment';
     try {
         await setDoc(doc(db, 'settings', 'payment'), settings);
     } catch (error) {
-        console.error("Error saving payment settings:", error);
-        throw error;
+        handleFirestoreError(error, OperationType.WRITE, path);
     }
 };

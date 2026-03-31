@@ -147,6 +147,7 @@ export interface Coupon {
   category: string;
   subcategory?: string;
   expiryDate: string;
+  status?: 'pending' | 'approved' | 'rejected';
   code: string;
   active: boolean;
   rating?: number;

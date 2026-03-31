@@ -461,7 +461,12 @@ export const getCoupons = async (forceRefresh = false, includeInactive = false) 
         _coupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
     }
     
-    const resultCoupons = includeInactive ? _coupons : _coupons.filter(c => c.active !== false);
+    let resultCoupons = includeInactive ? _coupons : _coupons.filter(c => c.active !== false);
+    
+    // Filter by status if not including inactive (regular user view)
+    if (!includeInactive) {
+        resultCoupons = resultCoupons.filter(c => c.status === 'approved');
+    }
     
     // REMOVED: Filtering by _businesses.length because with pagination _businesses is often incomplete.
     // This was causing coupon icons to disappear for businesses not in the initial 20-item cache.
@@ -793,6 +798,11 @@ export const saveDicasSubcategory = async (categoryId: string, subcategoryName: 
 
 export const saveCoupon = async (c: Coupon) => {
     const couponToSave = { ...c };
+    
+    // Default status to pending if not set
+    if (!couponToSave.status) {
+        couponToSave.status = 'pending';
+    }
     
     // Ensure we have a real company name if possible
     if (!couponToSave.companyName || couponToSave.companyName === 'Minha Empresa') {

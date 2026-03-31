@@ -53,7 +53,12 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     category: currentUser.category || 'Gastronomia',
     active: true,
     expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    rules: [],
+    rules: [
+      'Válido apenas para consumo no local',
+      'Não cumulativo com outras promoções',
+      'Apresente este cupom antes de solicitar a conta',
+      'Sujeito a disponibilidade e lotação'
+    ],
     maxRedemptions: 100,
     currentRedemptions: 0,
     limitPerUser: 1,
@@ -1259,12 +1264,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                       companyLogo: myBusiness?.coverImage,
                       discountPercentage: Math.round(((newCoupon.originalPrice! - newCoupon.discountedPrice!) / newCoupon.originalPrice!) * 100),
                       code: `CR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
-                      active: true
+                      active: true,
+                      status: 'pending' // Always start as pending
                   } as Coupon;
                   await saveCoupon(couponData); 
                   setView('HOME'); 
                   refreshData(); 
                   setIsSaving(false); 
+                  notify('success', 'Cupom enviado para aprovação do administrador!');
               }} className="space-y-12">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
                       <div className="space-y-8">
@@ -1325,6 +1332,19 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                 value={newCoupon.rules?.join('\n')} 
                                 onChange={e => setNewCoupon({...newCoupon, rules: e.target.value.split('\n').filter(r => r.trim() !== '')})} 
                               />
+                          </div>
+
+                          <div className="bg-ocean-50 p-6 rounded-2xl border border-ocean-100 space-y-3">
+                              <h4 className="text-[10px] font-black text-ocean-700 uppercase tracking-widest flex items-center gap-2">
+                                  <ShieldCheck size={14} /> Regras da Plataforma
+                              </h4>
+                              <ul className="text-[10px] text-ocean-600/80 font-bold space-y-2 list-disc pl-4">
+                                  <li>O desconto real deve ser de no mínimo 10%.</li>
+                                  <li>A imagem deve ser de alta qualidade e representar o produto real.</li>
+                                  <li>O estabelecimento deve honrar o cupom durante todo o período de validade.</li>
+                                  <li>Cupons abusivos ou enganosos serão removidos e a conta poderá ser suspensa.</li>
+                                  <li>Todo cupom requer aprovação manual da nossa equipe antes de ficar ativo.</li>
+                              </ul>
                           </div>
                       </div>
                   </div>
@@ -1816,7 +1836,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                     checked={newPlan.isFeatured}
                                     onChange={e => setNewPlan({...newPlan, isFeatured: e.target.checked})}
                                 />
-                                <span className="text-xs font-bold text-slate-600 group-hover:text-ocean-600 transition-colors">Destaque nas Pesquisas</span>
+                                <span className="text-xs font-bold text-slate-600 group-hover:text-ocean-600 transition-colors">Plano Popular (Destaque no Site)</span>
                             </label>
 
                             <label className="flex items-center gap-3 cursor-pointer group">
@@ -2083,6 +2103,40 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                               </div>
                               
                               <div className="flex gap-2 w-full md:w-auto">
+                                  {coupon.status === 'pending' && (
+                                      <>
+                                          <button 
+                                              onClick={async () => {
+                                                  await saveCoupon({ ...coupon, status: 'approved' });
+                                                  refreshData();
+                                                  notify('success', 'Cupom aprovado com sucesso!');
+                                              }}
+                                              className="flex-1 md:flex-none bg-emerald-500 text-white px-6 py-3 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all"
+                                          >
+                                              <Check size={16} /> APROVAR
+                                          </button>
+                                          <button 
+                                              onClick={async () => {
+                                                  await saveCoupon({ ...coupon, status: 'rejected' });
+                                                  refreshData();
+                                                  notify('error', 'Cupom reprovado.');
+                                              }}
+                                              className="flex-1 md:flex-none bg-white border border-slate-200 text-slate-500 px-6 py-3 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 hover:bg-slate-50 transition-all"
+                                          >
+                                              <X size={16} /> REPROVAR
+                                          </button>
+                                      </>
+                                  )}
+                                  {coupon.status === 'approved' && (
+                                      <div className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2">
+                                          <Check size={14} /> Aprovado
+                                      </div>
+                                  )}
+                                  {coupon.status === 'rejected' && (
+                                      <div className="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2">
+                                          <X size={14} /> Reprovado
+                                      </div>
+                                  )}
                                   <button 
                                       onClick={async () => {
                                           if (await confirm({ title: 'Excluir Cupom', message: `Deseja excluir permanentemente o cupom "${coupon.title}"?` })) {
@@ -2564,7 +2618,7 @@ const CollectionsManager: React.FC<{ collections: any[]; businesses: BusinessPro
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {collections.map(col => (
-                        <div key={col.id} className={`bg-white rounded-[2rem] overflow-hidden shadow-sm border transition-all ${col.active ? 'border-slate-100 hover:shadow-md' : 'border-slate-200 opacity-60'}`}>
+                        <div key={col.id} className={`bg-white rounded-[2rem] overflow-hidden shadow-sm border transition-all ${col.active !== false ? 'border-slate-100 hover:shadow-md' : 'border-slate-200 opacity-60'}`}>
                             <div className="h-40 relative">
                                 {col.coverImage ? (
                                     <img src={col.coverImage} alt={col.title} className="w-full h-full object-cover" />
@@ -2581,7 +2635,7 @@ const CollectionsManager: React.FC<{ collections: any[]; businesses: BusinessPro
                                         <Trash2 size={16} />
                                     </button>
                                 </div>
-                                {!col.active && (
+                                {col.active === false && (
                                     <div className="absolute top-4 left-4 bg-slate-800 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
                                         Inativo
                                     </div>

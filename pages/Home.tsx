@@ -298,7 +298,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                 </div>
                 
                 <div className="flex overflow-x-auto hide-scrollbar gap-4 -mx-4 px-4 pb-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:mx-0 md:px-0">
-                    {collections.slice(0, 3).map(col => (
+                    {collections.filter(col => col.active !== false).slice(0, 3).map(col => (
                         <div 
                             key={col.id} 
                             onClick={() => onNavigate('collection-detail', { collectionId: col.id })}

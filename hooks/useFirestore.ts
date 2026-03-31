@@ -19,7 +19,7 @@ export const useBusinesses = () => {
 };
 
 export const useCoupons = (forceRefresh = false) => {
-    const { data, error, isLoading, mutate } = useSWR(['coupons', forceRefresh], () => getCoupons(forceRefresh), {
+    const { data, error, isLoading, mutate } = useSWR('coupons', () => getCoupons(forceRefresh), {
         revalidateOnFocus: false,
         dedupingInterval: 300000, // 5 minutes
     });

@@ -99,20 +99,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   });
 
   const refreshData = async () => {
-    console.log('Refreshing data...');
     const allCoupons = await getCoupons(true, true);
-    console.log('Fetched all coupons:', allCoupons.length);
     const allUsers = await getAllUsers();
-    console.log('Fetched all users:', allUsers.length);
     const myUserIds = allUsers.filter(u => u.email === currentUser.email).map(u => u.id);
-    console.log('My user IDs:', myUserIds);
     
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         setCoupons(allCoupons);
     } else {
-        const filteredCoupons = allCoupons.filter(c => myUserIds.includes(c.companyId));
-        console.log('Filtered coupons:', filteredCoupons.length);
-        setCoupons(filteredCoupons);
+        setCoupons(allCoupons.filter(c => myUserIds.includes(c.companyId)));
     }
     const allBiz = await getAllBusinesses();
     setAllBusinesses(allBiz);

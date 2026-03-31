@@ -280,9 +280,10 @@ export const initFirebaseData = () => {
             const bizSnap = await getDocs(query(collection(db, 'businesses'), where('isBlocked', '==', false), limit(20)));
             _businesses = bizSnap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
 
-            // Load only first 100 active coupons to ensure badges show up in the guide
-            const couponSnap = await getDocs(query(collection(db, 'coupons'), where('active', '==', true), limit(100)));
+            // Load only first 100 coupons to ensure badges show up in the guide
+            const couponSnap = await getDocs(query(collection(db, 'coupons'), limit(100)));
             _coupons = couponSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
+            console.log('DEBUG: loadInitialLargeData fetched coupons:', _coupons.length);
 
             // Load only first 10 blog posts
             const postSnap = await getDocs(query(collection(db, 'blog_posts'), orderBy('date', 'desc'), limit(10)));
@@ -516,20 +517,27 @@ export const getCoupons = async (forceRefresh = false, includeInactive = false) 
         const snap = await getDocs(q);
         trackRead('coupons', snap.size, 'getCoupons');
         _coupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
-        console.log('Fetched coupons:', _coupons.length);
+        console.log('DEBUG: Fetched coupons from Firestore:', _coupons.length);
+        console.log('DEBUG: First coupon sample:', _coupons[0]);
     }
     
+    console.log('DEBUG: Total coupons in cache:', _coupons.length);
+    
     let resultCoupons = includeInactive ? _coupons : _coupons.filter(c => c.active !== false);
+    console.log('DEBUG: After active filter:', resultCoupons.length);
     
     // Filter by status if not including inactive (regular user view)
     if (!includeInactive) {
-        resultCoupons = resultCoupons.filter(c => c.status === 'approved');
+        resultCoupons = resultCoupons.filter(c => {
+            const isApproved = c.status === 'approved';
+            if (!isApproved) console.log('DEBUG: Coupon rejected by status filter:', c.id, c.status);
+            return isApproved;
+        });
     }
+    console.log('DEBUG: After status filter:', resultCoupons.length);
     
-    console.log('Returning coupons:', resultCoupons.length, 'includeInactive:', includeInactive);
+    console.log('DEBUG: Returning coupons:', resultCoupons.length, 'includeInactive:', includeInactive);
     
-    // REMOVED: Filtering by _businesses.length because with pagination _businesses is often incomplete.
-    // This was causing coupon icons to disappear for businesses not in the initial 20-item cache.
     return resultCoupons.map(c => {
         if (!c.companyName || c.companyName === 'Minha Empresa') {
             const biz = _businesses.find(b => b.id === c.companyId);

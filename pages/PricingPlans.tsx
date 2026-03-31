@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, PricingPlan, UserRole } from '../types';
-import { getPricingPlans, updateUser, getBusinesses, updateBusinessPlan } from '../services/dataService';
+import { getPricingPlans, updateUser, getBusinesses, updateBusinessPlan, getAllUsers } from '../services/dataService';
 import { Check, ArrowRight, Star, Shield, Zap, Loader2, CreditCard, Lock, Calendar, Info, X, Gem, Compass } from 'lucide-react';
 import { useNotification } from '../components/NotificationSystem';
 
@@ -261,7 +261,9 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
             
             // Check if user already has a business
             const businesses = await getBusinesses();
-            const userBusiness = businesses.find(b => b.id === currentUser.id);
+            const allUsers = await getAllUsers();
+            const myUserIds = allUsers.filter(u => u.email === currentUser.email).map(u => u.id);
+            const userBusiness = businesses.find(b => myUserIds.includes(b.id));
             
             if (userBusiness) {
                 await updateBusinessPlan(userBusiness.id, selecting.id);

@@ -100,14 +100,17 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
   const refreshData = async () => {
     const allCoupons = await getCoupons(true, true);
+    const allUsers = await getAllUsers();
+    const myUserIds = allUsers.filter(u => u.email === currentUser.email).map(u => u.id);
+    
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         setCoupons(allCoupons);
     } else {
-        setCoupons(allCoupons.filter(c => c.companyId === currentUser.id));
+        setCoupons(allCoupons.filter(c => myUserIds.includes(c.companyId)));
     }
     const allBiz = await getAllBusinesses();
     setAllBusinesses(allBiz);
-    const biz = allBiz.find(b => b.id === currentUser.id);
+    const biz = allBiz.find(b => myUserIds.includes(b.id));
     if (biz) {
         setMyBusiness(biz);
         setEditBusiness(prev => Object.keys(prev).length === 0 ? biz : prev);
@@ -117,7 +120,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
             companyId: biz.id
         }));
     }
-    const s = await getBusinessStats(currentUser.id);
+    const s = await getBusinessStats(biz ? biz.id : currentUser.id);
     setStats(s);
     
     const [cats, cts, nbs] = await Promise.all([
@@ -397,9 +400,9 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   </h1>
                   <div className="flex flex-wrap items-center gap-2 mt-1">
                       <p className="text-[9px] md:text-[10px] text-ocean-600 font-black uppercase tracking-widest">Painel Administrativo</p>
-                      {currentUser.role === UserRole.COMPANY && currentUser.plan && (
+                      {currentUser.role === UserRole.COMPANY && (myBusiness?.plan || currentUser.plan) && (
                           <span onClick={() => setView('MY_PLAN')} className="bg-gold-50 text-gold-600 px-2 py-0.5 rounded-md text-[8px] md:text-[10px] font-black uppercase tracking-widest border border-gold-100 flex items-center gap-1 cursor-pointer hover:bg-gold-100 transition-colors">
-                              <Star size={8} className="md:w-[10px] md:h-[10px]" /> {currentUser.plan}
+                              <Star size={8} className="md:w-[10px] md:h-[10px]" /> {myBusiness?.plan || currentUser.plan}
                           </span>
                       )}
                   </div>

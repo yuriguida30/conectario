@@ -11,7 +11,10 @@ service cloud.firestore {
     }
     
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isAuthenticated() && (
+        request.auth.uid == userId || 
+        (request.auth.token.email_verified == true && get(/databases/$(database)/documents/users/$(userId)).data.email == request.auth.token.email)
+      );
     }
     
     function isAdmin() {

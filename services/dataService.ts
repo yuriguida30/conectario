@@ -512,10 +512,11 @@ export const getBusinessesPaginated = async (
 
 export const getCoupons = async (forceRefresh = false, includeInactive = false) => {
     if (_coupons.length === 0 || forceRefresh) {
-        const q = query(collection(db, 'coupons'), limit(100)); // Increased limit
+        const q = query(collection(db, 'coupons'));
         const snap = await getDocs(q);
         trackRead('coupons', snap.size, 'getCoupons');
         _coupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
+        console.log('Fetched coupons:', _coupons.length);
     }
     
     let resultCoupons = includeInactive ? _coupons : _coupons.filter(c => c.active !== false);
@@ -524,6 +525,8 @@ export const getCoupons = async (forceRefresh = false, includeInactive = false) 
     if (!includeInactive) {
         resultCoupons = resultCoupons.filter(c => c.status === 'approved');
     }
+    
+    console.log('Returning coupons:', resultCoupons.length, 'includeInactive:', includeInactive);
     
     // REMOVED: Filtering by _businesses.length because with pagination _businesses is often incomplete.
     // This was causing coupon icons to disappear for businesses not in the initial 20-item cache.

@@ -99,14 +99,20 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   });
 
   const refreshData = async () => {
+    console.log('Refreshing data...');
     const allCoupons = await getCoupons(true, true);
+    console.log('Fetched all coupons:', allCoupons.length);
     const allUsers = await getAllUsers();
+    console.log('Fetched all users:', allUsers.length);
     const myUserIds = allUsers.filter(u => u.email === currentUser.email).map(u => u.id);
+    console.log('My user IDs:', myUserIds);
     
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         setCoupons(allCoupons);
     } else {
-        setCoupons(allCoupons.filter(c => myUserIds.includes(c.companyId)));
+        const filteredCoupons = allCoupons.filter(c => myUserIds.includes(c.companyId));
+        console.log('Filtered coupons:', filteredCoupons.length);
+        setCoupons(filteredCoupons);
     }
     const allBiz = await getAllBusinesses();
     setAllBusinesses(allBiz);
@@ -2102,14 +2108,16 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
           </div>
       )}
 
-      {view === 'COUPONS' && currentUser.role === UserRole.SUPER_ADMIN && (
+      {view === 'COUPONS' && (currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.COMPANY) && (
           <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
               <div className="flex justify-between items-center">
                   <div className="flex items-center gap-4">
                       <button onClick={() => setView('HOME')} className="p-3 bg-slate-50 rounded-2xl text-slate-400 hover:text-ocean-600 transition-colors">
                           <ChevronLeft size={20} />
                       </button>
-                      <h2 className="text-2xl md:text-3xl font-black text-ocean-950">Todos os Cupons</h2>
+                      <h2 className="text-2xl md:text-3xl font-black text-ocean-950">
+                          {currentUser.role === UserRole.SUPER_ADMIN ? 'Todos os Cupons' : 'Meus Cupons'}
+                      </h2>
                   </div>
                   <div className="flex items-center gap-2 bg-ocean-50 px-4 py-2 rounded-full">
                       <Ticket size={18} className="text-ocean-600" />
@@ -2138,7 +2146,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                               </div>
                               
                               <div className="flex gap-2 w-full md:w-auto">
-                                  {coupon.status === 'pending' && (
+                                  {coupon.status === 'pending' && currentUser.role === UserRole.SUPER_ADMIN && (
                                       <>
                                           <button 
                                               onClick={async () => {
@@ -2161,6 +2169,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                               <X size={16} /> REPROVAR
                                           </button>
                                       </>
+                                  )}
+                                  {coupon.status === 'pending' && currentUser.role !== UserRole.SUPER_ADMIN && (
+                                      <div className="bg-amber-50 text-amber-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2">
+                                          <Clock size={14} /> Aguardando Aprovação
+                                      </div>
                                   )}
                                   {coupon.status === 'approved' && (
                                       <div className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase flex items-center gap-2">

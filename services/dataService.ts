@@ -1440,10 +1440,22 @@ export const getPaymentSettings = async (): Promise<PaymentSettings> => {
 };
 
 export const savePaymentSettings = async (settings: PaymentSettings): Promise<void> => {
-    const path = 'settings/payment';
+    const user = getCurrentUser();
+    if (!user) throw new Error("Usuário não autenticado no sistema");
+
     try {
-        await setDoc(doc(db, 'settings', 'payment'), settings);
+        const response = await fetch('/api/admin/save-payment-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ settings, userId: user.id })
+        });
+        
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || "Erro ao salvar configurações no servidor");
+        }
     } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, path);
+        console.error("Error saving payment settings via API:", error);
+        throw error;
     }
 };

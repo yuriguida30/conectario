@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNotification } from '../components/NotificationSystem';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood, AppCategory } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview, updateUser, getPaymentSettings, savePaymentSettings, loginWithGoogle } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview, updateUser, getPaymentSettings, savePaymentSettings } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
@@ -2724,29 +2724,6 @@ const CollectionsManager: React.FC<{ collections: any[]; businesses: BusinessPro
 };
 
 const PaymentSettingsManager: React.FC<{ settings: PaymentSettings; setSettings: (s: PaymentSettings) => void; onSave: () => void; isSaving: boolean; onBack: () => void }> = ({ settings, setSettings, onSave, isSaving, onBack }) => {
-    const [isAuthValid, setIsAuthValid] = useState(!!auth.currentUser);
-    const [isLoggingIn, setIsLoggingIn] = useState(false);
-    const { notify } = useNotification();
-
-    useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged((user) => {
-            setIsAuthValid(!!user);
-        });
-        return () => unsubscribe();
-    }, []);
-
-    const handleGoogleLogin = async () => {
-        setIsLoggingIn(true);
-        try {
-            await loginWithGoogle();
-            notify('success', 'Autenticado com sucesso via Google!');
-        } catch (error) {
-            notify('error', 'Erro ao autenticar com Google.');
-        } finally {
-            setIsLoggingIn(false);
-        }
-    };
-
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex items-center gap-4 mb-8">
@@ -2759,32 +2736,12 @@ const PaymentSettingsManager: React.FC<{ settings: PaymentSettings; setSettings:
                 </div>
             </div>
 
-            {!isAuthValid && (
-                <div className="bg-red-50 border border-red-100 p-6 rounded-[2rem] flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 text-red-700">
-                        <ShieldAlert size={24} className="shrink-0" />
-                        <div>
-                            <p className="font-black text-sm uppercase tracking-wider">Sessão Firebase Inativa</p>
-                            <p className="text-xs font-bold opacity-80">Você está logado via senha manual. Para salvar configurações no banco de dados, é necessário uma sessão ativa do Firebase Auth.</p>
-                        </div>
-                    </div>
-                    <button 
-                        onClick={handleGoogleLogin}
-                        disabled={isLoggingIn}
-                        className="bg-red-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-                    >
-                        {isLoggingIn ? <Loader2 size={16} className="animate-spin" /> : <LogIn size={16} />}
-                        LOGAR COM GOOGLE PARA ATIVAR GRAVAÇÃO
-                    </button>
-                </div>
-            )}
-
             <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100 space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
                         <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100">
                             <div>
-                                <h3 className="font-black text-ocean-950">Sistema de Pagamento</h3>
+                                <h3 className="font-black text-ocean-950">PagBank</h3>
                                 <p className="text-xs text-slate-500 font-bold">Ativar ou desativar cobranças no sistema</p>
                             </div>
                             <button 
@@ -2795,22 +2752,9 @@ const PaymentSettingsManager: React.FC<{ settings: PaymentSettings; setSettings:
                             </button>
                         </div>
 
-                        <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                            <div>
-                                <h3 className="font-black text-ocean-950">Modo de Teste (Sandbox)</h3>
-                                <p className="text-xs text-slate-500 font-bold">Usar ambiente de testes do PagBank</p>
-                            </div>
-                            <button 
-                                onClick={() => setSettings({...settings, isTestMode: !settings.isTestMode})}
-                                className={`w-14 h-8 rounded-full transition-all relative ${settings.isTestMode ? 'bg-amber-500' : 'bg-slate-300'}`}
-                            >
-                                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${settings.isTestMode ? 'left-7' : 'left-1'}`} />
-                            </button>
-                        </div>
-
                         <div className="flex items-center justify-between p-6 bg-emerald-50 rounded-3xl border border-emerald-100">
                             <div>
-                                <h3 className="font-black text-emerald-950">Pagamento Direto (Bypass)</h3>
+                                <h3 className="font-black text-emerald-950">Bypass (Pagamento Direto)</h3>
                                 <p className="text-xs text-emerald-700 font-bold">Pular PagBank e ativar plano imediatamente</p>
                             </div>
                             <button 
@@ -2828,7 +2772,7 @@ const PaymentSettingsManager: React.FC<{ settings: PaymentSettings; setSettings:
                                 <ShieldCheck size={16} /> Informações de Segurança
                             </h4>
                             <p className="text-xs text-blue-700 leading-relaxed font-medium">
-                                O **Modo de Teste** permite que você realize transações fictícias usando os cartões de teste do PagBank. 
+                                O **Modo Bypass** permite que você realize transações sem passar pelo banco. 
                                 Certifique-se de desativar este modo antes de ir para produção.
                             </p>
                         </div>
@@ -2847,7 +2791,7 @@ const PaymentSettingsManager: React.FC<{ settings: PaymentSettings; setSettings:
                 <div className="flex justify-end pt-6 border-t border-slate-100">
                     <button 
                         onClick={onSave}
-                        disabled={isSaving || !isAuthValid}
+                        disabled={isSaving}
                         className="bg-ocean-600 text-white px-10 py-4 rounded-2xl font-black shadow-lg shadow-ocean-600/20 hover:bg-ocean-700 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                         {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />} SALVAR CONFIGURAÇÕES

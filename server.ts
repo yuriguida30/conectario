@@ -83,6 +83,34 @@ async function startServer() {
     res.json({ status: "ok" });
   });
 
+  app.post("/api/admin/save-payment-settings", async (req, res) => {
+    try {
+      const { settings, userId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ error: "ID do usuário é obrigatório" });
+      }
+
+      // Verify user is SUPER_ADMIN
+      const userDoc = await db.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        return res.status(403).json({ error: "Usuário não encontrado no sistema" });
+      }
+      
+      const userData = userDoc.data();
+      if (userData?.role !== 'SUPER_ADMIN') {
+        return res.status(403).json({ error: "Acesso negado: Apenas SUPER_ADMIN pode alterar estas configurações" });
+      }
+      
+      await db.collection('settings').doc('payment').set(settings);
+      console.log(`[ADMIN] Payment settings updated by user ${userId}`);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error saving payment settings:", error);
+      res.status(500).json({ error: "Erro interno ao salvar configurações" });
+    }
+  });
+
   app.post("/api/create-checkout-session", async (req, res) => {
     try {
       const { planId, planName, price, period, businessId, userId, userEmail, userName } = req.body;

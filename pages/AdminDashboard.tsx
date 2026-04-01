@@ -24,7 +24,7 @@ const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
   const { notify, confirm } = useNotification();
   const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS' | 'COLLECTIONS' | 'REVIEWS' | 'MY_PLAN' | 'PAYMENT_SETTINGS'>('HOME');
-  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ isPaymentActive: true, isTestMode: true });
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ isPaymentActive: true, isTestMode: true, isDirectPaymentTest: false });
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
@@ -2805,6 +2805,19 @@ const PaymentSettingsManager: React.FC<{ settings: PaymentSettings; setSettings:
                                 className={`w-14 h-8 rounded-full transition-all relative ${settings.isTestMode ? 'bg-amber-500' : 'bg-slate-300'}`}
                             >
                                 <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${settings.isTestMode ? 'left-7' : 'left-1'}`} />
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-between p-6 bg-emerald-50 rounded-3xl border border-emerald-100">
+                            <div>
+                                <h3 className="font-black text-emerald-950">Pagamento Direto (Bypass)</h3>
+                                <p className="text-xs text-emerald-700 font-bold">Pular PagBank e ativar plano imediatamente</p>
+                            </div>
+                            <button 
+                                onClick={() => setSettings({...settings, isDirectPaymentTest: !settings.isDirectPaymentTest})}
+                                className={`w-14 h-8 rounded-full transition-all relative ${settings.isDirectPaymentTest ? 'bg-emerald-600' : 'bg-slate-300'}`}
+                            >
+                                <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${settings.isDirectPaymentTest ? 'left-7' : 'left-1'}`} />
                             </button>
                         </div>
                     </div>

@@ -17,6 +17,7 @@ Este documento é a "Constituição" do Conecta Rio. Qualquer alteração no có
 *   **Webhooks (server.ts):** A rota `/api/webhook` processa o faturamento. O formato do `reference` (`userId:businessId:planId:planName`) é o contrato entre o checkout e o banco de dados. Qualquer mudança aqui quebra a ativação automática de planos.
 *   **Checkout:** O `unit_amount` deve ser sempre em centavos (valor * 100).
 *   **Ambiente:** Mantenha a distinção entre `sandbox` e `production` via `PAGBANK_ENV` e `PAGBANK_TOKEN`.
+*   **Modo de Teste (Bypass):** Existe um modo de "Pagamento Direto (Bypass)" que pode ser ativado via variável de ambiente `PAYMENT_TEST_MODE=true` ou nas configurações de Admin (`isDirectPaymentTest`). Quando ativo, as transações NÃO passam pelo PagBank e são aprovadas instantaneamente. Use APENAS para testes e desative em produção.
 
 ## 4. 👤 USUÁRIOS, LOGIN E PERMISSÕES
 *   **Roles Fixas:** `USER`, `COMPANY`, `JOURNALIST`, `ADMIN`, `SUPER_ADMIN`. Nunca altere estes nomes; eles controlam o acesso a todos os dashboards e permissões do Firestore.

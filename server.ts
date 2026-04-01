@@ -86,6 +86,55 @@ async function startServer() {
   app.post("/api/create-checkout-session", async (req, res) => {
     try {
       const { planId, planName, price, period, businessId, userId, userEmail, userName } = req.body;
+      
+      // Check for test mode in environment or Firestore
+      let isTestMode = process.env.PAYMENT_TEST_MODE === 'true';
+      
+      if (!isTestMode) {
+        try {
+          const settingsDoc = await db.collection('settings').doc('payment').get();
+          if (settingsDoc.exists) {
+            const settings = settingsDoc.data();
+            if (settings?.isDirectPaymentTest === true) {
+              isTestMode = true;
+            }
+          }
+        } catch (e) {
+          console.warn("Could not fetch payment settings from Firestore, falling back to env:", e);
+        }
+      }
+
+      const baseUrl = process.env.APP_URL || req.headers.origin;
+
+      if (isTestMode) {
+        console.log(`[TEST MODE] Simulating successful payment for user ${userId}, business ${businessId}, plan ${planName}`);
+        
+        try {
+          // Update User
+          if (userId) {
+            await db.collection('users').doc(userId).update({
+              paymentSubscriptionStatus: 'active',
+              plan: planName,
+              role: 'COMPANY'
+            });
+          }
+
+          // Update Business
+          if (businessId) {
+            await db.collection('businesses').doc(businessId).update({
+              paymentSubscriptionStatus: 'active',
+              plan: planName,
+              planId: planId
+            });
+          }
+          
+          const successUrl = `${baseUrl}/admin-dashboard?plan_id=${planId}&status=success&test_mode=true`;
+          return res.json({ id: 'test_session', url: successUrl });
+        } catch (error) {
+          console.error('[TEST MODE] Error updating Firestore:', error);
+          throw new Error("Erro ao processar pagamento em modo de teste");
+        }
+      }
 
       if (!PAGBANK_TOKEN) {
         return res.status(500).json({ error: "PagBank is not configured" });
@@ -114,8 +163,8 @@ async function startServer() {
           { type: "BOLETO" },
           { type: "PIX" }
         ],
-        redirect_url: `${req.headers.origin}/admin-dashboard?plan_id=${planId}&status=success`,
-        notification_urls: [`${req.headers.origin}/api/webhook`]
+        redirect_url: `${baseUrl}/admin-dashboard?plan_id=${planId}&status=success`,
+        notification_urls: [`${baseUrl}/api/webhook`]
       };
 
       const response = await fetch(`${PAGBANK_BASE_URL}/checkouts`, {

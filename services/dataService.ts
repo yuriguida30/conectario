@@ -1430,11 +1430,12 @@ export const getPaymentSettings = async (): Promise<PaymentSettings> => {
         // Default settings
         return {
             isPaymentActive: true,
-            isTestMode: true
+            isTestMode: true,
+            isDirectPaymentTest: false
         };
     } catch (error) {
         console.error("Error fetching payment settings:", error);
-        return { isPaymentActive: true, isTestMode: true };
+        return { isPaymentActive: true, isTestMode: true, isDirectPaymentTest: false };
     }
 };
 

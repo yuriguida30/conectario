@@ -286,7 +286,8 @@ export interface FeaturedConfig {
 
 export interface PaymentSettings {
   isPaymentActive: boolean;
-  isTestMode: boolean;
+  isTestMode: boolean; // PagBank Sandbox
+  isDirectPaymentTest: boolean; // Direct bypass for testing
   pagbankToken?: string;
   pagbankWebhookSecret?: string;
 }

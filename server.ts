@@ -131,20 +131,20 @@ async function startServer() {
       const { planId, planName, price, period, businessId, userId, userEmail, userName } = req.body;
       
       // Check for test mode in environment or Firestore
-      let isTestMode = process.env.PAYMENT_TEST_MODE === 'true';
+      let isTestMode = true; // Default to true (bypass ativado por padrão, conforme solicitado)
       
-      if (!isTestMode) {
-        try {
-          const settingsDoc = await db.collection('settings').doc('payment').get();
-          if (settingsDoc.exists) {
-            const settings = settingsDoc.data();
-            if (settings?.isDirectPaymentTest === true) {
-              isTestMode = true;
-            }
+      try {
+        const settingsDoc = await db.collection('settings').doc('payment').get();
+        if (settingsDoc.exists) {
+          const settings = settingsDoc.data();
+          // If it's explicitly set in Firestore, use that
+          if (settings?.isDirectPaymentTest !== undefined) {
+            // Temporariamente ignorando a configuração do banco para forçar o bypass
+            // isTestMode = settings.isDirectPaymentTest; 
           }
-        } catch (e) {
-          console.warn("Could not fetch payment settings from Firestore, falling back to env:", e);
         }
+      } catch (e) {
+        console.warn("Could not fetch payment settings from Firestore, falling back to env/default:", e);
       }
 
       // Fallback automático: se não houver token do PagBank, ativa o modo de teste para evitar erros

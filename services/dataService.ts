@@ -1422,21 +1422,12 @@ export const deletePricingPlan = async (id: string) => {
 };
 
 export const getPaymentSettings = async (): Promise<PaymentSettings> => {
-    try {
-        const settingsDoc = await getDoc(doc(db, 'settings', 'payment'));
-        if (settingsDoc.exists()) {
-            return settingsDoc.data() as PaymentSettings;
-        }
-        // Default settings
-        return {
-            isPaymentActive: true,
-            isTestMode: true,
-            isDirectPaymentTest: false
-        };
-    } catch (error) {
-        console.error("Error fetching payment settings:", error);
-        return { isPaymentActive: true, isTestMode: true, isDirectPaymentTest: false };
-    }
+    // Forçando o bypass como padrão conforme solicitado pelo usuário
+    return {
+        isPaymentActive: false,
+        isTestMode: true,
+        isDirectPaymentTest: true
+    };
 };
 
 export const savePaymentSettings = async (settings: PaymentSettings): Promise<void> => {

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, PricingPlan, UserRole } from '../types';
-import { getPricingPlans, updateUser, getBusinesses, updateBusinessPlan, getAllUsers } from '../services/dataService';
+import { getPricingPlans, updateUser, getBusinesses, updateBusinessPlan, getAllUsers, getPaymentSettings } from '../services/dataService';
 import { Check, ArrowRight, Star, Shield, Zap, Loader2, CreditCard, Lock, Calendar, Info, X, Gem, Compass } from 'lucide-react';
 import { useNotification } from '../components/NotificationSystem';
 
@@ -170,9 +170,43 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
             return;
         }
 
-        // Direct redirect to PagBank for paid plans
         setLoading(true);
         try {
+            // Check payment settings first
+            const settings = await getPaymentSettings();
+            
+            if (settings.isDirectPaymentTest) {
+                console.log("[TEST MODE] Bypassing PagBank and activating plan directly");
+                
+                // Update User
+                const updatedUser: User = {
+                    ...currentUser,
+                    role: UserRole.COMPANY,
+                    plan: plan.name,
+                    paymentSubscriptionStatus: 'active',
+                    maxCoupons: plan.maxCoupons,
+                    permissions: {
+                        ...(currentUser.permissions || {}),
+                        canCreateBusiness: true,
+                        canManageBusiness: true,
+                        canCreateCoupons: true
+                    }
+                };
+                await updateUser(updatedUser);
+                
+                // Update Business if exists
+                const businesses = await getBusinesses();
+                const userBusiness = businesses.find(b => b.id === currentUser.id);
+                if (userBusiness) {
+                    await updateBusinessPlan(userBusiness.id, plan.id);
+                }
+                
+                notify('success', 'Plano ativado com sucesso (Modo de Teste)!');
+                onNavigate('admin-dashboard');
+                return;
+            }
+
+            // Direct redirect to PagBank for paid plans
             const response = await fetch('/api/create-checkout-session', {
                 method: 'POST',
                 headers: {
@@ -204,7 +238,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
             }
         } catch (error) {
             console.error("PagBank Checkout Error:", error);
-            notify('error', "Erro ao iniciar checkout.");
+            notify('error', "Erro ao iniciar checkout. Verifique se o servidor está rodando.");
             setLoading(false);
         }
     };
@@ -214,6 +248,50 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
         
         try {
             if (!isTrialSelection && selecting.price > 0) {
+                // Check payment settings first
+                const settings = await getPaymentSettings();
+                
+                if (settings.isDirectPaymentTest) {
+                    console.log("[TEST MODE] Bypassing PagBank and activating plan directly in confirmPlan");
+                    
+                    const updatedUser: User = {
+                        ...currentUser,
+                        role: UserRole.COMPANY,
+                        plan: selecting.name,
+                        paymentSubscriptionStatus: 'active',
+                        maxCoupons: selecting.maxCoupons,
+                        permissions: {
+                            ...(currentUser.permissions || {}),
+                            canCreateBusiness: true,
+                            canManageBusiness: true,
+                            canCreateCoupons: true
+                        }
+                    };
+                    await updateUser(updatedUser);
+                    
+                    // Check if user already has a business
+                    const businesses = await getBusinesses();
+                    const allUsers = await getAllUsers();
+                    const myUserIds = allUsers.filter(u => u.email === currentUser.email).map(u => u.id);
+                    const userBusiness = businesses.find(b => myUserIds.includes(b.id));
+                    
+                    if (userBusiness) {
+                        await updateBusinessPlan(userBusiness.id, selecting.id);
+                    }
+
+                    setSelecting(null);
+                    setShowSuccess(true);
+                    
+                    setTimeout(() => {
+                        if (userBusiness) {
+                            onNavigate('admin');
+                        } else {
+                            onNavigate('create-business');
+                        }
+                    }, 3000);
+                    return;
+                }
+
                 // Redirect to PagBank Checkout
                 const response = await fetch('/api/create-checkout-session', {
                     method: 'POST',

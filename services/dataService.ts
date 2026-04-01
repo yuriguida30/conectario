@@ -1451,8 +1451,21 @@ export const savePaymentSettings = async (settings: PaymentSettings): Promise<vo
         });
         
         if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || "Erro ao salvar configurações no servidor");
+            let errorMessage = "Erro ao salvar configurações no servidor";
+            try {
+                const err = await response.json();
+                errorMessage = err.error || errorMessage;
+            } catch (e) {
+                // Not JSON, use status text or generic message
+                if (response.status === 405) {
+                    errorMessage = "Erro 405: O servidor de backend não está respondendo corretamente. Se você estiver usando o Vercel, certifique-se de que o backend está configurado.";
+                } else if (response.status === 404) {
+                    errorMessage = "Erro 404: Rota de salvamento não encontrada no servidor.";
+                } else {
+                    errorMessage = `Erro ${response.status}: ${response.statusText || "Erro desconhecido no servidor"}`;
+                }
+            }
+            throw new Error(errorMessage);
         }
     } catch (error) {
         console.error("Error saving payment settings via API:", error);

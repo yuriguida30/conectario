@@ -11,9 +11,14 @@ dotenv.config();
 
 // Initialize Firebase Admin
 if (getApps().length === 0) {
-  initializeApp({
-    credential: admin.credential.applicationDefault(),
-  });
+  try {
+    initializeApp({
+      projectId: "conectario-dd04b",
+    });
+    console.log("✅ Firebase Admin initialized successfully");
+  } catch (error) {
+    console.error("❌ Error initializing Firebase Admin:", error);
+  }
 }
 
 const db = getFirestore();
@@ -86,28 +91,35 @@ async function startServer() {
   app.post("/api/admin/save-payment-settings", async (req, res) => {
     try {
       const { settings, userId } = req.body;
+      console.log(`[ADMIN] Attempting to save settings for user: ${userId}`);
       
       if (!userId) {
         return res.status(400).json({ error: "ID do usuário é obrigatório" });
       }
 
-      // Verify user is SUPER_ADMIN
+      // Verify user is SUPER_ADMIN or the owner email
       const userDoc = await db.collection('users').doc(userId).get();
       if (!userDoc.exists) {
+        console.error(`[ADMIN] User ${userId} not found in Firestore`);
         return res.status(403).json({ error: "Usuário não encontrado no sistema" });
       }
       
       const userData = userDoc.data();
-      if (userData?.role !== 'SUPER_ADMIN') {
+      console.log(`[ADMIN] User role: ${userData?.role}, email: ${userData?.email}`);
+      
+      const isSuperAdmin = userData?.role === 'SUPER_ADMIN';
+      const isOwnerEmail = userData?.email === 'sea.angelshotel@gmail.com';
+      
+      if (!isSuperAdmin && !isOwnerEmail) {
         return res.status(403).json({ error: "Acesso negado: Apenas SUPER_ADMIN pode alterar estas configurações" });
       }
       
       await db.collection('settings').doc('payment').set(settings);
       console.log(`[ADMIN] Payment settings updated by user ${userId}`);
       res.json({ success: true });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving payment settings:", error);
-      res.status(500).json({ error: "Erro interno ao salvar configurações" });
+      res.status(500).json({ error: `Erro interno ao salvar configurações: ${error.message}` });
     }
   });
 
@@ -240,6 +252,9 @@ async function startServer() {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
+
+  return app;
 }
 
-startServer();
+const appPromise = startServer();
+export default appPromise;

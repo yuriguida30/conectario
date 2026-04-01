@@ -331,8 +331,9 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     try {
         await savePaymentSettings(paymentSettings);
         notify('success', 'Configurações de pagamento salvas com sucesso!');
-    } catch (error) {
-        notify('error', 'Erro ao salvar configurações de pagamento.');
+    } catch (error: any) {
+        console.error("Error saving payment settings:", error);
+        notify('error', error.message || 'Erro ao salvar configurações de pagamento.');
     } finally {
         setIsSaving(false);
     }

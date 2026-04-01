@@ -274,6 +274,12 @@ export const initFirebaseData = () => {
     }, (err) => handleError(err, 'collections'));
 
     // 2. Large Collections (Use getDocs with limits for initial load to save reads)
+    /**
+     * 🛡️ PROTOCOLO DE SEGURANÇA: loadInitialLargeData
+     * - Esta função é crítica para a performance inicial.
+     * - Carrega dados essenciais para o Guia e Cupons.
+     * - NUNCA adicione filtros restritivos aqui que possam ocultar dados antigos.
+     */
     const loadInitialLargeData = async () => {
         try {
             // Load only first 20 businesses
@@ -283,7 +289,6 @@ export const initFirebaseData = () => {
             // Load only first 100 coupons to ensure badges show up in the guide
             const couponSnap = await getDocs(query(collection(db, 'coupons'), limit(100)));
             _coupons = couponSnap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
-            console.log('DEBUG: loadInitialLargeData fetched coupons:', _coupons.length);
 
             // Load only first 10 blog posts
             const postSnap = await getDocs(query(collection(db, 'blog_posts'), orderBy('date', 'desc'), limit(10)));
@@ -511,32 +516,29 @@ export const getBusinessesPaginated = async (
     };
 };
 
+/**
+ * 🛡️ PROTOCOLO DE SEGURANÇA: getCoupons
+ * - NUNCA use filtros estritos como c.status === 'approved' ou c.active === true.
+ * - Cupons sem status ou sem campo active DEVEM ser tratados como aprovados e ativos (compatibilidade legado).
+ * - Use sempre: !c.status || c.status === 'approved' e c.active !== false.
+ */
 export const getCoupons = async (forceRefresh = false, includeInactive = false) => {
     if (_coupons.length === 0 || forceRefresh) {
         const q = query(collection(db, 'coupons'));
         const snap = await getDocs(q);
         trackRead('coupons', snap.size, 'getCoupons');
         _coupons = snap.docs.map(d => ({ id: d.id, ...d.data() } as Coupon));
-        console.log('DEBUG: Fetched coupons from Firestore:', _coupons.length);
-        console.log('DEBUG: First coupon sample:', _coupons[0]);
     }
     
-    console.log('DEBUG: Total coupons in cache:', _coupons.length);
-    
     let resultCoupons = includeInactive ? _coupons : _coupons.filter(c => c.active !== false);
-    console.log('DEBUG: After active filter:', resultCoupons.length);
     
     // Filter by status if not including inactive (regular user view)
     if (!includeInactive) {
         resultCoupons = resultCoupons.filter(c => {
-            const isApproved = c.status === 'approved';
-            if (!isApproved) console.log('DEBUG: Coupon rejected by status filter:', c.id, c.status);
-            return isApproved;
+            // Allow 'approved' OR missing status (old data)
+            return !c.status || c.status === 'approved';
         });
     }
-    console.log('DEBUG: After status filter:', resultCoupons.length);
-    
-    console.log('DEBUG: Returning coupons:', resultCoupons.length, 'includeInactive:', includeInactive);
     
     return resultCoupons.map(c => {
         if (!c.companyName || c.companyName === 'Minha Empresa') {

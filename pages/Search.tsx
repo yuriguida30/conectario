@@ -38,7 +38,7 @@ export const SearchPage: React.FC<SearchPageProps> = ({ onNavigate }) => {
           return { ...c, subcategory: biz?.subcategory };
       });
       
-      const activeData = mappedCoupons.filter(c => c.active);
+      const activeData = mappedCoupons.filter(c => c.active !== false);
       setCoupons(activeData);
       setCategories(cats);
       setCurrentUser(getCurrentUser());

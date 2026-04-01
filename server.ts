@@ -161,27 +161,28 @@ async function startServer() {
         try {
           // Update User
           if (userId) {
-            await db.collection('users').doc(userId).update({
+            await db.collection('users').doc(userId).set({
               paymentSubscriptionStatus: 'active',
               plan: planName,
               role: 'COMPANY'
-            });
+            }, { merge: true });
           }
 
           // Update Business
           if (businessId) {
-            await db.collection('businesses').doc(businessId).update({
+            await db.collection('businesses').doc(businessId).set({
               paymentSubscriptionStatus: 'active',
               plan: planName,
               planId: planId
-            });
+            }, { merge: true });
           }
           
           const successUrl = `${baseUrl}/admin-dashboard?plan_id=${planId}&status=success&test_mode=true`;
           return res.json({ id: 'test_session', url: successUrl });
-        } catch (error) {
+        } catch (error: any) {
           console.error('[TEST MODE] Error updating Firestore:', error);
-          throw new Error("Erro ao processar pagamento em modo de teste");
+          // Return a proper JSON error so the frontend can display it
+          return res.status(500).json({ error: "Erro ao processar pagamento em modo de teste: " + error.message });
         }
       }
 

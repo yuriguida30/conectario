@@ -1444,31 +1444,15 @@ export const savePaymentSettings = async (settings: PaymentSettings): Promise<vo
     if (!user) throw new Error("Usuário não autenticado no sistema");
 
     try {
-        const response = await fetch('/api/admin/save-payment-settings', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ settings, userId: user.id })
-        });
-        
-        if (!response.ok) {
-            let errorMessage = "Erro ao salvar configurações no servidor";
-            try {
-                const err = await response.json();
-                errorMessage = err.error || errorMessage;
-            } catch (e) {
-                // Not JSON, use status text or generic message
-                if (response.status === 405) {
-                    errorMessage = "Erro 405: O servidor de backend não está respondendo corretamente. Se você estiver usando o Vercel, certifique-se de que o backend está configurado.";
-                } else if (response.status === 404) {
-                    errorMessage = "Erro 404: Rota de salvamento não encontrada no servidor.";
-                } else {
-                    errorMessage = `Erro ${response.status}: ${response.statusText || "Erro desconhecido no servidor"}`;
-                }
-            }
-            throw new Error(errorMessage);
+        // Agora usamos o setDoc direto do cliente, pois as regras de segurança foram atualizadas
+        // para permitir que o seu e-mail (sea.angelshotel@gmail.com) salve as configurações.
+        await setDoc(doc(db, 'settings', 'payment'), settings);
+        console.log("Payment settings saved successfully via client SDK");
+    } catch (error: any) {
+        console.error("Error saving payment settings directly:", error);
+        if (error.message?.includes("permission-denied")) {
+            throw new Error("Acesso negado: Você não tem permissão para alterar estas configurações no Firestore.");
         }
-    } catch (error) {
-        console.error("Error saving payment settings via API:", error);
-        throw error;
+        throw new Error(`Erro ao salvar configurações: ${error.message}`);
     }
 };

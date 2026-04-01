@@ -10,18 +10,7 @@ import admin from "firebase-admin";
 dotenv.config();
 
 // Initialize Firebase Admin
-if (getApps().length === 0) {
-  try {
-    initializeApp({
-      projectId: "conectario-dd04b",
-    });
-    console.log("✅ Firebase Admin initialized successfully");
-  } catch (error) {
-    console.error("❌ Error initializing Firebase Admin:", error);
-  }
-}
-
-const db = getFirestore();
+let db: admin.firestore.Firestore;
 
 const PAGBANK_TOKEN = process.env.PAGBANK_TOKEN;
 const PAGBANK_BASE_URL = process.env.PAGBANK_ENV === 'production' 
@@ -29,6 +18,20 @@ const PAGBANK_BASE_URL = process.env.PAGBANK_ENV === 'production'
   : 'https://sandbox.api.pagseguro.com';
 
 async function startServer() {
+  if (getApps().length === 0) {
+    try {
+      initializeApp({
+        projectId: "conectario-dd04b",
+      });
+      console.log("✅ Firebase Admin initialized successfully");
+    } catch (error) {
+      console.error("❌ Error initializing Firebase Admin:", error);
+    }
+  }
+
+  db = getFirestore();
+  console.log("✅ Firestore Admin instance created");
+
   const app = express();
   const PORT = 3000;
 
@@ -142,6 +145,12 @@ async function startServer() {
         } catch (e) {
           console.warn("Could not fetch payment settings from Firestore, falling back to env:", e);
         }
+      }
+
+      // Fallback automático: se não houver token do PagBank, ativa o modo de teste para evitar erros
+      if (!isTestMode && !process.env.PAGBANK_TOKEN) {
+        console.log("[AUTO-TEST] PAGBANK_TOKEN não configurado. Ativando modo de teste automaticamente.");
+        isTestMode = true;
       }
 
       const baseUrl = process.env.APP_URL || req.headers.origin;

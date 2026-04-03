@@ -130,10 +130,11 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
             };
             await updateUser(updatedUser);
 
+            notify('success', "Sua empresa foi cadastrada com sucesso! Ela será analisada por nossa equipe antes de ser publicada no guia.");
             setSuccess(true);
             setTimeout(() => {
                 onNavigate('admin-dashboard');
-            }, 2000);
+            }, 3000);
         } catch (error: any) {
             console.error("Erro ao criar empresa:", error);
             let message = "Erro ao criar empresa. Tente novamente.";

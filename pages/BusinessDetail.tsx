@@ -363,8 +363,8 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                         <h3 className="text-xl font-black text-ocean-950">Avaliações</h3>
                         <div className="flex items-center gap-2">
                             <Star className="text-gold-400 fill-current" size={20} />
-                            <span className="font-bold text-lg">{business.rating.toFixed(1)}</span>
-                            <span className="text-slate-400 text-sm">({business.reviewCount})</span>
+                            <span className="font-bold text-lg">{business.rating?.toFixed(1) || '5.0'}</span>
+                            <span className="text-slate-400 text-sm">({business.reviewCount || 0})</span>
                         </div>
                     </div>
 
@@ -455,7 +455,7 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
                                         <h4 className="font-bold text-sm text-ocean-950">{item.name}</h4>
                                         <p className="text-xs text-slate-400">{item.description}</p>
                                     </div>
-                                    <span className="font-black text-green-600 whitespace-nowrap ml-4">R$ {item.price.toFixed(2)}</span>
+                                    <span className="font-black text-green-600 whitespace-nowrap ml-4">R$ {item.price?.toFixed(2) || '0.00'}</span>
                                 </div>
                             ))}
                         </div>

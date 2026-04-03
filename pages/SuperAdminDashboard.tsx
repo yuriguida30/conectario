@@ -42,7 +42,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
         const [reqs, users, bizs, cats, _] = await Promise.all([
           getCompanyRequests(),
           getAllUsers(),
-          getAllBusinesses(),
+          getAllBusinesses(true),
           getCategories(),
           getCoupons(true, true)
         ]);

@@ -108,7 +108,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     } else {
         setCoupons(allCoupons.filter(c => myUserIds.includes(c.companyId)));
     }
-    const allBiz = await getAllBusinesses();
+    const allBiz = await getAllBusinesses(true);
     setAllBusinesses(allBiz);
     const biz = allBiz.find(b => myUserIds.includes(b.id));
     if (biz) {
@@ -958,6 +958,18 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               </div>
 
               <form id="profile-form" onSubmit={handleUpdateProfile} className="space-y-12">
+                  {editBusiness.status === 'PENDING' && (
+                      <div className="bg-amber-50 border border-amber-200 p-6 rounded-3xl mb-8 flex items-start gap-4">
+                          <ShieldAlert className="text-amber-600 shrink-0" size={24} />
+                          <div>
+                              <h4 className="text-amber-900 font-black text-sm uppercase tracking-tight">Empresa em Análise</h4>
+                              <p className="text-amber-800/70 text-xs font-medium leading-relaxed">
+                                  Sua empresa está sendo analisada por nossa equipe. Ela ficará visível no guia assim que for aprovada. 
+                                  Você ainda pode editar as informações abaixo.
+                              </p>
+                          </div>
+                      </div>
+                  )}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                       {/* COLUNA ESQUERDA: VISUAL */}
                       <div className="lg:col-span-1 space-y-8">
@@ -1483,6 +1495,11 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                     )}
                                 </h3>
                                 {biz.isBlocked && <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Inativa</span>}
+                                {biz.status === 'PENDING' && (
+                                    <span className="bg-amber-100 text-amber-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase flex items-center gap-1">
+                                        <ShieldAlert size={10} /> Pendente
+                                    </span>
+                                )}
                             </div>
                             <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{biz.category}</p>
                             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
@@ -1515,6 +1532,22 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                             {biz.isBlocked ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
                             {biz.isBlocked ? 'ATIVAR' : 'INATIVAR'}
                         </button>
+
+                        {biz.status === 'PENDING' && (
+                            <button 
+                                onClick={async () => {
+                                    if (await confirm({ title: 'Aprovar Empresa', message: `Deseja aprovar a empresa "${biz.name}"?` })) {
+                                        const { approveBusiness } = await import('../services/dataService');
+                                        await approveBusiness(biz.id);
+                                        notify('success', `Empresa "${biz.name}" aprovada!`);
+                                        refreshData();
+                                    }
+                                }}
+                                className="flex-1 md:flex-none bg-emerald-500 text-white px-4 py-3 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                            >
+                                <CheckCircle2 size={16} /> APROVAR
+                            </button>
+                        )}
 
                         <button 
                             onClick={async () => {

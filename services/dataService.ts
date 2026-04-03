@@ -441,10 +441,10 @@ export const getBusinesses = async (forceRefresh = false) => {
         const snap = await getDocs(query(collection(db, 'businesses'), where('isBlocked', '==', false), limit(50)));
         _businesses = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
     }
-    return _businesses;
+    return _businesses.filter(b => !b.status || b.status === 'approved');
 };
 
-export const getAllBusinesses = async () => {
+export const getAllBusinesses = async (includePending = false) => {
     // Fetch all businesses if not already fully loaded
     if (!_allBusinessesLoaded) { 
         const snap = await getDocs(collection(db, 'businesses'));
@@ -452,7 +452,9 @@ export const getAllBusinesses = async () => {
         _businesses = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
         _allBusinessesLoaded = true;
     }
-    return _businesses;
+    
+    if (includePending) return _businesses;
+    return _businesses.filter(b => !b.status || b.status === 'approved');
 };
 
 // --- PAGINATION ---
@@ -474,7 +476,10 @@ export const getBusinessesPaginated = async (
     }
 
     // Filter in memory
-    let filtered = _businesses.filter(b => !b.isBlocked);
+    let filtered = _businesses.filter(b => {
+        const isApproved = !b.status || b.status === 'approved';
+        return !b.isBlocked && isApproved;
+    });
 
     if (category && category !== 'Todos') {
         filtered = filtered.filter(b => b.category === category);
@@ -551,13 +556,17 @@ export const getCoupons = async (forceRefresh = false, includeInactive = false) 
 
 export const getBusinessById = async (id: string) => {
     const cached = _businesses.find(b => b.id === id && !b.isBlocked);
-    if (cached) return { ...cached };
+    if (cached) {
+        const isApproved = !cached.status || cached.status === 'approved';
+        if (isApproved) return { ...cached };
+    }
 
     const docRef = doc(db, 'businesses', id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
         const biz = { id: docSnap.id, ...docSnap.data() } as BusinessProfile;
-        if (!biz.isBlocked) {
+        const isApproved = !biz.status || biz.status === 'approved';
+        if (!biz.isBlocked && isApproved) {
             // Add to cache if not there
             if (!_businesses.find(b => b.id === biz.id)) {
                 _businesses.push(biz);
@@ -607,7 +616,8 @@ export const searchBusinesses = async (searchQuery: string, category?: string, l
 
     const snap = await getDocs(q);
     trackRead('businesses', snap.size, 'searchBusinesses');
-    const results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile));
+    const results = snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessProfile))
+        .filter(b => !b.status || b.status === 'approved');
     
     // Update cache with new results
     results.forEach(res => {

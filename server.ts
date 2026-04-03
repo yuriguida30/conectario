@@ -37,6 +37,12 @@ async function startServer() {
 
   app.use(cors());
   
+  // Add headers for Cross-Origin-Opener-Policy to fix signInWithPopup issues
+  app.use((req, res, next) => {
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    next();
+  });
+  
   // Webhook endpoint for PagBank
   app.post('/api/webhook', express.json(), async (request, response) => {
     const payload = request.body;

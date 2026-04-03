@@ -101,7 +101,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const refreshData = async () => {
     const allCoupons = await getCoupons(true, true);
     const allUsers = await getAllUsers();
-    const myUserIds = allUsers.filter(u => u.email === currentUser.email).map(u => u.id);
+    const myUserIds = Array.from(new Set([currentUser.id, ...allUsers.filter(u => u.email === currentUser.email).map(u => u.id)]));
     
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         setCoupons(allCoupons);
@@ -197,14 +197,27 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!myBusiness) return;
+    
+    const baseBusiness = myBusiness || (editBusiness.id ? editBusiness : null);
+    if (!baseBusiness) {
+        notify('error', 'Nenhuma empresa encontrada para atualizar.');
+        return;
+    }
+
     setIsSaving(true);
     try {
-        await saveBusiness({ ...myBusiness, ...editBusiness } as BusinessProfile);
+        await saveBusiness({ ...baseBusiness, ...editBusiness } as BusinessProfile);
         notify('success', "Alterações salvas com sucesso!");
-        setView('HOME');
+        
+        // If it's a super admin editing another business, go back to BUSINESSES
+        if (currentUser.role === UserRole.SUPER_ADMIN && baseBusiness.id !== currentUser.id) {
+            setView('BUSINESSES');
+        } else {
+            setView('HOME');
+        }
         refreshData();
     } catch (error) {
+        console.error("Error saving business:", error);
         notify('error', "Erro ao salvar alterações. Tente novamente.");
     } finally {
         setIsSaving(false);
@@ -912,8 +925,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   </div>
               )}
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
-                    <ChevronLeft size={16} /> Voltar ao Painel
+                  <button onClick={() => setView(currentUser.role === UserRole.SUPER_ADMIN ? 'BUSINESSES' : 'HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
+                    <ChevronLeft size={16} /> Voltar
                   </button>
               </div>
 
@@ -1490,6 +1503,16 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                     </div>
                     
                     <div className="flex gap-2 w-full md:w-auto">
+                        <button 
+                            onClick={() => {
+                                setEditBusiness(biz);
+                                setView('PROFILE');
+                            }}
+                            className="flex-1 md:flex-none bg-ocean-600 text-white px-4 py-3 rounded-xl font-black text-[10px] flex items-center justify-center gap-2 hover:bg-ocean-700 transition-all shadow-lg shadow-ocean-600/20"
+                        >
+                            <PenTool size={16} /> EDITAR
+                        </button>
+
                         <button 
                             onClick={async () => {
                                 if (await confirm({ title: 'Alterar Status', message: `Deseja ${biz.isBlocked ? 'ativar' : 'inativar'} esta empresa e seu usuário?` })) {

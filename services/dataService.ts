@@ -655,6 +655,15 @@ export const getPendingReviews = async () => {
 export const saveBusiness = async (b: BusinessProfile) => {
     try {
         await setDoc(doc(db, 'businesses', b.id), cleanObject(b), { merge: true }); 
+        
+        // Update cache
+        const index = _businesses.findIndex(biz => biz.id === b.id);
+        if (index !== -1) {
+            _businesses[index] = { ..._businesses[index], ...b };
+        } else {
+            _businesses.push(b);
+        }
+        notifyListeners();
     } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, `businesses/${b.id}`);
     }

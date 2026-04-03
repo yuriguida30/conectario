@@ -101,10 +101,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </div>
           </button>
           <button 
-            onClick={() => setView(view === 'PROFILE' ? 'HOME' : 'PROFILE')} 
+            onClick={() => setView(view === 'PROFILE' ? (isSuperAdmin ? 'BUSINESSES' : 'HOME') : 'PROFILE')} 
             className={`px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs transition-all flex items-center gap-2 whitespace-nowrap ${view === 'PROFILE' ? 'bg-slate-200 text-slate-700' : 'bg-white border border-slate-100 text-ocean-600 shadow-sm'}`}
           >
-            <Settings size={16} className="md:w-[18px] md:h-[18px]" /> {view === 'PROFILE' ? 'VOLTAR' : 'CONFIGURAR PERFIL'}
+            <Settings size={16} className="md:w-[18px] md:h-[18px]" /> {view === 'PROFILE' ? 'VOLTAR' : 'CONFIGURAR EMPRESA'}
           </button>
           <button onClick={() => setView('CREATE_COUPON')} className="bg-ocean-600 text-white px-4 md:px-6 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-[10px] md:text-xs shadow-lg shadow-ocean-600/20 active:scale-95 transition-all whitespace-nowrap">
             + NOVO CUPOM

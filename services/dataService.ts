@@ -1339,6 +1339,20 @@ export const approveBusiness = async (businessId: string) => {
     }
 };
 
+export const deleteBusinessPermanently = async (businessId: string) => {
+    try {
+        await deleteDoc(doc(db, 'businesses', businessId));
+        
+        // Update local cache
+        _businesses = _businesses.filter(b => b.id !== businessId);
+        
+        notifyListeners();
+    } catch (error) {
+        console.error("Error deleting business permanently:", error);
+        throw error;
+    }
+};
+
 export const rejectCompanyRequest = async (requestId: string) => {
     await updateDoc(doc(db, 'companyRequests', requestId), { status: 'REJECTED' });
 };

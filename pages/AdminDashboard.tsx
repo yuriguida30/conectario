@@ -1667,54 +1667,108 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
       {view === 'REQUESTS' && (
         <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
           <div className="flex justify-between items-center">
-            <h2 className="text-3xl font-black text-ocean-950">Solicitações & Leads</h2>
+            <h2 className="text-3xl font-black text-ocean-950">Solicitações & Aprovações</h2>
             <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
                 <ChevronLeft size={16} /> Voltar
             </button>
           </div>
           
           <div className="space-y-4">
-            {requests.length === 0 ? (
+            {requests.length === 0 && allBusinesses.filter(b => b.status === 'PENDING').length === 0 ? (
               <div className="text-center py-20 bg-slate-50 rounded-[2rem] border border-dashed border-slate-200">
                 <Layers size={48} className="mx-auto text-slate-300 mb-4" />
                 <p className="text-slate-500 font-bold">Nenhuma solicitação pendente no momento.</p>
               </div>
             ) : (
-              requests.map(req => (
-                <div key={req.id} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:shadow-md transition-all">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3">
-                        <h3 className="font-black text-xl text-ocean-950">{req.companyName}</h3>
-                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${req.type === 'CLAIM' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
-                            {req.type === 'CLAIM' ? 'Reivindicação' : 'Novo Lead'}
-                        </span>
+              <div className="space-y-4">
+                {/* Seção de Empresas Pendentes (Novos Cadastros) */}
+                {allBusinesses.filter(b => b.status === 'PENDING').map(biz => {
+                  const planInfo = plans.find(p => p.id === biz.plan);
+                  return (
+                    <div key={biz.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:shadow-md transition-all shadow-sm">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <h3 className="font-black text-xl text-ocean-950">{biz.name}</h3>
+                            <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-ocean-100 text-ocean-600 flex items-center gap-1">
+                                <Zap size={10} /> Empresa ({planInfo?.name || biz.plan || 'Free'})
+                            </span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
+                            <p className="text-sm text-slate-600 flex items-center gap-2"><Mail size={14} className="text-slate-400" /> {biz.email}</p>
+                            <p className="text-sm text-slate-600 flex items-center gap-2"><Phone size={14} className="text-slate-400" /> {biz.phone}</p>
+                            <p className="text-sm text-slate-600 flex items-center gap-2"><MapPin size={14} className="text-slate-400" /> {biz.address}</p>
+                            <p className="text-sm text-slate-600 flex items-center gap-2"><CalendarDays size={14} className="text-slate-400" /> Cadastro Direto</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 w-full md:w-auto">
+                        <button 
+                            onClick={async () => {
+                                if (await confirm({ title: 'Aprovar Empresa', message: `Deseja aprovar a empresa "${biz.name}"?` })) {
+                                    const { approveBusiness } = await import('../services/dataService');
+                                    await approveBusiness(biz.id);
+                                    notify('success', `Empresa "${biz.name}" aprovada!`);
+                                    refreshData();
+                                }
+                            }}
+                            className="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white px-6 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 transition-all"
+                        >
+                          <Check size={18} /> APROVAR
+                        </button>
+                        <button 
+                            onClick={async () => {
+                                if (await confirm({ title: 'Rejeitar Empresa', message: `Deseja rejeitar e excluir o cadastro de "${biz.name}"?` })) {
+                                    const { deleteBusinessPermanently } = await import('../services/dataService');
+                                    await deleteBusinessPermanently(biz.id);
+                                    notify('success', "Cadastro rejeitado e removido.");
+                                    refreshData();
+                                }
+                            }}
+                            className="flex-1 md:flex-none bg-white border border-red-100 text-red-500 px-6 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 hover:bg-red-50 transition-all"
+                        >
+                          <X size={18} /> REJEITAR
+                        </button>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
-                        <p className="text-sm text-slate-600 flex items-center gap-2"><UserIcon size={14} className="text-slate-400" /> {req.ownerName}</p>
-                        <p className="text-sm text-slate-600 flex items-center gap-2"><Mail size={14} className="text-slate-400" /> {req.email}</p>
-                        <p className="text-sm text-slate-600 flex items-center gap-2"><Phone size={14} className="text-slate-400" /> {req.phone}</p>
-                        <p className="text-sm text-slate-600 flex items-center gap-2"><CalendarDays size={14} className="text-slate-400" /> {new Date(req.requestDate).toLocaleDateString('pt-BR')}</p>
+                  );
+                })}
+
+                {/* Seção de Leads e Reivindicações */}
+                {requests.map(req => (
+                  <div key={req.id} className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 hover:shadow-md transition-all">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                          <h3 className="font-black text-xl text-ocean-950">{req.companyName}</h3>
+                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${req.type === 'CLAIM' ? 'bg-amber-100 text-amber-600' : 'bg-blue-100 text-blue-600'}`}>
+                              {req.type === 'CLAIM' ? 'Reivindicação' : 'Novo Lead'}
+                          </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
+                          <p className="text-sm text-slate-600 flex items-center gap-2"><UserIcon size={14} className="text-slate-400" /> {req.ownerName}</p>
+                          <p className="text-sm text-slate-600 flex items-center gap-2"><Mail size={14} className="text-slate-400" /> {req.email}</p>
+                          <p className="text-sm text-slate-600 flex items-center gap-2"><Phone size={14} className="text-slate-400" /> {req.phone}</p>
+                          <p className="text-sm text-slate-600 flex items-center gap-2"><CalendarDays size={14} className="text-slate-400" /> {new Date(req.requestDate).toLocaleDateString('pt-BR')}</p>
+                      </div>
+                      {req.description && (
+                          <p className="text-xs text-slate-400 mt-2 bg-white p-3 rounded-xl border border-slate-100 italic">&quot;{req.description}&quot;</p>
+                      )}
                     </div>
-                    {req.description && (
-                        <p className="text-xs text-slate-400 mt-2 bg-white p-3 rounded-xl border border-slate-100 italic">&quot;{req.description}&quot;</p>
-                    )}
+                    <div className="flex gap-3 w-full md:w-auto">
+                      <button 
+                          onClick={() => handleApprove(req.id)} 
+                          className="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white px-6 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 transition-all"
+                      >
+                        <Check size={18} /> APROVAR
+                      </button>
+                      <button 
+                          onClick={() => handleReject(req.id)} 
+                          className="flex-1 md:flex-none bg-white border border-red-100 text-red-500 px-6 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 hover:bg-red-50 transition-all"
+                      >
+                        <X size={18} /> REJEITAR
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-3 w-full md:w-auto">
-                    <button 
-                        onClick={() => handleApprove(req.id)} 
-                        className="flex-1 md:flex-none bg-green-500 hover:bg-green-600 text-white px-6 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-green-500/20 transition-all"
-                    >
-                      <Check size={18} /> APROVAR
-                    </button>
-                    <button 
-                        onClick={() => handleReject(req.id)} 
-                        className="flex-1 md:flex-none bg-white border border-red-100 text-red-500 px-6 py-4 rounded-2xl font-black text-xs flex items-center justify-center gap-2 hover:bg-red-50 transition-all"
-                    >
-                      <X size={18} /> REJEITAR
-                    </button>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>

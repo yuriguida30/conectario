@@ -4,7 +4,7 @@ import { User, CompanyRequest, BusinessProfile, UserRole, AppCategory } from '..
 import { 
   getCompanyRequests, approveCompanyRequest, getAllUsers, 
   getAllBusinesses, getCoupons, saveBusiness, updateUser, getAdminStats,
-  resetUserPassword, deleteBusiness, deleteUser, getCategories
+  resetUserPassword, deleteBusiness, deleteUser, getCategories, approveBusiness
 } from '../services/dataService';
 import { 
   LayoutDashboard, Store, CheckCircle, Clock, 
@@ -511,6 +511,28 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                         <td className="px-6 py-5 text-sm font-bold text-ocean-600">{b.category}</td>
                                         <td className="px-6 py-5">
                                             <div className="flex justify-center items-center gap-2">
+                                                {b.status === 'PENDING' && (
+                                                    <button 
+                                                        onClick={async () => {
+                                                            if (!await confirm({ title: 'Aprovar Empresa', message: `Deseja aprovar a empresa "${b.name}"?` })) return;
+                                                            setActionLoading(b.id);
+                                                            try {
+                                                                await approveBusiness(b.id);
+                                                                notify('success', `Empresa "${b.name}" aprovada com sucesso!`);
+                                                                await loadData();
+                                                            } catch (err) {
+                                                                notify('error', "Erro ao aprovar empresa.");
+                                                            } finally {
+                                                                setActionLoading(null);
+                                                            }
+                                                        }}
+                                                        disabled={actionLoading === b.id}
+                                                        className="p-3 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100"
+                                                        title="Aprovar Empresa"
+                                                    >
+                                                        {actionLoading === b.id ? <Loader2 className="animate-spin" size={18}/> : <CheckCircle size={18} />}
+                                                    </button>
+                                                )}
                                                 {companyUser && (
                                                     <>
                                                         <button 

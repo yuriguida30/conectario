@@ -1308,6 +1308,27 @@ export const createCompanyRequest = async (request: any, type: 'NEW_REGISTRATION
     await setDoc(doc(db, 'companyRequests', id), data);
 };
 
+export const approveBusiness = async (businessId: string) => {
+    try {
+        await updateDoc(doc(db, 'businesses', businessId), { 
+            status: 'approved',
+            active: true,
+            updatedAt: new Date().toISOString()
+        });
+        
+        // Update local cache if needed
+        const index = _businesses.findIndex(b => b.id === businessId);
+        if (index !== -1) {
+            _businesses[index] = { ..._businesses[index], status: 'approved', active: true };
+        }
+        
+        notifyListeners();
+    } catch (error) {
+        console.error("Error approving business:", error);
+        throw error;
+    }
+};
+
 export const rejectCompanyRequest = async (requestId: string) => {
     await updateDoc(doc(db, 'companyRequests', requestId), { status: 'REJECTED' });
 };

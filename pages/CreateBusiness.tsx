@@ -90,6 +90,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
 
             const newBiz: BusinessProfile = {
                 id: currentUser.id,
+                ownerId: currentUser.id,
                 name: formData.name,
                 category: formData.category,
                 subcategory: formData.subcategory || undefined,
@@ -108,6 +109,8 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                 views: 0,
                 shares: 0,
                 isClaimed: true,
+                status: 'PENDING',
+                active: true,
                 plan: selectedPlan?.id || '',
                 subscriptionEndsAt
             };

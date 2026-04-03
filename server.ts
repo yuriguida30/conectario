@@ -120,9 +120,9 @@ async function startServer() {
       await db.collection('settings').doc('payment').set(settings);
       console.log(`[ADMIN] Payment settings updated by user ${userId}`);
       res.json({ success: true });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error saving payment settings:", error);
-      res.status(500).json({ error: `Erro interno ao salvar configurações: ${error.message}` });
+      res.status(500).json({ error: `Erro interno ao salvar configurações: ${error instanceof Error ? error.message : String(error)}` });
     }
   });
 
@@ -179,10 +179,10 @@ async function startServer() {
           
           const successUrl = `${baseUrl}/admin-dashboard?plan_id=${planId}&status=success&test_mode=true`;
           return res.json({ id: 'test_session', url: successUrl });
-        } catch (error: any) {
+        } catch (error) {
           console.error('[TEST MODE] Error updating Firestore:', error);
           // Return a proper JSON error so the frontend can display it
-          return res.status(500).json({ error: "Erro ao processar pagamento em modo de teste: " + error.message });
+          return res.status(500).json({ error: "Erro ao processar pagamento em modo de teste: " + (error instanceof Error ? error.message : String(error)) });
         }
       }
 
@@ -238,9 +238,9 @@ async function startServer() {
       const checkoutUrl = data.links.find((l: any) => l.rel === 'PAY')?.href;
 
       res.json({ id: data.id, url: checkoutUrl });
-    } catch (error: any) {
+    } catch (error) {
       console.error("PagBank Checkout Error:", error);
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
   });
 

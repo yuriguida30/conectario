@@ -45,6 +45,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
     const [formData, setFormData] = useState({
         name: '',
         category: 'Gastronomia',
+        subcategory: '',
         description: '',
         address: '',
         cityId: '',
@@ -85,16 +86,21 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                 subscriptionEndsAt = now.toISOString();
             }
 
+            const selectedNeighborhood = neighborhoods.find(n => n.id === formData.neighborhoodId);
+
             const newBiz: BusinessProfile = {
                 id: currentUser.id,
                 name: formData.name,
                 category: formData.category,
+                subcategory: formData.subcategory || undefined,
                 description: formData.description || '',
                 coverImage: formData.coverImage,
                 gallery: gallery,
                 address: formData.address,
                 cityId: formData.cityId,
                 neighborhoodId: formData.neighborhoodId,
+                lat: selectedNeighborhood?.lat,
+                lng: selectedNeighborhood?.lng,
                 phone: formData.phone,
                 amenities: [],
                 openingHours: {},
@@ -106,30 +112,20 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                 subscriptionEndsAt
             };
             console.log("Salvando empresa:", newBiz);
-            try {
-                await saveBusiness(newBiz);
-            } catch (err) {
-                console.error("Falha no saveBusiness:", err);
-                throw new Error("Erro ao salvar dados da empresa no banco de dados.");
-            }
+            await saveBusiness(newBiz);
 
             console.log("Atualizando perfil do usuário...");
-            try {
-                const updatedUser: User = {
-                    ...currentUser,
-                    role: UserRole.COMPANY,
-                    permissions: {
-                        ...(currentUser.permissions || { canCreateCoupons: false, canManageBusiness: false }),
-                        canCreateBusiness: false,
-                        canManageBusiness: true,
-                        canCreateCoupons: true
-                    }
-                };
-                await updateUser(updatedUser);
-            } catch (err) {
-                console.error("Falha no updateUser:", err);
-                throw new Error("Empresa criada, mas erro ao atualizar suas permissões. Contate o suporte.");
-            }
+            const updatedUser: User = {
+                ...currentUser,
+                role: currentUser.role === UserRole.SUPER_ADMIN ? UserRole.SUPER_ADMIN : UserRole.COMPANY,
+                permissions: {
+                    ...(currentUser.permissions || { canCreateCoupons: false, canManageBusiness: false }),
+                    canCreateBusiness: false,
+                    canManageBusiness: true,
+                    canCreateCoupons: true
+                }
+            };
+            await updateUser(updatedUser);
 
             setSuccess(true);
             setTimeout(() => {
@@ -225,7 +221,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                                                 <button
                                                     key={cat.id}
                                                     type="button"
-                                                    onClick={() => setFormData({...formData, category: cat.name})}
+                                                    onClick={() => setFormData({...formData, category: cat.name, subcategory: ''})}
                                                     className={`p-4 rounded-2xl border-2 transition-all text-center font-bold text-sm ${formData.category === cat.name ? 'border-ocean-600 bg-ocean-50 text-ocean-600 shadow-md' : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'}`}
                                                 >
                                                     {cat.name}
@@ -233,6 +229,24 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                                             ))}
                                         </div>
                                     </div>
+                                    
+                                    {formData.category && categories.find(c => c.name === formData.category)?.subcategories?.length > 0 && (
+                                        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 ml-1">Subcategoria (Opcional)</label>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                {categories.find(c => c.name === formData.category)?.subcategories.map((sub: any) => (
+                                                    <button
+                                                        key={sub.id}
+                                                        type="button"
+                                                        onClick={() => setFormData({...formData, subcategory: sub.name})}
+                                                        className={`p-3 rounded-xl border-2 transition-all text-center font-bold text-xs ${formData.subcategory === sub.name ? 'border-ocean-600 bg-ocean-50 text-ocean-600 shadow-sm' : 'border-slate-100 bg-white text-slate-500 hover:border-slate-200'}`}
+                                                    >
+                                                        {sub.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -364,7 +378,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                             </div>
                         )}
 
-                        <div className="flex items-center gap-4 pt-8">
+                        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 lg:static lg:p-0 lg:bg-transparent lg:border-none flex items-center gap-4 pt-4 lg:pt-8 z-40">
                             {step > 1 && (
                                 <button 
                                     type="button"
@@ -383,6 +397,8 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                                 {step === totalSteps ? 'Finalizar Cadastro' : 'Continuar'}
                             </button>
                         </div>
+                        {/* Add padding at the bottom on mobile to prevent content from being hidden behind the fixed button */}
+                        <div className="h-24 lg:hidden"></div>
                     </form>
                 </div>
 

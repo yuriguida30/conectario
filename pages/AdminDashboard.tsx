@@ -241,22 +241,27 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     const category = categories.find(c => c.id === categoryId);
     if (!category) return;
 
+    const newSubcategoryObj = {
+        id: subcategoryName.toLowerCase().replace(/\s+/g, '-'),
+        name: subcategoryName
+    };
+
     const updatedCategory = {
         ...category,
-        subcategories: [...(category.subcategories || []), subcategoryName]
+        subcategories: [...(category.subcategories || []), newSubcategoryObj]
     };
 
     await saveCategory(updatedCategory);
     setNewSubcategory({ ...newSubcategory, [categoryId]: '' });
   };
 
-  const handleDeleteSubcategory = async (categoryId: string, subcategoryName: string) => {
+  const handleDeleteSubcategory = async (categoryId: string, subcategoryId: string) => {
     const category = categories.find(c => c.id === categoryId);
     if (!category) return;
 
     const updatedCategory = {
         ...category,
-        subcategories: (category.subcategories || []).filter((s: string) => s !== subcategoryName)
+        subcategories: (category.subcategories || []).filter((s: any) => s.id !== subcategoryId)
     };
 
     await saveCategory(updatedCategory);
@@ -1029,8 +1034,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                     disabled={!editBusiness.category || !categories.find(c => c.name === editBusiness.category)?.subcategories?.length}
                                   >
                                       <option value="">Selecione</option>
-                                      {categories.find(c => c.name === editBusiness.category)?.subcategories.map((sub: string) => (
-                                          <option key={sub} value={sub}>{sub}</option>
+                                      {categories.find(c => c.name === editBusiness.category)?.subcategories.map((sub: any) => (
+                                          <option key={sub.id || sub} value={sub.name || sub}>{sub.name || sub}</option>
                                       ))}
                                   </select>
                               </div>
@@ -1406,10 +1411,10 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                     <div key={category.id} className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                         <h3 className="font-bold text-ocean-900 mb-4">{category.name}</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                            {(category.subcategories || []).map((sub: string) => (
-                                <div key={sub} className="flex items-center justify-between bg-white p-2 rounded-lg text-xs font-bold text-slate-600 border">
-                                    <span>{sub}</span>
-                                    <button onClick={() => handleDeleteSubcategory(category.id, sub)} className="text-red-400 hover:text-red-600 p-1">
+                            {(category.subcategories || []).map((sub: any) => (
+                                <div key={sub.id || sub} className="flex items-center justify-between bg-white p-2 rounded-lg text-xs font-bold text-slate-600 border">
+                                    <span>{sub.name || sub}</span>
+                                    <button onClick={() => handleDeleteSubcategory(category.id, sub.id || sub)} className="text-red-400 hover:text-red-600 p-1">
                                         <X size={14} />
                                     </button>
                                 </div>

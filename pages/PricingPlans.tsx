@@ -284,7 +284,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
                     
                     setTimeout(() => {
                         if (userBusiness) {
-                            onNavigate('admin');
+                            onNavigate('admin-dashboard');
                         } else {
                             onNavigate('create-business');
                         }
@@ -352,7 +352,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
             
             setTimeout(() => {
                 if (userBusiness) {
-                    onNavigate('admin');
+                    onNavigate('admin-dashboard');
                 } else {
                     onNavigate('create-business');
                 }

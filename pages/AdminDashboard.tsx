@@ -119,6 +119,19 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
             companyName: biz.name,
             companyId: biz.id
         }));
+    } else if (currentUser.role === UserRole.COMPANY || currentUser.role === UserRole.JOURNALIST) {
+        // Fallback for new businesses: initialize with user data
+        const defaultBiz: Partial<BusinessProfile> = {
+            id: currentUser.id,
+            ownerId: currentUser.id,
+            name: currentUser.name || '',
+            email: currentUser.email || '',
+            plan: currentUser.plan || 'free',
+            status: 'approved',
+            active: true,
+            createdAt: new Date().toISOString()
+        };
+        setEditBusiness(prev => Object.keys(prev).length === 0 ? defaultBiz : prev);
     }
     const s = await getBusinessStats(biz ? biz.id : currentUser.id);
     setStats(s);
@@ -196,28 +209,42 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   }, [myBusiness, plans]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    console.log("Iniciando salvamento do perfil...");
     
-    const baseBusiness = myBusiness || (editBusiness.id ? editBusiness : null);
-    if (!baseBusiness) {
-        notify('error', 'Nenhuma empresa encontrada para atualizar.');
-        return;
-    }
+    // Use myBusiness, or editBusiness if it has an ID, or fallback to currentUser.id
+    const targetId = myBusiness?.id || editBusiness.id || currentUser.id;
+    const baseBusiness = myBusiness || (editBusiness.id ? editBusiness : {
+        id: currentUser.id,
+        ownerId: currentUser.id,
+        name: currentUser.name || '',
+        email: currentUser.email || '',
+        plan: currentUser.plan || 'free',
+        status: 'approved',
+        active: true
+    });
+
+    console.log("ID de destino:", targetId);
+    console.log("Dados base:", baseBusiness);
+    console.log("Dados editados:", editBusiness);
 
     setIsSaving(true);
     try {
-        await saveBusiness({ ...baseBusiness, ...editBusiness } as BusinessProfile);
+        const updatedData = { ...baseBusiness, ...editBusiness, id: targetId } as BusinessProfile;
+        console.log("Objeto final para salvar:", updatedData);
+        
+        await saveBusiness(updatedData);
         notify('success', "Alterações salvas com sucesso!");
         
         // If it's a super admin editing another business, go back to BUSINESSES
-        if (currentUser.role === UserRole.SUPER_ADMIN && baseBusiness.id !== currentUser.id) {
+        if (currentUser.role === UserRole.SUPER_ADMIN && targetId !== currentUser.id) {
             setView('BUSINESSES');
         } else {
             setView('HOME');
         }
         refreshData();
     } catch (error) {
-        console.error("Error saving business:", error);
+        console.error("Erro ao salvar empresa:", error);
         notify('error', "Erro ao salvar alterações. Tente novamente.");
     } finally {
         setIsSaving(false);
@@ -1183,7 +1210,12 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                           </div>
 
                           <div className="pt-8 border-t border-slate-100 flex justify-end">
-                              <button form="profile-form" type="submit" disabled={isSaving} className="w-full md:w-auto bg-green-600 text-white px-12 py-5 rounded-2xl font-black shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 transition-all text-lg">
+                              <button 
+                                type="button" 
+                                onClick={handleUpdateProfile} 
+                                disabled={isSaving} 
+                                className="w-full md:w-auto bg-green-600 text-white px-12 py-5 rounded-2xl font-black shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 transition-all text-lg"
+                              >
                                   {isSaving ? <Loader2 className="animate-spin" size={24}/> : <Save size={24} />} SALVAR CONFIGURAÇÕES
                               </button>
                           </div>

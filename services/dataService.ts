@@ -690,16 +690,25 @@ export const toggleBusinessStatus = async (businessId: string, isBlocked: boolea
 };
 
 export const deleteBusinessPermanently = async (businessId: string) => {
-    await deleteDoc(doc(db, 'businesses', businessId));
-    // Also delete the associated user
-    await deleteDoc(doc(db, 'users', businessId));
-    // Delete their coupons
-    const couponsQuery = query(collection(db, 'coupons'), where('companyId', '==', businessId));
-    const couponsSnap = await getDocs(couponsQuery);
-    for (const d of couponsSnap.docs) {
-        await deleteDoc(doc(db, 'coupons', d.id));
+    try {
+        await deleteDoc(doc(db, 'businesses', businessId));
+        // Also delete the associated user
+        await deleteDoc(doc(db, 'users', businessId));
+        // Delete their coupons
+        const couponsQuery = query(collection(db, 'coupons'), where('companyId', '==', businessId));
+        const couponsSnap = await getDocs(couponsQuery);
+        for (const d of couponsSnap.docs) {
+            await deleteDoc(doc(db, 'coupons', d.id));
+        }
+        
+        // Update local cache
+        _businesses = _businesses.filter(b => b.id !== businessId);
+        
+        notifyListeners();
+    } catch (error) {
+        console.error("Error deleting business permanently:", error);
+        throw error;
     }
-    notifyListeners();
 };
 
 export const deleteBusiness = deleteBusinessPermanently;
@@ -1335,20 +1344,6 @@ export const approveBusiness = async (businessId: string) => {
         notifyListeners();
     } catch (error) {
         console.error("Error approving business:", error);
-        throw error;
-    }
-};
-
-export const deleteBusinessPermanently = async (businessId: string) => {
-    try {
-        await deleteDoc(doc(db, 'businesses', businessId));
-        
-        // Update local cache
-        _businesses = _businesses.filter(b => b.id !== businessId);
-        
-        notifyListeners();
-    } catch (error) {
-        console.error("Error deleting business permanently:", error);
         throw error;
     }
 };

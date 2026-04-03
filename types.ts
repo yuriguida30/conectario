@@ -67,7 +67,9 @@ export interface User {
 
 export interface BusinessProfile {
   id: string;
+  ownerId?: string;
   name: string;
+  email?: string;
   category: string;
   subcategory?: string;
   description: string;
@@ -104,6 +106,10 @@ export interface BusinessProfile {
   paymentCustomerId?: string;
   paymentSubscriptionStatus?: string;
   paymentSubscriptionId?: string;
+  status?: string;
+  active?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CompanyRequest {

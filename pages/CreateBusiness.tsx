@@ -352,7 +352,7 @@ export const CreateBusiness: React.FC<CreateBusinessProps> = ({ currentUser, onN
                             <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
                                 <div>
                                     <h2 className="text-4xl font-black text-ocean-950 tracking-tight mb-2">Quase lá!</h2>
-                                    <p className="text-slate-500 font-medium">Últimos detalhes para publicar seu perfil.</p>
+                                    <p className="text-slate-500 font-medium">Últimos detalhes para publicar sua empresa.</p>
                                 </div>
                                 <div className="space-y-6">
                                     <div>

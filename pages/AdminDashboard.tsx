@@ -583,7 +583,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                                   <PenTool size={20} />
                                               </div>
                                               <div>
-                                                  <p className="font-black text-xs md:text-sm uppercase tracking-tight">Completar Perfil</p>
+                                                  <p className="font-black text-xs md:text-sm uppercase tracking-tight">Completar Empresa</p>
                                                   <p className="text-[10px] md:text-xs text-ocean-200 font-bold">Adicione fotos e horários</p>
                                               </div>
                                           </button>
@@ -906,7 +906,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                       <div className="bg-white p-8 rounded-3xl shadow-2xl text-center max-w-md border border-slate-100">
                           <Lock className="w-16 h-16 text-red-500 mx-auto mb-4" />
                           <h3 className="text-2xl font-black text-ocean-950 mb-2">Recurso Bloqueado</h3>
-                          <p className="text-slate-500 mb-6">Sua assinatura está expirada. Renove para editar seu perfil e galeria.</p>
+                          <p className="text-slate-500 mb-6">Sua assinatura está expirada. Renove para editar sua empresa e galeria.</p>
                           <button onClick={() => setView('MY_PLAN')} className="bg-ocean-600 text-white px-8 py-4 rounded-2xl font-black w-full">RENOVAR AGORA</button>
                       </div>
                   </div>
@@ -914,9 +914,6 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <button onClick={() => setView('HOME')} className="flex items-center gap-2 text-ocean-600 font-black text-xs uppercase">
                     <ChevronLeft size={16} /> Voltar ao Painel
-                  </button>
-                  <button form="profile-form" type="submit" disabled={isSaving} className="bg-green-600 text-white px-8 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 hover:bg-green-700 transition-all">
-                      {isSaving ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />} SALVAR CONFIGURAÇÕES
                   </button>
               </div>
 
@@ -1170,6 +1167,12 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                       );
                                   })}
                               </div>
+                          </div>
+
+                          <div className="pt-8 border-t border-slate-100 flex justify-end">
+                              <button form="profile-form" type="submit" disabled={isSaving} className="w-full md:w-auto bg-green-600 text-white px-12 py-5 rounded-2xl font-black shadow-lg flex items-center justify-center gap-2 hover:bg-green-700 transition-all text-lg">
+                                  {isSaving ? <Loader2 className="animate-spin" size={24}/> : <Save size={24} />} SALVAR CONFIGURAÇÕES
+                              </button>
                           </div>
                       </div>
                   </div>

@@ -392,7 +392,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
                     <div className="space-y-4">
                         <h2 className="text-5xl font-black text-white tracking-tight">Assinatura Confirmada!</h2>
                         <p className="text-ocean-300 text-xl font-medium max-w-md mx-auto">
-                            Seja bem-vindo ao Conecta Rio Empresas. Prepare-se para transformar seu negócio.
+                            Seja bem-vindo ao Lagos GO Empresas. Prepare-se para transformar seu negócio.
                         </p>
                     </div>
                     <div className="flex items-center justify-center gap-3 text-ocean-400 font-bold uppercase tracking-widest text-xs">
@@ -413,7 +413,7 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
                         Planos de Crescimento
                     </div>
                     <h1 className="text-6xl font-black text-ocean-950 tracking-tight leading-[0.9]">Escolha o plano ideal para o seu negócio</h1>
-                    <p className="text-slate-500 font-medium text-xl leading-relaxed">Impulsione sua visibilidade no Conecta Rio e alcance milhares de novos clientes todos os dias com ferramentas profissionais.</p>
+                    <p className="text-slate-500 font-medium text-xl leading-relaxed">Impulsione sua visibilidade no Lagos GO e alcance milhares de novos clientes todos os dias com ferramentas profissionais.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">

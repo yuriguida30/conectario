@@ -50,7 +50,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
 
   // GPS State
   const [gpsLoading, setGpsLoading] = useState(false);
-  const [locationName, setLocationName] = useState("Rio de Janeiro");
+  const [locationName, setLocationName] = useState("Região dos Lagos");
 
   const fetchData = async () => {
       try {
@@ -222,8 +222,8 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
             ) : (
                 <div className="absolute inset-0 bg-ocean-950 flex items-center justify-center">
                     <div className="text-center px-4">
-                        <h2 className="text-2xl md:text-5xl font-black mb-2 text-white">Bem-vindo ao Conecta Rio</h2>
-                        <p className="text-xs md:text-lg text-ocean-100 opacity-90">Explore o melhor da cidade com benefícios exclusivos.</p>
+                        <h2 className="text-2xl md:text-5xl font-black mb-2 text-white">Bem-vindo ao Lagos GO</h2>
+                        <p className="text-xs md:text-lg text-ocean-100 opacity-90">Explore o melhor da região com benefícios exclusivos.</p>
                     </div>
                 </div>
             )}
@@ -418,7 +418,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
             <div className="absolute top-0 right-0 w-64 h-64 bg-ocean-50 rounded-full -mr-32 -mt-32 blur-3xl transition-all group-hover:bg-ocean-100"></div>
             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
                 <div className="max-w-xl text-center md:text-left">
-                    <h3 className="text-3xl font-black text-ocean-950 mb-4 tracking-tight leading-tight">Tem um negócio no Rio?</h3>
+                    <h3 className="text-3xl font-black text-ocean-950 mb-4 tracking-tight leading-tight">Tem um negócio na Região?</h3>
                     <p className="text-slate-500 font-medium text-lg leading-relaxed">
                         Aumente suas vendas e visibilidade aparecendo para milhares de turistas e moradores. 
                         <span className="text-ocean-600 font-bold"> Experimente grátis!</span>
@@ -428,7 +428,7 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
                     onClick={() => onNavigate('pricing-plans')}
                     className="bg-ocean-600 text-white font-black px-10 py-5 rounded-3xl shadow-2xl shadow-ocean-600/30 hover:bg-ocean-700 active:scale-95 transition-all text-lg flex items-center gap-3 shrink-0"
                 >
-                    Ver Planos do Conecta Rio <ArrowRight size={24} />
+                    Ver Planos do Lagos GO <ArrowRight size={24} />
                 </button>
             </div>
         </div>

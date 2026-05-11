@@ -1,6 +1,6 @@
-# 🛡️ PROTOCOLO DE SEGURANÇA E INTEGRIDADE - CONECTA RIO
+# 🛡️ PROTOCOLO DE SEGURANÇA E INTEGRIDADE - LAGOS GO
 
-Este documento é a "Constituição" do Conecta Rio. Qualquer alteração no código deve respeitar estas regras para evitar quebras em produção e perda de dados históricos acumulados durante todo o desenvolvimento.
+Este documento é a "Constituição" do Lagos GO. Qualquer alteração no código deve respeitar estas regras para evitar quebras em produção e perda de dados históricos acumulados durante todo o desenvolvimento.
 
 ## 1. 🎟️ CUPONS E OFERTAS (Regra de Ouro)
 *   **Compatibilidade Legada:** Cupons sem o campo `status` ou `active` DEVEM ser tratados como **Aprovados** e **Ativos**. 
@@ -11,7 +11,7 @@ Este documento é a "Constituição" do Conecta Rio. Qualquer alteração no có
 ## 2. 🏢 EMPRESAS E GUIA COMERCIAL
 *   **Vínculo de Dados:** A exibição de cupons depende do `companyId`. Alterar o ID ou a forma como as empresas são buscadas quebra a exibição dos cupons.
 *   **Planos de Assinatura:** Empresas com planos `active` têm prioridade na listagem, mas empresas sem plano (legado) não devem ser ocultadas do guia, a menos que o usuário use filtros específicos.
-*   **Geolocalização:** A lógica de `calculateDistance` e `identifyNeighborhood` é baseada em coordenadas fixas do Rio de Janeiro. Não altere os raios de busca sem testar o impacto na funcionalidade "Perto de Mim".
+*   **Geolocalização:** A lógica de `calculateDistance` e `identifyNeighborhood` é baseada em coordenadas fixas da Região dos Lagos. Não altere os raios de busca sem testar o impacto na funcionalidade "Perto de Mim".
 
 ## 3. 💳 PAGAMENTOS E PLANOS (PagBank)
 *   **Webhooks (server.ts):** A rota `/api/webhook` processa o faturamento. O formato do `reference` (`userId:businessId:planId:planName`) é o contrato entre o checkout e o banco de dados. Qualquer mudança aqui quebra a ativação automática de planos.

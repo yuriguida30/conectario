@@ -102,7 +102,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 let _isInitialized = false;
 
 let _collections: Collection[] = [];
-const _appConfig: AppConfig = { appName: 'CONECTA', appNameHighlight: 'RIO' };
+const _appConfig: AppConfig = { appName: 'LAGOS', appNameHighlight: 'GO' };
 
 // --- READ MONITORING (PROMPT 5) ---
 let _totalReads = 0;
@@ -330,8 +330,8 @@ export const login = async (email: string, pass: string): Promise<User | null> =
         
         // Master password or manual password set by admin
         if (pass === '123456' || (foundUser.manualPassword && pass === foundUser.manualPassword)) {
-            // Ensure admin@conectario.org is always SUPER_ADMIN if found
-            if (foundUser.email?.toLowerCase() === 'admin@conectario.org' && foundUser.role !== UserRole.SUPER_ADMIN) {
+            // Ensure admin@lagosgo.org is always SUPER_ADMIN if found
+            if (foundUser.email?.toLowerCase() === 'admin@lagosgo.org' && foundUser.role !== UserRole.SUPER_ADMIN) {
                 foundUser.role = UserRole.SUPER_ADMIN;
                 await updateUser(foundUser);
             }
@@ -384,7 +384,7 @@ export const loginWithGoogle = async (): Promise<User | null> => {
     } else {
         const email = (res.user.email || '').toLowerCase();
         const isAdminEmail = email === 'sea.angelshotel@gmail.com' || 
-                           email === 'admin@conectario.org';
+                           email === 'admin@lagosgo.org';
         const role = isAdminEmail ? UserRole.SUPER_ADMIN : UserRole.CUSTOMER;
 
         userData = {
@@ -1280,7 +1280,7 @@ export const registerUser = async (name: string, email: string, pass: string): P
     // Check if this is an admin email
     const emailLower = email.toLowerCase();
     const isAdminEmail = emailLower === 'sea.angelshotel@gmail.com' || 
-                       emailLower === 'admin@conectario.org';
+                       emailLower === 'admin@lagosgo.org';
     const role = isAdminEmail ? UserRole.SUPER_ADMIN : UserRole.CUSTOMER;
     
     const newUser: User = { id: res.user.uid, name, email, role, favorites: { coupons: [], businesses: [] }, history: [], savedAmount: 0 };

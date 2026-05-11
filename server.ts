@@ -203,7 +203,7 @@ async function startServer() {
       const payload = {
         reference: reference,
         customer: {
-          name: userName || "Cliente Conecta Rio",
+          name: userName || "Cliente Lagos GO",
           email: userEmail,
         },
         items: [

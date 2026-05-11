@@ -183,7 +183,7 @@ export const BlogDetail: React.FC<BlogDetailProps> = ({ postId, onNavigate }) =>
                             <div className="relative">
                                 <span className="absolute -top-2 -left-2 text-4xl text-slate-200 font-serif leading-none">“</span>
                                 <p className="text-slate-600 text-sm leading-relaxed px-4 italic relative z-10">
-                                    {author.bio || 'Criando conteúdo incrível para o Conecta Rio.'}
+                                    {author.bio || 'Criando conteúdo incrível para o Lagos GO.'}
                                 </p>
                                 <span className="absolute -bottom-4 -right-1 text-4xl text-slate-200 font-serif leading-none">”</span>
                             </div>

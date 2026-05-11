@@ -3,7 +3,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
-// --- CONFIGURAÇÃO DO FIREBASE (CONECTA RIO) ---
+// --- CONFIGURAÇÃO DO FIREBASE (LAGOS GO) ---
 export const firebaseConfig = {
   apiKey: "AIzaSyCLyaiF_RVOd4BXNE9sZ4sGNsjlqu6ihdQ",
   authDomain: "conectario-dd04b.firebaseapp.com",

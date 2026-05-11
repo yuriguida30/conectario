@@ -150,7 +150,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
             )}
           </div>
           <h1 className="text-3xl font-black text-ocean-950 tracking-tight">{config.appName.toUpperCase()} <span className="text-gold-500">{config.appNameHighlight.toUpperCase()}</span></h1>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Bem-vindo à maior rede do Rio</p>
+          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Bem-vindo à maior rede da Região</p>
         </div>
 
         {mode !== 'REGISTER_COMPANY' && (
@@ -286,7 +286,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
                         onClick={() => onNavigate && onNavigate('pricing-plans')}
                         className="text-xs font-bold text-ocean-600 hover:text-ocean-700 transition-colors"
                     >
-                        Ver Planos do Conecta Rio
+                        Ver Planos do Lagos GO
                     </button>
                 </div>
             </div>
@@ -348,8 +348,8 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onNavigate }) => {
                 <button onClick={() => setMode('LOGIN')} className="flex items-center text-slate-400 hover:text-ocean-600 mb-6 text-xs font-black gap-1 transition-colors uppercase tracking-widest">
                     <ChevronLeft size={20} /> Voltar para Login
                 </button>
-                <h2 className="text-2xl font-black text-ocean-950 mb-2">Venda mais no Rio</h2>
-                <p className="text-slate-500 text-xs mb-8 leading-relaxed font-medium">Cadastre seu negócio e comece a oferecer cupons exclusivos para milhares de turistas e cariocas.</p>
+                <h2 className="text-2xl font-black text-ocean-950 mb-2">Venda mais na Região</h2>
+                <p className="text-slate-500 text-xs mb-8 leading-relaxed font-medium">Cadastre seu negócio e comece a oferecer cupons exclusivos para milhares de turistas e moradores.</p>
                 <form onSubmit={handleCompanyRegisterSubmit} className="space-y-4">
                     <div className="space-y-3">
                         <input placeholder="Nome da Empresa" required className="w-full px-4 py-4 rounded-2xl bg-slate-50 border border-slate-100 font-bold text-sm outline-none" value={regForm.companyName} onChange={e => setRegForm({...regForm, companyName: e.target.value})} />

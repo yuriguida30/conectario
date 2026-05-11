@@ -1409,7 +1409,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                   </div>
 
                   <button type="submit" disabled={isSaving} className="w-full bg-ocean-600 text-white font-black py-8 rounded-[2rem] shadow-2xl shadow-ocean-600/30 flex items-center justify-center gap-4 text-xl hover:bg-ocean-700 active:scale-[0.98] transition-all">
-                      {isSaving ? <Loader2 className="animate-spin" size={28} /> : <CheckCircle2 size={28} />} PUBLICAR OFERTA NO RIO
+                      {isSaving ? <Loader2 className="animate-spin" size={28} /> : <CheckCircle2 size={28} />} PUBLICAR OFERTA EM LAGOS
                   </button>
               </form>
           </div>

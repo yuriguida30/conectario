@@ -2,7 +2,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { BusinessProfile } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+function getAI() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is required and was not found in the environment.");
+  }
+  return new GoogleGenAI({ apiKey });
+}
 
 export interface AgentStep {
   role: string;
@@ -47,6 +53,7 @@ Siga rigorosamente o esquema de dados fornecido.`
 };
 
 export async function runAgentStep(role: string, input: string, context?: string): Promise<string> {
+  const ai = getAI();
   const model = "gemini-3.1-pro-preview";
   
   const prompt = `
@@ -75,6 +82,7 @@ Responda agora de acordo com seu papel:
 }
 
 export async function finalizeLocation(finalContent: string): Promise<Partial<BusinessProfile>> {
+  const ai = getAI();
   const model = "gemini-3.1-pro-preview";
   
   const response = await ai.models.generateContent({

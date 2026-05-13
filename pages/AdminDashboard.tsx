@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNotification } from '../components/NotificationSystem';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood, AppCategory } from '../types';
 import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusiness, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview, updateUser, getPaymentSettings, savePaymentSettings, getRedemptionsByBusiness, validateRedemption } from '../services/dataService';
+import { seedTouristSpots } from '../services/seedService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers, Zap,
-  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool, Users, Image as ImageIcon, CreditCard, LogIn, QrCode
+  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool, Users, Image as ImageIcon, CreditCard, LogIn, QrCode, RefreshCw
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -43,6 +44,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const [users, setUsers] = useState<User[]>([]);
   const [pendingReviews, setPendingReviews] = useState<any[]>([]);
   const [newJournalist, setNewJournalist] = useState({ name: '', email: '', password: '' });
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [editBusiness, setEditBusiness] = useState<Partial<BusinessProfile>>({});
   const [newPassword, setNewPassword] = useState('');
@@ -545,6 +547,55 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
               {currentUser.role === UserRole.SUPER_ADMIN ? (
                   <div className="lg:col-span-12 space-y-6 md:space-y-8">
+                      {/* TOURIST SPOTS SYNC SECTION - HIGH PROMINENCE */}
+                      <div className="bg-gradient-to-br from-ocean-600 to-ocean-900 border border-ocean-400 rounded-[2.5rem] p-8 md:p-10 flex flex-col lg:flex-row items-center justify-between gap-8 shadow-2xl shadow-ocean-900/20 overflow-hidden relative group">
+                          <div className="absolute right-0 top-0 opacity-10 pointer-events-none translate-x-10 -translate-y-10 group-hover:scale-110 transition-transform duration-700">
+                              <MapPin size={300} className="text-white" />
+                          </div>
+                          
+                          <div className="flex items-start gap-6 relative z-10 w-full lg:w-auto">
+                              <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl text-white border border-white/20 shadow-inner">
+                                  <MapPin size={36} />
+                              </div>
+                              <div className="space-y-2">
+                                  <div className="flex items-center gap-3">
+                                      <span className="bg-ocean-400/30 text-ocean-100 text-[10px] font-black px-3 py-1 rounded-full border border-ocean-400/30 uppercase tracking-widest">Setup Inicial</span>
+                                      <h3 className="font-black text-white text-xl uppercase tracking-tighter">Guia Oficial Lagos GO</h3>
+                                  </div>
+                                  <p className="text-ocean-100 font-medium max-w-xl leading-relaxed text-sm md:text-base">
+                                      Sincronize automaticamente os pontos turísticos verificados de <b>Arraial do Cabo</b> e <b>Cabo Frio</b>. 
+                                      Este processo criará as cidades, bairros e categorias necessárias se não existirem.
+                                  </p>
+                              </div>
+                          </div>
+
+                          <button 
+                              onClick={async () => {
+                                  if (await confirm({ 
+                                      title: 'VAMOS POPULAR O GUIA?', 
+                                      message: 'Deseja cadastrar agora os locais oficiais verificados? Criaremos cidades e categorias automaticamente.' 
+                                  })) {
+                                      setActionLoading('seeding');
+                                      try {
+                                          await seedTouristSpots(notify);
+                                          await refreshData();
+                                      } finally {
+                                          setActionLoading(null);
+                                      }
+                                  }
+                              }}
+                              disabled={actionLoading === 'seeding'}
+                              className="relative z-10 bg-white text-ocean-900 hover:bg-ocean-50 px-10 py-6 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl transition-all active:scale-95 disabled:opacity-50 flex items-center gap-4 group/btn min-w-[280px] justify-center"
+                          >
+                              {actionLoading === 'seeding' ? (
+                                  <Loader2 className="animate-spin" size={20} />
+                              ) : (
+                                  <RefreshCw size={20} className="group-hover/btn:rotate-180 transition-transform duration-500" />
+                              )}
+                              {actionLoading === 'seeding' ? 'SINCRONIZANDO...' : 'SINCRONIZAR GUIA'}
+                          </button>
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
                           <div className="bg-amber-500 p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group cursor-pointer" onClick={() => setView('REQUESTS')}>
                               <Layers className="absolute -right-4 -bottom-4 w-20 h-20 md:w-24 md:h-24 text-white/10 group-hover:scale-110 transition-transform" />

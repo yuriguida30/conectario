@@ -4,23 +4,26 @@ import { User, CompanyRequest, BusinessProfile, UserRole, AppCategory } from '..
 import { 
   getCompanyRequests, approveCompanyRequest, getAllUsers, 
   getAllBusinesses, getCoupons, saveBusiness, updateUser, getAdminStats,
-  resetUserPassword, deleteBusiness, deleteUser, getCategories, approveBusiness
+  resetUserPassword, deleteBusiness, deleteUser, getCategories, approveBusiness,
+  getGlobalSettings, saveGlobalSettings
 } from '../services/dataService';
+import { seedTouristSpots } from '../services/seedService';
 import { 
   LayoutDashboard, Store, CheckCircle, Clock, 
   ChevronRight, Loader2, Users, Ticket, 
   Settings, Bell, Shield, Search, Edit, Key, Trash2,
   PieChart as PieIcon, DollarSign, Mail, X, Save, CheckCircle2, PenTool,
-  RefreshCw
+  RefreshCw, MessageCircle, Info, MapPin
 } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip, Legend } from 'recharts';
 import { useNotification } from '../components/NotificationSystem';
+import { AppGlobalSettings } from '../types';
 
 const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void; currentUser: User; onLogout: () => void }> = ({ onNavigate, currentUser, onLogout }) => {
   const { notify, confirm } = useNotification();
-  const [view, setView] = useState<'HOME' | 'REQUESTS' | 'USERS' | 'COMPANIES'>('HOME');
+  const [view, setView] = useState<'HOME' | 'REQUESTS' | 'USERS' | 'COMPANIES' | 'SETTINGS'>('HOME');
   const [requests, setRequests] = useState<CompanyRequest[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [businesses, setBusinesses] = useState<BusinessProfile[]>([]);
@@ -29,6 +32,9 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
   const [searchTerm, setSearchTerm] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [categories, setCategories] = useState<AppCategory[]>([]);
+  
+  // Settings State
+  const [globalSettings, setGlobalSettings] = useState<AppGlobalSettings>({ salesWhatsapp: '' });
   
   // Modal de Edição de Usuário
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -39,12 +45,12 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
   const loadData = async () => {
     setLoadingData(true);
     try {
-        const [reqs, users, bizs, cats, _] = await Promise.all([
+        const [reqs, users, bizs, cats, settings] = await Promise.all([
           getCompanyRequests(),
           getAllUsers(),
           getAllBusinesses(true),
           getCategories(),
-          getCoupons(true, true)
+          getGlobalSettings()
         ]);
         const s = await getAdminStats();
         setRequests(reqs || []);
@@ -52,6 +58,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
         setBusinesses(bizs || []);
         setStats(s);
         setCategories(cats || []);
+        setGlobalSettings(settings || { salesWhatsapp: '' });
     } catch (e) {
         console.error("Erro ao carregar dados do admin:", e);
     } finally {
@@ -199,6 +206,9 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                  <div className="flex items-center gap-3"><Bell size={18} /> Solicitações</div>
                  {requests.filter(r => r.status === 'PENDING').length > 0 && <span className="bg-orange-500 text-white text-[10px] px-2 py-0.5 rounded-full font-black">{requests.filter(r => r.status === 'PENDING').length}</span>}
              </button>
+             <button onClick={() => setView('SETTINGS')} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${view === 'SETTINGS' ? 'bg-ocean-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
+                 <Settings size={18} /> Configurações
+             </button>
              <div className="my-4 border-t border-slate-100"></div>
              <button onClick={onLogout} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-colors">
                  Sair
@@ -255,6 +265,46 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                                   <Legend />
                               </PieChart>
                           </ResponsiveContainer>
+                      </div>
+
+                      {/* TOURIST SPOTS SYNC SECTION */}
+                      <div className="bg-ocean-50 border border-ocean-100 rounded-[2.5rem] p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm overflow-hidden relative">
+                          <div className="absolute right-0 top-0 opacity-10 pointer-events-none translate-x-10 -translate-y-10">
+                              <MapPin size={200} className="text-ocean-950" />
+                          </div>
+                          <div className="flex items-center gap-5 relative z-10">
+                              <div className="bg-ocean-600 p-4 rounded-3xl text-white shadow-lg">
+                                  <MapPin size={32} />
+                              </div>
+                              <div>
+                                  <h3 className="font-black text-ocean-950 text-base uppercase tracking-widest mb-1">População de Guia (Manual)</h3>
+                                  <p className="text-sm text-ocean-700 font-medium max-w-sm leading-relaxed">
+                                      Sincronize os pontos turísticos oficiais de <b>Arraial do Cabo</b> e <b>Cabo Frio</b> com um toque. 
+                                      Ideal para preencher o guia inicial com dados geolocalizados precisos.
+                                  </p>
+                              </div>
+                          </div>
+                          <button 
+                              onClick={async () => {
+                                  if (await confirm({ 
+                                      title: 'Popular com Locais Públicos?', 
+                                      message: 'Deseja cadastrar automaticamente os pontos turísticos verificados de Arraial e Cabo Frio? Isso não apagará seus locais atuais.' 
+                                  })) {
+                                      setActionLoading('seeding');
+                                      try {
+                                          await seedTouristSpots(notify);
+                                          await loadData();
+                                      } finally {
+                                          setActionLoading(null);
+                                      }
+                                  }
+                              }}
+                              disabled={actionLoading === 'seeding'}
+                              className="relative z-10 bg-ocean-950 text-white px-8 py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-black transition-all active:scale-95 disabled:opacity-50 flex items-center gap-3"
+                          >
+                              {actionLoading === 'seeding' ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}
+                              {actionLoading === 'seeding' ? 'Sincronizando...' : 'Sincronizar Pontos Turísticos'}
+                          </button>
                       </div>
                   </div>
               )}
@@ -602,6 +652,73 @@ export const SuperAdminDashboard: React.FC<{ onNavigate: (page: string) => void;
                           </div>
                       ))}
                       {requests.length === 0 && <p className="text-center py-20 text-slate-400 uppercase font-black text-xs">Nenhuma solicitação</p>}
+                  </div>
+              )}
+               {view === 'SETTINGS' && (
+                  <div className="max-w-2xl space-y-8 animate-in fade-in slide-in-from-bottom-4">
+                      <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-sm space-y-8">
+                          <div className="flex items-center gap-4 mb-2">
+                              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                                  <Settings size={24} />
+                              </div>
+                              <div>
+                                  <h3 className="text-xl font-black text-ocean-950">Configurações Globais</h3>
+                                  <p className="text-sm text-slate-400 font-medium">Controle os parâmetros gerais do sistema Lagos GO.</p>
+                              </div>
+                          </div>
+
+                          <div className="space-y-6">
+                              <div className="space-y-4">
+                                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                      WhatsApp de Vendas (Consultor)
+                                  </label>
+                                  <div className="relative">
+                                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                          <MessageCircle size={18} />
+                                      </div>
+                                      <input 
+                                          className="w-full bg-slate-50 border border-slate-200 pl-12 pr-4 py-5 rounded-2xl font-bold text-sm outline-none focus:ring-4 focus:ring-ocean-500/10 transition-all"
+                                          placeholder="Ex: 5522998765432"
+                                          value={globalSettings.salesWhatsapp}
+                                          onChange={(e) => setGlobalSettings({ ...globalSettings, salesWhatsapp: e.target.value.replace(/\D/g, '') })}
+                                      />
+                                  </div>
+                                  <p className="text-[10px] text-slate-500 font-medium leading-relaxed px-1">
+                                      O número deve conter o código do país (Brasil = 55), o DDD e o número completo. 
+                                      <br />Apenas números, sem parênteses ou traços.
+                                  </p>
+                              </div>
+
+                              <button 
+                                  onClick={async () => {
+                                      setActionLoading('saving_settings');
+                                      try {
+                                          await saveGlobalSettings(globalSettings);
+                                          notify('success', 'Configurações salvas com sucesso!');
+                                      } catch (err) {
+                                          notify('error', 'Erro ao salvar configurações.');
+                                      } finally {
+                                          setActionLoading(null);
+                                      }
+                                  }}
+                                  disabled={actionLoading === 'saving_settings'}
+                                  className="w-full py-6 bg-ocean-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-xl shadow-ocean-600/20 hover:bg-ocean-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                              >
+                                  {actionLoading === 'saving_settings' ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                                  Salvar Configurações
+                              </button>
+                          </div>
+                      </div>
+
+                      <div className="bg-ocean-50 border border-ocean-100 p-8 rounded-[2.5rem] flex items-start gap-4">
+                          <Info className="text-ocean-600 shrink-0 mt-1" size={20} />
+                          <div>
+                              <h4 className="font-black text-ocean-950 text-sm uppercase tracking-tight mb-1">Dica de Segurança</h4>
+                              <p className="text-xs text-ocean-700 font-medium leading-relaxed">
+                                  Certifique-se de que o número informado possui uma conta de WhatsApp Business ativa para passar mais credibilidade aos novos lojistas.
+                              </p>
+                          </div>
+                      </div>
                   </div>
               )}
           </div>

@@ -18,7 +18,7 @@ const GuideSplash = () => (
             <div className="relative w-24 h-24 bg-white rounded-3xl shadow-xl border-4 border-ocean-50 flex items-center justify-center mx-auto">
                 <Compass size={48} className="text-ocean-600 animate-[spin_4s_linear_infinite]" />
             </div>
-            <h2 className="text-xl font-bold text-ocean-950 mt-6 animate-pulse">Explorando o Rio...</h2>
+            <h2 className="text-xl font-bold text-ocean-950 mt-6 animate-pulse">Explorando os Lagos...</h2>
             <p className="text-slate-400 text-xs mt-2 font-medium">Sincronizando guia comercial</p>
         </div>
     </div>
@@ -46,7 +46,7 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   const [onlyOpen, setOnlyOpen] = useState(false);
   const [nearby, setNearby] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [currentLocationName, setCurrentLocationName] = useState('Rio de Janeiro');
+  const [currentLocationName, setCurrentLocationName] = useState('Região dos Lagos');
   const [allCoupons, setAllCoupons] = useState<any[]>([]);
   const businessesWithCoupons = React.useMemo(() => {
     const activeCoupons = allCoupons.filter(c => c.active);
@@ -186,10 +186,10 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
         const isCity = cities.some(c => c.id === selectedLocation);
         if (isCity) {
             result = result.filter(b => b.cityId === selectedLocation);
-            setCurrentLocationName(cities.find(c => c.id === selectedLocation)?.name || 'Rio de Janeiro');
+            setCurrentLocationName(cities.find(c => c.id === selectedLocation)?.name || 'Região dos Lagos');
         } else {
             result = result.filter(b => b.neighborhoodId === selectedLocation);
-            setCurrentLocationName(neighborhoods.find(n => n.id === selectedLocation)?.name || 'Rio de Janeiro');
+            setCurrentLocationName(neighborhoods.find(n => n.id === selectedLocation)?.name || 'Região dos Lagos');
         }
     } else if (!nearby) {
         setCurrentLocationName('Todas as Regiões');

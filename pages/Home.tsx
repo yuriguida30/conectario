@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, ChevronDown, ChevronRight, Gem, ArrowRight, Loader2, Utensils, Bed, Anchor, ShoppingBag, Star, Calendar, Map, Layers, Ticket } from 'lucide-react';
 import { Coupon, User, AppCategory, BusinessProfile, BlogPost, Collection, FeaturedConfig, HomeHighlight } from '../types';
+import { SEO } from '../components/SEO';
 import { CouponCard } from '../components/CouponCard';
 import { CouponModal } from '../components/CouponModal';
 import { getCoupons, redeemCoupon, getCategories, getBusinesses, getBlogPosts, getCollections, getFeaturedConfig, identifyNeighborhood, checkIfOpen, getHomeHighlights } from '../services/dataService';
@@ -156,6 +157,10 @@ export const Home: React.FC<HomeProps> = ({ currentUser, onNavigate }) => {
 
   return (
     <div className="pb-28 bg-slate-50 min-h-screen">
+      <SEO 
+        title="O Guia Oficial da Região dos Lagos" 
+        description="Descubra o melhor da Região dos Lagos com o Lagos GO. Cupons exclusivos, melhores restauraurantes, hotéis e notícias locais de Cabo Frio, Búzios e Arraial do Cabo."
+      />
       
       {/* Top Header - Location */}
       <div className="sticky top-0 md:top-16 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm transition-all duration-300">

@@ -139,6 +139,7 @@ export interface SavingsRecord {
   companyName?: string;
   expiryDate?: string;
   code?: string;
+  verificationId?: string;
 }
 
 export interface Coupon {
@@ -167,6 +168,19 @@ export interface Coupon {
   maxRedemptions?: number;
   currentRedemptions?: number;
   limitPerUser?: number;
+}
+
+export interface CouponRedemption {
+  id: string;
+  userId: string;
+  userName: string;
+  couponId: string;
+  companyId: string;
+  couponTitle: string;
+  amountSaved: number;
+  redeemedAt: string;
+  status: 'PENDING' | 'USED' | 'EXPIRED';
+  verificationCode: string;
 }
 
 export interface Subcategory {
@@ -290,12 +304,19 @@ export interface FeaturedConfig {
   buttonText: string;
 }
 
+export interface AppGlobalSettings {
+  salesWhatsapp: string;
+  supportWhatsapp?: string;
+  emailContact?: string;
+}
+
 export interface PaymentSettings {
   isPaymentActive: boolean;
   isTestMode: boolean; // PagBank Sandbox
   isDirectPaymentTest: boolean; // Direct bypass for testing
   pagbankToken?: string;
   pagbankWebhookSecret?: string;
+  salesWhatsapp?: string; // Adicionado aqui também por conveniência se preferir usar PaymentSettings
 }
 
 export const PROTECTED_CATEGORIES = ['Gastronomia', 'Hospedagem', 'Comércio', 'Serviços'];

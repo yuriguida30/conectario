@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNotification } from '../components/NotificationSystem';
 import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood, AppCategory } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusinessPermanently, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview, updateUser, getPaymentSettings, savePaymentSettings } from '../services/dataService';
+import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusiness, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview, updateUser, getPaymentSettings, savePaymentSettings, getRedemptionsByBusiness, validateRedemption } from '../services/dataService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
   Settings, ChevronLeft, Save, Trash2, X,
   BarChart3, CheckCircle2, DollarSign, 
   TrendingUp, Share2, MousePointer2, PieChart as PieIcon,
   Navigation, Utensils, Instagram, Share, Globe, ShoppingCart, CalendarDays, Phone, MapPin, Check, Clock, MessageCircle, Layers, Zap,
-  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool, Users, Image as ImageIcon, CreditCard, LogIn
+  Mail, User as UserIcon, ShieldAlert, ShieldCheck, UserX, Key, Lock, Layout, ShoppingBag, PenTool, Users, Image as ImageIcon, CreditCard, LogIn, QrCode
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, BarChart, Bar, Legend } from 'recharts';
 import { ImageUpload } from '../components/ImageUpload';
@@ -23,9 +23,11 @@ const COLORS = ['#0ea5e9', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899'
 
 export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: string, params?: any) => void; onLogout: () => void }> = ({ currentUser, onNavigate, onLogout }) => {
   const { notify, confirm } = useNotification();
-  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS' | 'COLLECTIONS' | 'REVIEWS' | 'MY_PLAN' | 'PAYMENT_SETTINGS'>('HOME');
+  const [view, setView] = useState<'HOME' | 'COUPONS' | 'PROFILE' | 'CREATE_COUPON' | 'MENU' | 'CATEGORIES' | 'REQUESTS' | 'BUSINESSES' | 'CREATE_PLACE' | 'PLANS' | 'HIGHLIGHTS' | 'LOCATIONS' | 'USERS' | 'COLLECTIONS' | 'REVIEWS' | 'MY_PLAN' | 'PAYMENT_SETTINGS' | 'REDEMPTIONS'>('HOME');
   const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ isPaymentActive: false, isTestMode: true, isDirectPaymentTest: true });
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [redemptions, setRedemptions] = useState<any[]>([]);
+  const [isValidatingRedemption, setIsValidatingRedemption] = useState(false);
   const [myBusiness, setMyBusiness] = useState<BusinessProfile | null>(null);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -174,6 +176,15 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   }, [currentUser]);
 
   useEffect(() => {
+    if (view === 'REDEMPTIONS') {
+        const busId = myBusiness?.id || (currentUser.role === UserRole.COMPANY ? currentUser.id : '');
+        if (busId) {
+            getRedemptionsByBusiness(busId).then(setRedemptions);
+        }
+    }
+  }, [view, myBusiness, currentUser]);
+
+  useEffect(() => {
     // Check for payment status in URL
     const params = new URLSearchParams(window.location.search);
     const status = params.get('status');
@@ -248,6 +259,23 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
         notify('error', "Erro ao salvar alterações. Tente novamente.");
     } finally {
         setIsSaving(false);
+    }
+  };
+
+  const handleValidateRedemptionAction = async (redemptionId: string, verificationCode: string) => {
+    setIsValidatingRedemption(true);
+    try {
+        await validateRedemption(redemptionId, verificationCode);
+        notify('success', "Cupom validado com sucesso!");
+        const busId = myBusiness?.id || (currentUser.role === UserRole.COMPANY ? currentUser.id : '');
+        if (busId) {
+            const rdms = await getRedemptionsByBusiness(busId);
+            setRedemptions(rdms);
+        }
+    } catch (error: any) {
+        notify('error', error.message || "Erro ao validar cupom.");
+    } finally {
+        setIsValidatingRedemption(false);
     }
   };
 
@@ -559,7 +587,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                       </div>
 
                       <div className="bg-white p-6 md:p-8 rounded-[2rem] md:rounded-[3rem] border border-slate-100 shadow-sm">
-                          <h3 className="text-lg md:text-xl font-black text-ocean-950 mb-4 md:mb-6">Bem-vindo, Super Admin</h3>
+                          <div className="flex justify-between items-center mb-6">
+                              <h3 className="text-lg md:text-xl font-black text-ocean-950">Bem-vindo, Super Admin</h3>
+                              {allBusinesses.filter(b => b.status === 'PENDING').length > 0 && (
+                                  <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-2 animate-pulse">
+                                      <ShieldAlert size={12} /> {allBusinesses.filter(b => b.status === 'PENDING').length} EMPRESAS PENDENTES
+                                  </span>
+                              )}
+                          </div>
                           <p className="text-sm md:text-base text-slate-500 leading-relaxed">
                               Este é o seu painel de controle mestre. Aqui você pode gerenciar as solicitações de novas empresas, 
                               ajustar as categorias do sistema e monitorar o crescimento da plataforma.
@@ -589,6 +624,34 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                       {/* KPIs DE CONVERSÃO */}
                       <div className="lg:col-span-8 space-y-6 md:space-y-8">
                           {/* WELCOME / GETTING STARTED FOR NEW BUSINESSES */}
+                          {myBusiness?.status === 'PENDING' && (
+                              <div className="bg-amber-500 p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] text-white shadow-2xl relative overflow-hidden mb-6 md:mb-8 animate-in zoom-in-95">
+                                  <div className="relative z-10">
+                                      <div className="flex items-center gap-3 mb-4 md:mb-6">
+                                          <div className="w-10 h-10 md:w-12 md:h-12 bg-white/20 backdrop-blur-md rounded-xl md:rounded-2xl flex items-center justify-center">
+                                              <Clock size={24} className="text-white md:w-[28px] md:h-[28px]" />
+                                          </div>
+                                          <h2 className="text-xl md:text-3xl font-black tracking-tight">Seu perfil está em análise! ⌛</h2>
+                                      </div>
+                                      <p className="text-amber-50 font-medium text-sm md:text-lg mb-6 md:mb-8 max-w-xl leading-relaxed">
+                                          Nossa equipe recebeu suas informações e está revisando os dados. 
+                                          Sua empresa aparecerá automaticamente no Guia Lagos GO assim que for aprovada!
+                                      </p>
+                                      <div className="flex items-center gap-4">
+                                          <div className="flex -space-x-2">
+                                              {[1, 2, 3].map(i => (
+                                                  <div key={i} className="w-8 h-8 rounded-full border-2 border-amber-500 bg-amber-100 flex items-center justify-center text-amber-600 font-black text-[10px]">
+                                                      {i}
+                                                  </div>
+                                              ))}
+                                          </div>
+                                          <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-amber-100">Processo de verificação ativado</p>
+                                      </div>
+                                  </div>
+                                  <div className="absolute top-0 right-0 w-64 h-64 md:w-96 md:h-96 bg-white/10 rounded-full -mr-32 -mt-32 md:-mr-48 md:-mt-48 blur-3xl"></div>
+                              </div>
+                          )}
+
                           {coupons.length === 0 && (
                               <div className="bg-gradient-to-br from-ocean-600 to-ocean-800 p-6 md:p-10 rounded-[2rem] md:rounded-[3rem] text-white shadow-2xl relative overflow-hidden animate-in fade-in slide-in-from-top-4 duration-700">
                                   <div className="relative z-10">
@@ -1496,8 +1559,20 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                 </h3>
                                 {biz.isBlocked && <span className="bg-red-500 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase">Inativa</span>}
                                 {biz.status === 'PENDING' && (
-                                    <span className="bg-amber-100 text-amber-600 text-[8px] font-black px-2 py-0.5 rounded-full uppercase flex items-center gap-1">
-                                        <ShieldAlert size={10} /> Pendente
+                                    <span className="bg-amber-100 text-amber-600 text-[10px] font-black px-3 py-1 rounded-full uppercase flex items-center gap-1 animate-pulse">
+                                        <ShieldAlert size={12} /> Pendente
+                                    </span>
+                                )}
+                                <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase ${
+                                    biz.plan === 'premium' ? 'bg-purple-100 text-purple-600' :
+                                    biz.plan === 'pro' ? 'bg-ocean-100 text-ocean-600' :
+                                    'bg-slate-100 text-slate-500'
+                                }`}>
+                                    Plano {biz.plan?.toUpperCase() || 'FREE'}
+                                </span>
+                                {biz.isClaimed && (
+                                    <span className="bg-emerald-100 text-emerald-600 text-[10px] font-black px-3 py-1 rounded-full uppercase">
+                                        Reivindicada
                                     </span>
                                 )}
                             </div>
@@ -1592,7 +1667,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                         <button 
                             onClick={async () => {
                                 if (await confirm({ title: 'EXCLUSÃO PERMANENTE', message: "ATENÇÃO: Esta ação é permanente e excluirá a empresa, o usuário e todos os seus cupons. Deseja continuar?" })) {
-                                    await deleteBusinessPermanently(biz.id);
+                                    await deleteBusiness(biz.id);
                                     refreshData();
                                 }
                             }}
@@ -1717,8 +1792,8 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                         <button 
                             onClick={async () => {
                                 if (await confirm({ title: 'Rejeitar Empresa', message: `Deseja rejeitar e excluir o cadastro de "${biz.name}"?` })) {
-                                    const { deleteBusinessPermanently } = await import('../services/dataService');
-                                    await deleteBusinessPermanently(biz.id);
+                                    const { deleteBusiness } = await import('../services/dataService');
+                                    await deleteBusiness(biz.id);
                                     notify('success', "Cadastro rejeitado e removido.");
                                     refreshData();
                                 }
@@ -2316,6 +2391,108 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
               isSaving={isSaving} 
               onBack={() => setView('HOME')} 
           />
+      )}
+
+      {view === 'REDEMPTIONS' && (
+          <div className="bg-white p-6 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 animate-in slide-in-from-bottom-6 space-y-8">
+              <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                      <button onClick={() => setView('HOME')} className="p-3 bg-slate-50 rounded-2xl text-slate-400 hover:text-ocean-600 transition-colors">
+                          <ChevronLeft size={20} />
+                      </button>
+                      <h2 className="text-2xl md:text-3xl font-black text-ocean-950 tracking-tight">Controle de Resgates</h2>
+                  </div>
+                  <div className="bg-ocean-50 px-4 py-2 rounded-full flex items-center gap-2">
+                       <CheckCircle2 size={16} className="text-ocean-600" />
+                       <span className="text-[10px] font-black text-ocean-600 uppercase">{redemptions.filter(r => r.status === 'USED').length} Validados</span>
+                  </div>
+              </div>
+
+              <div className="space-y-6">
+                  {redemptions.length === 0 ? (
+                      <div className="text-center py-20 bg-slate-50 rounded-[3rem] border border-dashed border-slate-200">
+                          <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-sm">
+                             <QrCode size={40} className="text-slate-300" />
+                          </div>
+                          <h3 className="text-xl font-black text-ocean-950 mb-2">Sem Resgates no Momento</h3>
+                          <p className="text-slate-400 text-sm max-w-xs mx-auto">Assim que seus clientes começarem a resgatar seus cupons, eles aparecerão aqui para validação.</p>
+                      </div>
+                  ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {[...redemptions].sort((a,b) => (b.redeemedAt || '').localeCompare(a.redeemedAt || '')).map(redemption => (
+                              <div key={redemption.id} className={`p-8 rounded-[2.5rem] border transition-all ${redemption.status === 'USED' ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-ocean-100 shadow-xl shadow-ocean-600/5 ring-1 ring-ocean-50'}`}>
+                                  <div className="flex justify-between items-start mb-6">
+                                      <div className="space-y-1">
+                                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{redemption.userName}</p>
+                                          <h3 className="font-black text-lg text-ocean-950 leading-tight">{redemption.couponTitle}</h3>
+                                      </div>
+                                      {redemption.status === 'USED' ? (
+                                          <div className="bg-green-100 text-green-600 p-2.5 rounded-2xl">
+                                              <Check size={20} />
+                                          </div>
+                                      ) : (
+                                          <div className="bg-amber-100 text-amber-600 p-2.5 rounded-2xl animate-pulse">
+                                              <Clock size={20} />
+                                          </div>
+                                      )}
+                                  </div>
+
+                                  <div className="space-y-4">
+                                      <div className="flex justify-between items-center text-xs">
+                                          <span className="text-slate-400 font-bold uppercase tracking-wider">Data</span>
+                                          <span className="font-black text-ocean-900">{new Date(redemption.redeemedAt).toLocaleDateString('pt-BR')}</span>
+                                      </div>
+                                      <div className="flex justify-between items-center text-xs pb-4 border-b border-slate-50">
+                                          <span className="text-slate-400 font-bold uppercase tracking-wider">Status</span>
+                                          <span className={`font-black uppercase tracking-widest px-2 py-1 rounded-lg text-[9px] ${redemption.status === 'USED' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                                              {redemption.status === 'USED' ? 'Utilizado' : 'Pendente'}
+                                          </span>
+                                      </div>
+                                      
+                                      {redemption.status === 'PENDING' && (
+                                          <div className="pt-2">
+                                              <p className="text-[10px] font-black text-ocean-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                                  <Key size={12} /> Código de Validação
+                                              </p>
+                                              <div className="flex items-center gap-2">
+                                                  <input 
+                                                      type="text" 
+                                                      maxLength={6}
+                                                      placeholder="6 dígitos"
+                                                      className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-3.5 text-lg font-mono font-black w-32 focus:ring-2 focus:ring-ocean-500 outline-none shadow-inner"
+                                                      id={`verify-${redemption.id}`}
+                                                  />
+                                                  <button 
+                                                      onClick={async () => {
+                                                          const input = document.getElementById(`verify-${redemption.id}`) as HTMLInputElement;
+                                                          if (input.value.length === 6) {
+                                                              await handleValidateRedemptionAction(redemption.id, input.value);
+                                                          } else {
+                                                              notify('error', "Insira o código de 6 dígitos.");
+                                                          }
+                                                      }}
+                                                      disabled={isValidatingRedemption}
+                                                      className="flex-1 bg-ocean-600 text-white font-black py-4 rounded-xl shadow-lg shadow-ocean-600/20 active:scale-95 transition-all text-xs uppercase tracking-widest disabled:opacity-50 h-full flex items-center justify-center font-bold"
+                                                  >
+                                                      {isValidatingRedemption ? <Loader2 className="animate-spin h-5 w-5" /> : "Validar"}
+                                                  </button>
+                                              </div>
+                                          </div>
+                                      )}
+                                      
+                                      {redemption.status === 'USED' && redemption.validatedAt && (
+                                          <div className="pt-2 text-[10px] text-slate-400 font-bold flex items-center gap-2">
+                                              <CheckCircle2 size={12} className="text-green-500" />
+                                              <span>Validado em {new Date(redemption.validatedAt).toLocaleString('pt-BR')}</span>
+                                          </div>
+                                      )}
+                                  </div>
+                              </div>
+                          ))}
+                      </div>
+                  )}
+              </div>
+          </div>
       )}
     </div>
   );

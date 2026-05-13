@@ -2,11 +2,11 @@
 import React, { useEffect, useState } from 'react';
 import { 
   ArrowLeft, Clock, MapPin, Phone, Instagram, Globe, 
-  MessageCircle, Share2, Loader2, Ticket, 
+  MessageCircle, Share2, Loader2, Ticket, Search,
   Star, Heart, Utensils, Navigation, X, ShoppingCart, CalendarDays, Building2, ShoppingBag,
   ChevronLeft, ChevronRight, Store
 } from 'lucide-react';
-import { Helmet } from 'react-helmet-async';
+import { SEO } from '../components/SEO';
 import { BusinessProfile, AMENITIES_LABELS, Coupon, User, PricingPlan, Review } from '../types';
 import { getBusinessById, getCoupons, getCurrentUser, toggleFavorite, incrementBusinessView, redeemCoupon, trackAction, checkIfOpen, createCompanyRequest, getPricingPlans, addReview, getReviewsByBusinessId, isSubscriptionExpired } from '../services/dataService';
 import { CouponCard } from '../components/CouponCard';
@@ -158,17 +158,64 @@ export const BusinessDetail: React.FC<{ businessId: string; onNavigate: (page: s
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-ocean-500" size={40}/></div>;
-  if (!business) return <div className="p-10 text-center">Empresa não encontrada.</div>;
+
+  if (!business) {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans">
+              <div className="max-w-md w-full text-center space-y-6">
+                  <div className="w-24 h-24 bg-ocean-100 rounded-full flex items-center justify-center mx-auto text-ocean-600 animate-bounce">
+                      <Search size={48} />
+                  </div>
+                  <div className="space-y-2">
+                      <h2 className="text-3xl font-black text-ocean-950">Empresa não encontrada</h2>
+                      <p className="text-slate-500 font-medium">O perfil que você está procurando não existe ou foi removido do Lagos GO.</p>
+                  </div>
+                  <button onClick={() => onNavigate('home')} className="w-full bg-ocean-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-ocean-200 hover:bg-ocean-700 transition-all flex items-center justify-center gap-2">
+                      <ArrowLeft size={20} /> VOLTAR AO INÍCIO
+                  </button>
+              </div>
+          </div>
+      );
+  }
+
+  // Handle Pending status for non-owners
+  const isOwner = currentUser && (currentUser.id === business.ownerId || currentUser.role === 'SUPER_ADMIN');
+  const isPending = business?.status === 'PENDING';
+
+  if (isPending && !isOwner) {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans">
+              <div className="max-w-md w-full bg-white p-8 md:p-12 rounded-[2.5rem] shadow-2xl border border-amber-100 text-center space-y-8 animate-in zoom-in-95">
+                  <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center mx-auto text-amber-600">
+                      <Clock size={48} />
+                  </div>
+                  <div className="space-y-4">
+                      <h2 className="text-3xl font-black text-amber-950 leading-tight">Perfil em Análise ⌛</h2>
+                      <p className="text-slate-600 font-medium text-lg leading-relaxed text-center">
+                          Esta empresa acabou de se cadastrar ou realizou edições importantes e está sendo revisada por nossa equipe.
+                      </p>
+                      <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                          <p className="text-amber-800 text-sm font-bold">
+                              Em breve ela estará disponível no Guia Lagos GO!
+                          </p>
+                      </div>
+                  </div>
+                  <button onClick={() => onNavigate('home')} className="w-full bg-amber-600 text-white font-black py-4 rounded-2xl shadow-xl shadow-amber-200 hover:bg-amber-700 transition-all flex items-center justify-center gap-2">
+                      <ArrowLeft size={20} /> VOLTAR AO GUIA
+                  </button>
+              </div>
+          </div>
+      );
+  }
 
   return (
     <div className={`bg-white min-h-screen pb-32 ${showMenuOverlay ? 'overflow-hidden' : ''}`}>
-        <Helmet>
-            <title>{business.name} | Guia Comercial</title>
-            <meta name="description" content={business.description.substring(0, 150) + '...'} />
-            <meta property="og:title" content={business.name} />
-            <meta property="og:description" content={business.description.substring(0, 150) + '...'} />
-            <meta property="og:image" content={business.coverImage} />
-        </Helmet>
+        <SEO 
+            title={business.name}
+            description={business.description.substring(0, 160)}
+            image={business.coverImage}
+            url={`/business/${businessId}`}
+        />
         <div className="relative h-[35vh] w-full bg-slate-900 flex items-center justify-center">
             {business.coverImage ? (
                 <img src={business.coverImage} className="w-full h-full object-cover opacity-80" alt={business.name} />

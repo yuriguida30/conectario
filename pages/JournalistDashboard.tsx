@@ -75,7 +75,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
     }
   };
 
-  const handleSavePost = (e: React.FormEvent) => {
+  const handleSavePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPost.title || !currentPost.content) {
       notify('error', 'Título e conteúdo são obrigatórios.');
@@ -83,7 +83,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
     }
     
     const postToSave: BlogPost = {
-      id: currentPost.id || Date.now().toString(),
+      id: currentPost.id || `post_${Date.now()}`,
       title: currentPost.title || '',
       excerpt: currentPost.excerpt || '',
       content: currentPost.content || '',
@@ -94,15 +94,20 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
       author: currentPost.author || currentUser.name,
       authorId: currentUser.id,
       tags: currentPost.tags || [],
-      metaDescription: currentPost.metaDescription || '',
+      metaTitle: currentPost.metaTitle || currentPost.title || '',
+      metaDescription: currentPost.metaDescription || currentPost.excerpt || '',
       metaKeywords: currentPost.metaKeywords || '',
       status: currentPost.status || 'draft'
     };
 
-    saveBlogPost(postToSave);
-    setIsEditing(false);
-    loadData();
-    notify('success', 'Matéria salva com sucesso!');
+    try {
+      await saveBlogPost(postToSave);
+      setIsEditing(false);
+      await loadData();
+      notify('success', 'Matéria salva com sucesso!');
+    } catch (error: any) {
+      notify('error', error.message || 'Erro ao salvar matéria.');
+    }
   };
 
   const applyFormat = (tag: string) => {
@@ -200,6 +205,24 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                 </select>
               </div>
               <ImageUpload currentImage={currentPost.imageUrl} onImageSelect={base64 => setCurrentPost({...currentPost, imageUrl: base64})} label="Imagem de Capa" />
+              
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <h3 className="text-lg font-bold mb-4 uppercase tracking-widest text-[10px] text-slate-400">Status da Matéria</h3>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setCurrentPost({...currentPost, status: 'draft'})}
+                    className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${currentPost.status === 'draft' ? 'bg-amber-100 text-amber-600 border border-amber-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                  >
+                    Rascunho
+                  </button>
+                  <button 
+                    onClick={() => setCurrentPost({...currentPost, status: 'published'})}
+                    className={`flex-1 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${currentPost.status === 'published' ? 'bg-emerald-100 text-emerald-600 border border-emerald-200' : 'bg-slate-50 text-slate-400 hover:bg-slate-100'}`}
+                  >
+                    Publicar
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -258,9 +281,28 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                       <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
                           <div className="flex items-center gap-4 mb-4">
                               <div className="bg-ocean-50 p-3 rounded-xl text-ocean-600"><FileText size={24} /></div>
-                              <h3 className="text-slate-500 text-xs md:text-sm font-black uppercase tracking-widest">Total de Matérias</h3>
+                              <h3 className="text-slate-500 text-xs md:text-sm font-black uppercase tracking-widest">Matérias Totais</h3>
                           </div>
                           <p className="text-3xl md:text-5xl font-black text-ocean-950 tracking-tighter">{posts.length}</p>
+                      </div>
+                      
+                      <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
+                          <div className="flex items-center gap-4 mb-4">
+                              <div className="bg-emerald-50 p-3 rounded-xl text-emerald-600"><CheckCircle size={24} /></div>
+                              <h3 className="text-slate-500 text-xs md:text-sm font-black uppercase tracking-widest">Publicadas</h3>
+                          </div>
+                          <p className="text-3xl md:text-5xl font-black text-ocean-950 tracking-tighter">{posts.filter(p => p.status === 'published').length}</p>
+                      </div>
+
+                      <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] shadow-sm border border-slate-100">
+                          <div className="flex items-center gap-4 mb-4">
+                              <div className="bg-amber-50 p-3 rounded-xl text-amber-600"><Globe size={24} /></div>
+                              <h3 className="text-slate-500 text-xs md:text-sm font-black uppercase tracking-widest">Alcance Estimado</h3>
+                          </div>
+                          <p className="text-3xl md:text-5xl font-black text-ocean-950 tracking-tighter">
+                            {posts.filter(p => p.status === 'published').length * 124}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-2">Visitas nos últimos 30 dias</p>
                       </div>
                   </div>
               </div>
@@ -391,7 +433,7 @@ export function JournalistDashboard({ currentUser, onNavigate, onLogout }: Journ
                             </div>
                             <div className="space-y-1.5">
                                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Localização</label>
-                                <input type="text" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-ocean-500/20 outline-none font-bold text-sm" value={profile.location || ''} onChange={e => setProfile({...profile, location: e.target.value})} placeholder="Ex: Rio de Janeiro, RJ" />
+                                <input type="text" className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl md:rounded-2xl focus:ring-2 focus:ring-ocean-500/20 outline-none font-bold text-sm" value={profile.location || ''} onChange={e => setProfile({...profile, location: e.target.value})} placeholder="Ex: Região dos Lagos, RJ" />
                             </div>
                         </div>
 

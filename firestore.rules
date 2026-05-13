@@ -63,8 +63,38 @@ service cloud.firestore {
     match /coupons/{couponId} {
       allow read: if true;
       allow create: if isAuthenticated() && (isCompany() || isAdmin());
-      allow update: if isAuthenticated() && (isOwner(request.resource.data.companyId) || isAdmin());
+      // Permitir que usuários incrementem o contador ao resgatar
+      allow update: if isAuthenticated() && (
+        isOwner(resource.data.companyId) || 
+        isAdmin() ||
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentRedemptions']))
+      );
       allow delete: if isAuthenticated() && (isOwner(resource.data.companyId) || isAdmin());
+    }
+
+    // ===============================================================
+    // Redemptions Collection (🔒 Segurança Refinada)
+    // ===============================================================
+    
+    match /redemptions/{redemptionId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId || 
+        request.auth.uid == resource.data.companyId || 
+        isAdmin()
+      );
+      allow create: if isAuthenticated() && (
+        request.auth.uid == request.resource.data.userId &&
+        request.resource.data.status == 'PENDING' &&
+        request.resource.data.verificationCode is string &&
+        exists(/databases/$(database)/documents/coupons/$(request.resource.data.couponId))
+      );
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == resource.data.companyId && 
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'validatedAt']) &&
+         request.resource.data.status == 'USED') ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
     }
     
     // ===============================================================

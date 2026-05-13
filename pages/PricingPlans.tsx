@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, PricingPlan, UserRole } from '../types';
-import { getPricingPlans, updateUser, getBusinesses, updateBusinessPlan, getAllUsers, getPaymentSettings } from '../services/dataService';
-import { Check, ArrowRight, Star, Shield, Zap, Loader2, CreditCard, Lock, Calendar, Info, X, Gem, Compass } from 'lucide-react';
+import { getPricingPlans, updateUser, getBusinesses, updateBusinessPlan, getAllUsers, getPaymentSettings, getGlobalSettings } from '../services/dataService';
+import { Check, ArrowRight, MessageCircle, Star, Shield, Zap, Loader2, CreditCard, Lock, Calendar, Info, X, Gem, Compass } from 'lucide-react';
 import { useNotification } from '../components/NotificationSystem';
 
 interface PricingPlansProps {
@@ -10,138 +10,10 @@ interface PricingPlansProps {
     onNavigate: (page: string) => void;
 }
 
-const PaymentModal: React.FC<{ 
-    plan: PricingPlan; 
-    onClose: () => void; 
-    onConfirm: () => void;
-    isTrial?: boolean;
-}> = ({ plan, onClose, onConfirm, isTrial }) => {
-    const [loading, setLoading] = useState(false);
-    const [cardName, setCardName] = useState('');
-    const [cardNumber, setCardNumber] = useState('');
-    const [expiry, setExpiry] = useState('');
-    const [cvv, setCvv] = useState('');
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setTimeout(() => {
-            setLoading(false);
-            onConfirm();
-        }, 2000);
-    };
-
-    return (
-        <div className="fixed inset-0 bg-ocean-950/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-[2.5rem] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in duration-300">
-                <div className="bg-ocean-600 p-8 text-white relative">
-                    <button onClick={onClose} className="absolute top-6 right-6 hover:rotate-90 transition-transform">
-                        <X size={24} />
-                    </button>
-                    <h2 className="text-3xl font-black mb-2">Finalizar Assinatura</h2>
-                    <p className="text-ocean-100 font-medium">
-                        {isTrial ? `Ative seus ${plan.trialDays || 30} dias grátis agora` : `Plano ${plan.name} - R$ ${plan.price}/${plan.period === 'monthly' ? 'mês' : 'ano'}`}
-                    </p>
-                </div>
-
-                <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                    <div className="bg-ocean-50 rounded-2xl p-4 flex items-start gap-3 border border-ocean-100">
-                        <Info size={20} className="text-ocean-600 shrink-0 mt-0.5" />
-                        <p className="text-xs text-ocean-800 font-medium leading-relaxed">
-                            {isTrial 
-                                ? `Você não será cobrado hoje. Após os ${plan.trialDays || 30} dias, a assinatura será renovada automaticamente. Cancele a qualquer momento.`
-                                : 'Sua assinatura será ativada imediatamente após a confirmação do pagamento.'}
-                        </p>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Nome no Cartão</label>
-                            <div className="relative">
-                                <input 
-                                    required
-                                    type="text" 
-                                    value={cardName}
-                                    onChange={(e) => setCardName(e.target.value)}
-                                    placeholder="JOÃO DA SILVA"
-                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm font-bold focus:border-ocean-500 outline-none transition-all uppercase"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Número do Cartão</label>
-                            <div className="relative">
-                                <input 
-                                    required
-                                    type="text" 
-                                    value={cardNumber}
-                                    onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1 '))}
-                                    maxLength={19}
-                                    placeholder="0000 0000 0000 0000"
-                                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm font-bold focus:border-ocean-500 outline-none transition-all"
-                                />
-                                <CreditCard size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300" />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Validade</label>
-                                <div className="relative">
-                                    <input 
-                                        required
-                                        type="text" 
-                                        value={expiry}
-                                        onChange={(e) => setExpiry(e.target.value.replace(/\D/g, '').replace(/(\d{2})(?=\d)/g, '$1/'))}
-                                        maxLength={5}
-                                        placeholder="MM/AA"
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm font-bold focus:border-ocean-500 outline-none transition-all"
-                                    />
-                                    <Calendar size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300" />
-                                </div>
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">CVV</label>
-                                <div className="relative">
-                                    <input 
-                                        required
-                                        type="text" 
-                                        value={cvv}
-                                        onChange={(e) => setCvv(e.target.value.replace(/\D/g, ''))}
-                                        maxLength={3}
-                                        placeholder="123"
-                                        className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl px-4 py-3 text-sm font-bold focus:border-ocean-500 outline-none transition-all"
-                                    />
-                                    <Lock size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <button 
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-ocean-600 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-ocean-700 transition-all shadow-xl shadow-ocean-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                        {loading ? <Loader2 className="animate-spin" size={20} /> : <Shield size={20} />}
-                        {isTrial ? 'Ativar Período Grátis' : 'Confirmar Pagamento'}
-                    </button>
-
-                    <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-wider">
-                        Pagamento 100% seguro e criptografado
-                    </p>
-                </form>
-            </div>
-        </div>
-    );
-};
-
 export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavigate }) => {
     const { notify } = useNotification();
     const [plans, setPlans] = useState<PricingPlan[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selecting, setSelecting] = useState<PricingPlan | null>(null);
     const [isTrialSelection, setIsTrialSelection] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
 
@@ -164,242 +36,47 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
             return;
         }
 
-        if (isTrial || plan.price === 0) {
-            setSelecting(plan);
-            setIsTrialSelection(isTrial);
-            return;
-        }
-
         setLoading(true);
         try {
-            // Check payment settings first
-            const settings = await getPaymentSettings();
+            const settings = await getGlobalSettings();
+            const whatsapp = settings.salesWhatsapp || '5522998765432';
             
-            if (settings.isDirectPaymentTest) {
-                console.log("[TEST MODE] Bypassing PagBank and activating plan directly");
-                
-                // Update User
-                const updatedUser: User = {
-                    ...currentUser,
-                    role: UserRole.COMPANY,
-                    plan: plan.name,
-                    paymentSubscriptionStatus: 'active',
-                    maxCoupons: plan.maxCoupons,
-                    permissions: {
-                        ...(currentUser.permissions || {}),
-                        canCreateBusiness: true,
-                        canManageBusiness: true,
-                        canCreateCoupons: true
-                    }
-                };
-                await updateUser(updatedUser);
-                
-                // Update Business if exists
-                const businesses = await getBusinesses();
-                const userBusiness = businesses.find(b => b.id === currentUser.id);
-                if (userBusiness) {
-                    await updateBusinessPlan(userBusiness.id, plan.id);
-                }
-                
-                notify('success', 'Plano ativado com sucesso (Modo de Teste)!');
-                onNavigate('admin-dashboard');
-                return;
-            }
-
-            // Direct redirect to PagBank for paid plans
-            const response = await fetch('/api/create-checkout-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    planId: plan.id,
-                    planName: plan.name,
-                    price: plan.price,
-                    period: plan.period,
-                    businessId: currentUser.id,
-                    userId: currentUser.id,
-                    userEmail: currentUser.email,
-                    userName: currentUser.name + (currentUser.surname ? ' ' + currentUser.surname : ''),
-                }),
-            });
-
-            const session = await response.json();
-
-            if (session.error) {
-                notify('error', `Erro no pagamento: ${session.error}`);
+            const message = `Olá! Tenho interesse no Plano ${plan.name} (${isTrial ? 'Período de Teste' : 'Assinatura'}) do Lagos GO para minha empresa. Meu e-mail de cadastro é: ${currentUser.email}`;
+            const encodedMessage = encodeURIComponent(message);
+            const whatsappUrl = `https://wa.me/${whatsapp}?text=${encodedMessage}`;
+            
+            // Simular um pequeno delay para feedback visual
+            setTimeout(() => {
+                window.open(whatsappUrl, '_blank');
                 setLoading(false);
-                return;
-            }
-
-            if (session.url) {
-                window.location.href = session.url;
-                return;
-            }
+                notify('success', 'Redirecionando para o consultor no WhatsApp...');
+            }, 800);
+            
         } catch (error) {
-            console.error("PagBank Checkout Error:", error);
-            notify('error', "Erro ao iniciar checkout. Verifique se o servidor está rodando.");
+            console.error("WhatsApp Redirect Error:", error);
+            notify('error', "Erro ao iniciar contato. Tente novamente.");
             setLoading(false);
         }
     };
 
-    const confirmPlan = async () => {
-        if (!selecting || !currentUser) return;
-        
+    const handleTalkToConsultant = async () => {
+        setLoading(true);
         try {
-            if (!isTrialSelection && selecting.price > 0) {
-                // Check payment settings first
-                const settings = await getPaymentSettings();
-                
-                if (settings.isDirectPaymentTest) {
-                    console.log("[TEST MODE] Bypassing PagBank and activating plan directly in confirmPlan");
-                    
-                    const updatedUser: User = {
-                        ...currentUser,
-                        role: UserRole.COMPANY,
-                        plan: selecting.name,
-                        paymentSubscriptionStatus: 'active',
-                        maxCoupons: selecting.maxCoupons,
-                        permissions: {
-                            ...(currentUser.permissions || {}),
-                            canCreateBusiness: true,
-                            canManageBusiness: true,
-                            canCreateCoupons: true
-                        }
-                    };
-                    await updateUser(updatedUser);
-                    
-                    // Check if user already has a business
-                    const businesses = await getBusinesses();
-                    const allUsers = await getAllUsers();
-                    const myUserIds = allUsers.filter(u => u.email === currentUser.email).map(u => u.id);
-                    const userBusiness = businesses.find(b => myUserIds.includes(b.id));
-                    
-                    if (userBusiness) {
-                        await updateBusinessPlan(userBusiness.id, selecting.id);
-                    }
-
-                    setSelecting(null);
-                    setShowSuccess(true);
-                    
-                    setTimeout(() => {
-                        if (userBusiness) {
-                            onNavigate('admin-dashboard');
-                        } else {
-                            onNavigate('create-business');
-                        }
-                    }, 3000);
-                    return;
-                }
-
-                // Redirect to PagBank Checkout
-                const response = await fetch('/api/create-checkout-session', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        planId: selecting.id,
-                        planName: selecting.name,
-                        price: selecting.price,
-                        period: selecting.period,
-                        businessId: currentUser.id,
-                        userId: currentUser.id,
-                        userEmail: currentUser.email,
-                        userName: currentUser.name + (currentUser.surname ? ' ' + currentUser.surname : ''),
-                    }),
-                });
-
-                const session = await response.json();
-
-                if (session.error) {
-                    notify('error', `Erro no pagamento: ${session.error}`);
-                    return;
-                }
-
-                if (session.url) {
-                    window.location.href = session.url;
-                    return;
-                }
-            }
-
-            const updatedUser: User = {
-                ...currentUser,
-                role: UserRole.COMPANY,
-                plan: selecting.name,
-                maxCoupons: selecting.maxCoupons,
-                permissions: {
-                    ...(currentUser.permissions || {}),
-                    canCreateBusiness: true,
-                    canManageBusiness: true,
-                    canCreateCoupons: true
-                }
-            };
-            await updateUser(updatedUser);
-            
-            // Check if user already has a business
-            const businesses = await getBusinesses();
-            const allUsers = await getAllUsers();
-            const myUserIds = allUsers.filter(u => u.email === currentUser.email).map(u => u.id);
-            const userBusiness = businesses.find(b => myUserIds.includes(b.id));
-            
-            if (userBusiness) {
-                await updateBusinessPlan(userBusiness.id, selecting.id);
-            }
-
-            setSelecting(null);
-            setShowSuccess(true);
-            
-            setTimeout(() => {
-                if (userBusiness) {
-                    onNavigate('admin-dashboard');
-                } else {
-                    onNavigate('create-business');
-                }
-            }, 3000);
-        } catch (error: any) {
-            console.error("Erro ao processar assinatura:", error);
-            let message = "Erro ao processar assinatura.";
-            
-            try {
-                const errData = JSON.parse(error.message);
-                if (errData.error.includes('insufficient permissions')) {
-                    message = "Erro de permissão no Firebase. Verifique as regras de segurança do Firestore.";
-                }
-            } catch (e) {
-                // Not a JSON error or other issue
-            }
-            
-            notify('error', message);
+            const settings = await getGlobalSettings();
+            const whatsapp = settings.salesWhatsapp || '5522998765432';
+            const message = `Olá! Vi o Lagos GO e gostaria de falar com um consultor sobre um plano personalizado para minha empresa.`;
+            const whatsappUrl = `https://wa.me/${whatsapp}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        } catch (e) {
+            notify('error', 'Erro ao abrir WhatsApp');
         }
+        setLoading(false);
     };
 
-    if (loading) {
+    if (loading && plans.length === 0) {
         return (
             <div className="min-h-screen bg-slate-50 flex items-center justify-center">
                 <Loader2 className="animate-spin text-ocean-600" size={48} />
-            </div>
-        );
-    }
-
-    if (showSuccess) {
-        return (
-            <div className="min-h-screen bg-ocean-950 flex items-center justify-center p-4">
-                <div className="text-center space-y-8 animate-in zoom-in-95 duration-700">
-                    <div className="w-24 h-24 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/40">
-                        <Check size={56} strokeWidth={3} />
-                    </div>
-                    <div className="space-y-4">
-                        <h2 className="text-5xl font-black text-white tracking-tight">Assinatura Confirmada!</h2>
-                        <p className="text-ocean-300 text-xl font-medium max-w-md mx-auto">
-                            Seja bem-vindo ao Lagos GO Empresas. Prepare-se para transformar seu negócio.
-                        </p>
-                    </div>
-                    <div className="flex items-center justify-center gap-3 text-ocean-400 font-bold uppercase tracking-widest text-xs">
-                        <Loader2 className="animate-spin" size={16} />
-                        Redirecionando para o setup da empresa...
-                    </div>
-                </div>
             </div>
         );
     }
@@ -491,15 +168,15 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
                                     onClick={() => handleSelectPlan(plan, false)}
                                     className={`w-full py-6 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-3 ${plan.isFeatured ? 'bg-ocean-600 text-white shadow-2xl shadow-ocean-600/30 hover:bg-ocean-700' : 'bg-slate-100 text-ocean-950 hover:bg-slate-200'}`}
                                 >
-                                    <Zap size={18} />
-                                    Assinar Agora
+                                    <MessageCircle size={18} />
+                                    Assinar Via WhatsApp
                                 </button>
                                 {plan.hasFreeTrial && (
                                     <button 
                                         onClick={() => handleSelectPlan(plan, true)}
                                         className="w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all text-emerald-600 hover:bg-emerald-50 border border-emerald-100"
                                     >
-                                        Ou comece com {plan.trialDays || 30} dias grátis
+                                        Ou venha testar por {plan.trialDays || 30} dias
                                     </button>
                                 )}
                             </div>
@@ -515,7 +192,10 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
                         <h2 className="text-4xl font-black text-ocean-950 tracking-tight leading-none">Precisa de um plano personalizado?</h2>
                         <p className="text-slate-500 font-medium text-lg">Fale com nosso time comercial para soluções sob medida para grandes redes e franquias.</p>
                     </div>
-                    <button className="bg-ocean-950 text-white px-12 py-6 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shrink-0 shadow-xl shadow-ocean-950/20">
+                    <button 
+                        onClick={handleTalkToConsultant}
+                        className="bg-ocean-950 text-white px-12 py-6 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shrink-0 shadow-xl shadow-ocean-950/20"
+                    >
                         Falar com Consultor
                     </button>
                 </div>
@@ -539,15 +219,6 @@ export const PricingPlans: React.FC<PricingPlansProps> = ({ currentUser, onNavig
                     </div>
                 </div>
             </div>
-
-            {selecting && (
-                <PaymentModal 
-                    plan={selecting} 
-                    isTrial={isTrialSelection}
-                    onClose={() => setSelecting(null)} 
-                    onConfirm={confirmPlan} 
-                />
-            )}
         </div>
     );
 };

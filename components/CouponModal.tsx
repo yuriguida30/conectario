@@ -7,7 +7,7 @@ import { getCurrentUser } from '../services/dataService';
 interface CouponModalProps {
   coupon: Coupon;
   onClose: () => void;
-  onRedeem: (coupon: Coupon) => Promise<void>;
+  onRedeem: (coupon: Coupon) => Promise<string | void>;
   isRedeemed: boolean;
 }
 
@@ -15,6 +15,7 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
   const [step, setStep] = useState<'details' | 'code' | 'success'>(isRedeemed ? 'code' : 'details');
   const [error, setError] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [verificationCode, setVerificationCode] = useState<string | null>(null);
   const user = getCurrentUser();
 
   useEffect(() => {
@@ -40,7 +41,10 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
     if (!user) return setError("Faça login para validar.");
     setIsValidating(true);
     try {
-        await onRedeem(coupon); 
+        const vCode = await onRedeem(coupon); 
+        if (vCode && typeof vCode === 'string') {
+            setVerificationCode(vCode);
+        }
         setStep('success');
     } catch (e: any) {
         setError(e.message || "Erro ao validar. Tente novamente.");
@@ -55,25 +59,34 @@ export const CouponModal: React.FC<CouponModalProps> = ({ coupon, onClose, onRed
         
         {step === 'success' ? (
             <div className="h-full flex flex-col items-center justify-center p-8 text-center animate-in zoom-in duration-300">
-                <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center text-white mb-6 shadow-xl shadow-green-500/40">
-                    <Check size={48} strokeWidth={4} />
+                <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center text-white mb-4 shadow-xl shadow-green-500/40">
+                    <Check size={40} strokeWidth={4} />
                 </div>
-                <h2 className="text-3xl font-bold text-ocean-950 mb-4">Validado com Sucesso!</h2>
-                <p className="text-slate-500 text-lg mb-2 leading-relaxed">
-                    Seu cupom foi confirmado.
+                <h2 className="text-2xl font-bold text-ocean-950 mb-2">Cupom Resgatado! 🎉</h2>
+                <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+                    Economia de R$ {(coupon.originalPrice - coupon.discountedPrice).toFixed(2)} adicionada à sua carteira!
                 </p>
-                <div className="bg-green-50 border border-green-100 p-6 rounded-2xl mb-8 space-y-3">
-                    <p className="text-green-800 font-bold text-sm">Economia de R$ {(coupon.originalPrice - coupon.discountedPrice).toFixed(2)} adicionada à sua carteira!</p>
-                    <div className="h-px bg-green-200 w-full" />
-                    <p className="text-green-700 text-xs font-medium">
-                        O comprovante já está disponível no seu <strong>Perfil</strong> e ficará visível por 24 horas.
+
+                {verificationCode && (
+                    <div className="w-full bg-slate-50 border-2 border-dashed border-ocean-200 p-6 rounded-2xl mb-6 text-center">
+                        <p className="text-[10px] font-black text-ocean-400 uppercase tracking-[0.2em] mb-2">Código de Verificação</p>
+                        <p className="text-4xl font-mono font-black text-ocean-950 tracking-widest">{verificationCode}</p>
+                        <p className="text-[9px] text-slate-400 mt-3 uppercase font-bold">Apresente este código no estabelecimento</p>
+                    </div>
+                )}
+
+                <div className="bg-ocean-50 border border-ocean-100 p-4 rounded-xl mb-6 w-full text-left">
+                    <p className="text-ocean-700 text-[11px] font-medium leading-relaxed">
+                        ✅ O comprovante foi salvo no seu <strong>Perfil</strong>.<br/>
+                        ✅ O estabelecimento pode solicitar o código acima para validar seu desconto.
                     </p>
                 </div>
+                
                 <button 
                     onClick={onClose}
-                    className="w-full bg-ocean-100 text-ocean-700 font-bold py-4 rounded-2xl hover:bg-ocean-200 transition-colors"
+                    className="w-full bg-ocean-600 text-white font-bold py-4 rounded-xl hover:bg-ocean-700 transition-colors shadow-lg shadow-ocean-600/20"
                 >
-                    Fechar
+                    CONCLUÍDO
                 </button>
             </div>
         ) : (

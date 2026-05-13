@@ -34,7 +34,11 @@ import {
     DEFAULT_AMENITIES, AppConfig, Collection, PricingPlan, HomeHighlight, City, Neighborhood, Review, PaymentSettings
 } from '../types';
 
-const SESSION_KEY = 'cr_session_v4';
+export interface AppGlobalSettings {
+    salesWhatsapp: string;
+}
+
+const SESSION_KEY = 'lagos_go_session_v1';
 
 let _businesses: BusinessProfile[] = [];
 let _allBusinessesLoaded = false;
@@ -557,16 +561,14 @@ export const getCoupons = async (forceRefresh = false, includeInactive = false) 
 export const getBusinessById = async (id: string) => {
     const cached = _businesses.find(b => b.id === id && !b.isBlocked);
     if (cached) {
-        const isApproved = !cached.status || cached.status === 'approved';
-        if (isApproved) return { ...cached };
+        return { ...cached };
     }
 
     const docRef = doc(db, 'businesses', id);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
         const biz = { id: docSnap.id, ...docSnap.data() } as BusinessProfile;
-        const isApproved = !biz.status || biz.status === 'approved';
-        if (!biz.isBlocked && isApproved) {
+        if (!biz.isBlocked) {
             // Add to cache if not there
             if (!_businesses.find(b => b.id === biz.id)) {
                 _businesses.push(biz);
@@ -689,7 +691,7 @@ export const toggleBusinessStatus = async (businessId: string, isBlocked: boolea
     notifyListeners();
 };
 
-export const deleteBusinessPermanently = async (businessId: string) => {
+export const deleteBusiness = async (businessId: string) => {
     try {
         await deleteDoc(doc(db, 'businesses', businessId));
         // Also delete the associated user
@@ -706,12 +708,10 @@ export const deleteBusinessPermanently = async (businessId: string) => {
         
         notifyListeners();
     } catch (error) {
-        console.error("Error deleting business permanently:", error);
+        console.error("Error deleting business:", error);
         throw error;
     }
 };
-
-export const deleteBusiness = deleteBusinessPermanently;
 
 export const deleteUser = async (id: string) => {
     await deleteDoc(doc(db, 'users', id));
@@ -1111,7 +1111,7 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
 
 export const identifyNeighborhood = (lat: number, lng: number): string => {
     if (_neighborhoods.length === 0) {
-        return _cities.length > 0 ? _cities[0].name : "Rio de Janeiro";
+        return _cities.length > 0 ? _cities[0].name : "Região dos Lagos";
     }
 
     let closestNeighborhood: Neighborhood | null = null;
@@ -1136,7 +1136,7 @@ export const identifyNeighborhood = (lat: number, lng: number): string => {
         if (city) return city.name;
     }
 
-    return _cities.length > 0 ? _cities[0].name : "Rio de Janeiro";
+    return _cities.length > 0 ? _cities[0].name : "Região dos Lagos";
 };
 
 export const toggleFavorite = async (type: 'coupon' | 'business', id: string) => {
@@ -1167,42 +1167,140 @@ export const trackAction = async (businessId: string, type: string) => {
     }
 };
 
-export const redeemCoupon = async (uid: string, c: Coupon) => {
+/**
+ * 🔒 SEGURANÇA REFINADA: Resgate de Cupons
+ * - Gera um código de verificação único.
+ * - Registra em uma coleção dedicada para auditoria.
+ * - Valida limites de uso e expiração.
+ */
+export const redeemCoupon = async (uid: string, c: Coupon): Promise<string> => {
+    const user = getCurrentUser();
+    if (!user) throw new Error("Usuário não autenticado.");
+
+    // 1. Verificar Limites do Cupom
+    if (c.maxRedemptions && (c.currentRedemptions || 0) >= c.maxRedemptions) {
+        throw new Error("Este cupom atingiu o limite máximo de resgates.");
+    }
+
+    // 2. Verificar Expiração
+    if (new Date(c.expiryDate) < new Date()) {
+        throw new Error("Este cupom já expirou.");
+    }
+
+    // 3. Verificar Limite por Usuário (Firestore query para segurança)
+    try {
+        const q = query(
+            collection(db, 'redemptions'), 
+            where('userId', '==', uid), 
+            where('couponId', '==', c.id)
+        );
+        const snap = await getDocs(q);
+        if (c.limitPerUser && snap.size >= c.limitPerUser) {
+            throw new Error(`Você já atingiu o limite de ${c.limitPerUser} resgates para este cupom.`);
+        }
+    } catch (e: any) {
+        if (e.message.includes('permission-denied')) {
+            console.warn("Permission denied checking redemptions, falling back to local history check.");
+            const historyCount = (user.history || []).filter(h => h.couponId === c.id).length;
+            if (c.limitPerUser && historyCount >= c.limitPerUser) {
+                throw new Error(`Você já atingiu o limite de ${c.limitPerUser} resgates para este cupom.`);
+            }
+        } else {
+            throw e;
+        }
+    }
+
+    // 4. Gerar Código de Verificação (6 dígitos aleatórios)
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
     let companyName = c.companyName;
-    
-    // Fallback: If companyName is generic, try to find the real name from businesses
     if (!companyName || companyName === 'Minha Empresa') {
         const biz = _businesses.find(b => b.id === c.companyId);
         if (biz) companyName = biz.name;
     }
 
+    const redemptionId = doc(collection(db, 'redemptions')).id;
+    const redemption: any = {
+        id: redemptionId,
+        userId: uid,
+        userName: user.name,
+        userEmail: user.email,
+        couponId: c.id,
+        companyId: c.companyId,
+        couponTitle: c.title,
+        amountSaved: c.originalPrice - c.discountedPrice,
+        redeemedAt: new Date().toISOString(),
+        status: 'PENDING',
+        verificationCode: verificationCode
+    };
+
     const record: SavingsRecord = { 
-        date: new Date().toISOString(), 
-        amount: c.originalPrice - c.discountedPrice, 
+        date: redemption.redeemedAt, 
+        amount: redemption.amountSaved, 
         couponTitle: c.title, 
         couponId: c.id,
         companyName: companyName,
         expiryDate: c.expiryDate,
-        code: c.code
+        code: c.code, // Código original do cupom
+        verificationId: redemptionId // Referência para o novo registro
     };
 
-    await updateDoc(doc(db, 'coupons', c.id), { currentRedemptions: increment(1) });
-    await updateDoc(doc(db, 'users', uid), { 
-        savedAmount: increment(record.amount),
-        history: arrayUnion(record)
-    });
+    try {
+        // Criar registro de resgate
+        await setDoc(doc(db, 'redemptions', redemptionId), cleanObject(redemption));
+        
+        // Incrementar contador no cupom
+        await updateDoc(doc(db, 'coupons', c.id), { currentRedemptions: increment(1) });
+        
+        // Atualizar perfil do usuário
+        await updateDoc(doc(db, 'users', uid), { 
+            savedAmount: increment(record.amount),
+            history: arrayUnion(record)
+        });
 
-    // Update local user state if it's the current user
-    const currentUser = getCurrentUser();
-    if (currentUser && currentUser.id === uid) {
-        const updatedUser = {
-            ...currentUser,
-            savedAmount: (currentUser.savedAmount || 0) + record.amount,
-            history: [...(currentUser.history || []), record]
-        };
-        localStorage.setItem(SESSION_KEY, JSON.stringify(updatedUser));
-        notifyListeners();
+        // Sincronizar cache local
+        if (user.id === uid) {
+            const updatedUser = {
+                ...user,
+                savedAmount: (user.savedAmount || 0) + record.amount,
+                history: [...(user.history || []), record]
+            };
+            localStorage.setItem(SESSION_KEY, JSON.stringify(updatedUser));
+            notifyListeners();
+        }
+
+        return verificationCode;
+    } catch (error) {
+        handleFirestoreError(error, OperationType.WRITE, `redemptions/${redemptionId}`);
+        throw error;
     }
+};
+
+export const getRedemptionsByBusiness = async (businessId: string) => {
+    const q = query(collection(db, 'redemptions'), where('companyId', '==', businessId), orderBy('redeemedAt', 'desc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data());
+};
+
+export const validateRedemption = async (redemptionId: string, merchantUid: string) => {
+    const rDoc = await getDoc(doc(db, 'redemptions', redemptionId));
+    if (!rDoc.exists()) throw new Error("Resgate não encontrado.");
+    
+    const redemption = rDoc.data();
+    if (redemption.companyId !== merchantUid) {
+        throw new Error("Você não tem permissão para validar este cupom.");
+    }
+    
+    if (redemption.status === 'USED') {
+        throw new Error("Este cupom já foi utilizado.");
+    }
+    
+    await updateDoc(doc(db, 'redemptions', redemptionId), { 
+        status: 'USED',
+        validatedAt: new Date().toISOString()
+    });
+    
+    notifyListeners();
 };
 
 export const createAdminPlace = async (data: Partial<BusinessProfile>) => {
@@ -1471,12 +1569,39 @@ export const deletePricingPlan = async (id: string) => {
 };
 
 export const getPaymentSettings = async (): Promise<PaymentSettings> => {
+    try {
+        const docSnap = await getDoc(doc(db, 'settings', 'payment'));
+        if (docSnap.exists()) {
+            return docSnap.data() as PaymentSettings;
+        }
+    } catch (e) {
+        console.warn("Error fetching payment settings:", e);
+    }
+    
     // Forçando o bypass como padrão conforme solicitado pelo usuário
     return {
         isPaymentActive: false,
         isTestMode: true,
-        isDirectPaymentTest: true
+        isDirectPaymentTest: true,
+        salesWhatsapp: '5521999999999' // Fallback
     };
+};
+
+export const getGlobalSettings = async (): Promise<AppGlobalSettings> => {
+    try {
+        const docSnap = await getDoc(doc(db, 'app_settings', 'global'));
+        if (docSnap.exists()) {
+            return docSnap.data() as AppGlobalSettings;
+        }
+    } catch (e) {
+        console.warn("Error fetching global settings:", e);
+    }
+    return { salesWhatsapp: '5522998765432' }; // Fallback para Região dos Lagos
+};
+
+export const saveGlobalSettings = async (settings: AppGlobalSettings) => {
+    await setDoc(doc(db, 'app_settings', 'global'), cleanObject(settings));
+    notifyListeners();
 };
 
 export const savePaymentSettings = async (settings: PaymentSettings): Promise<void> => {

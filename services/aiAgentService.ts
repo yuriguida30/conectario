@@ -29,7 +29,8 @@ export const INITIAL_STEPS: AgentStep[] = [
 
 const SYSTEM_PROMPTS = {
   researcher: `Você é o Pesquisador-Chefe do LAGOS GO. Sua missão é fornecer informações EXTREMAMENTE DETALHADAS sobre locais na Região dos Lagos.
-Se o comando for para múltiplos locais (ex: "5 trilhas"), você DEVE obrigatoriamente encontrar e listar os 5 nomes.
+IMPORTANTE: O Comandante fornecerá uma lista de LOCAIS JÁ EXISTENTES no Guia. Você DEVE obrigatoriamente evitar duplicatas. Se o usuário pedir algo que já existe, avise e sugira novos locais similares que ainda não temos.
+Se o comando for para múltiplos locais (ex: "5 trilhas"), você DEVE obrigatoriamente encontrar e listar os 5 nomes que NÃO estão no Guia.
 Para cada local, você deve detalhar:
 - História e curiosidades locais.
 - Infraestrutura completa (banheiros, acessibilidade, estacionamento, recepção de celular).
@@ -38,15 +39,17 @@ Para cada local, você deve detalhar:
 - Dicas de segurança e o que levar.`,
   
   analyzer: `Você é o Auditor de Qualidade do Lagos GO. Não aceite informações genéricas. 
+VERIFICAÇÃO DE DUPLICIDADE: Cruze os dados do pesquisador com a lista de locais existentes fornecida pelo Comandante. Se houver duplicação, rejeite o relatório.
 Se o pesquisador disser "tem banheiros", pergunte "onde exatamente e qual o estado?".
 Verifique se a localização (lat/lng) é compatível com o endereço.
 Aponte furos na pesquisa e exija detalhes que um turista real precisaria saber.`,
 
-  visualizer: `Você é o Curador de Mídia. Seu papel é orientar o administrador a encontrar as fotos perfeitas.
+  visualizer: `Você é o Curador de Mídia. Seu papel é garantir que o guia tenha fotos REAIS e impactantes.
 Para cada local:
 1. Descreva 3 ângulos de fotos obrigatórios para o guia.
-2. Forneça termos de busca precisos para Google Imagens e Instagram (ex: "Trilha da Ponta do Pai Vitório Búzios vista panoramica").
-3. Identifique elementos visuais chave (cores dominantes, pontos de referência).`,
+2. Forneça termos de busca precisos em INGLÊS para o Unsplash/Google (ex: "Arraial do Cabo beach aerial view").
+3. Identifique elementos visuais chave (cores dominantes, pontos de referência).
+4. Forneça uma 'Keywords Line' (linha de palavras-chave) separada por vírgulas para busca automatizada de imagens reais (Ex: cabo frio, trail, sunset).`,
 
   strategist: `Você é o Diretor de Engajamento. Como esse local se encaixa no ecossistema do Lagos GO?
 Defina a Categoria e Subcategoria.
@@ -71,7 +74,7 @@ export async function runAgentStep(role: string, input: string, context?: string
     throw new Error("Chave de API não configurada.");
   }
   const ai = new GoogleGenAI({ apiKey });
-  const model = "gemini-3-flash-preview"; 
+  const model = "gemini-1.5-flash"; 
   
   const prompt = `
 CONTEXTO DO PROJETO:
@@ -95,7 +98,7 @@ Responda com foco em INTEGRALIDADE e DETALHE para o guia. Se o usuário pediu v�
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: prompt,
+      contents: [{ role: 'user', parts: [{ text: prompt }] }]
     });
     return response.text || "Erro no processamento do agente.";
   } catch (error) {
@@ -110,11 +113,37 @@ export async function finalizeLocation(finalContent: string, quantity: number = 
     throw new Error("Chave de API não configurada.");
   }
   const ai = new GoogleGenAI({ apiKey });
-  const model = "gemini-3-flash-preview"; 
+  const model = "gemini-1.5-flash"; 
   
   const response = await ai.models.generateContent({
     model,
-    contents: `Com base em todas as pesquisas e discussões anteriores, gere uma LISTA de objetos JSON para os locais identificados.
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            category: { type: Type.STRING },
+            subcategory: { type: Type.STRING },
+            description: { type: Type.STRING },
+            address: { type: Type.STRING },
+            lat: { type: Type.NUMBER },
+            lng: { type: Type.NUMBER },
+            amenities: { type: Type.ARRAY, items: { type: Type.STRING } },
+            rating: { type: Type.NUMBER },
+            reviewCount: { type: Type.NUMBER },
+            bestTime: { type: Type.STRING },
+            difficulty: { type: Type.STRING },
+            expertTips: { type: Type.ARRAY, items: { type: Type.STRING } },
+            imageKeywords: { type: Type.STRING }
+          },
+          required: ["name", "category", "description", "address", "lat", "lng"]
+        }
+      }
+    },
+    contents: [{ role: 'user', parts: [{ text: `Com base em todas as pesquisas e discussões anteriores, gere uma LISTA de objetos JSON para os locais identificados.
     
     Quantidade de locais esperada: ${quantity}
     
@@ -135,33 +164,9 @@ export async function finalizeLocation(finalContent: string, quantity: number = 
     - bestTime (pôr do sol, manhã, noite, etc)
     - difficulty (se aplicável: fácil, médio, difícil)
     - expertTips (array de strings com as dicas dos especialistas)
+    - imageKeywords (string de palavras-chave em inglês para busca de imagem real EX: "cabo frio trail nature")
     
-    IMPORTANTE: Retorne APENAS o JSON puro em um array [{}, {}].`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            name: { type: Type.STRING },
-            category: { type: Type.STRING },
-            subcategory: { type: Type.STRING },
-            description: { type: Type.STRING },
-            address: { type: Type.STRING },
-            lat: { type: Type.NUMBER },
-            lng: { type: Type.NUMBER },
-            amenities: { type: Type.ARRAY, items: { type: Type.STRING } },
-            rating: { type: Type.NUMBER },
-            reviewCount: { type: Type.NUMBER },
-            bestTime: { type: Type.STRING },
-            difficulty: { type: Type.STRING },
-            expertTips: { type: Type.ARRAY, items: { type: Type.STRING } }
-          },
-          required: ["name", "category", "description", "address", "lat", "lng"]
-        }
-      }
-    }
+    IMPORTANTE: Retorne APENAS o JSON puro em um array [{}, {}].` }] }]
   });
 
   try {

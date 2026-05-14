@@ -8,7 +8,7 @@ import {
   RefreshCw, MessageSquare, Edit3, Trash2, Save, Camera, Plus, Minus
 } from 'lucide-react';
 import { AgentStep, INITIAL_STEPS, runAgentStep, finalizeLocation } from '../services/aiAgentService';
-import { createAdminPlace, getCities, getNeighborhoods, getCategories } from '../services/dataService';
+import { createAdminPlace, getCities, getNeighborhoods, getCategories, getBusinesses } from '../services/dataService';
 import { useNotification } from '../components/NotificationSystem';
 import { BusinessProfile } from '../types';
 
@@ -19,9 +19,10 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [steps, setSteps] = useState<AgentStep[]>(INITIAL_STEPS);
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [finalBatch, setFinalBatch] = useState<Partial<BusinessProfile>[]>([]);
+  const [finalBatch, setFinalBatch] = useState<Partial<BusinessProfile & { imageKeywords?: string }>[]>([]);
   const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
   const [isEditingFinal, setIsEditingFinal] = useState(false);
+  const [existingGuideContext, setExistingGuideContext] = useState('');
   const [manualKey, setManualKey] = useState(localStorage.getItem('lagos_go_api_key') || '');
   const [quotaError, setQuotaError] = useState<{title: string, msg: string} | null>(null);
   const finalData = finalBatch[currentBatchIndex];
@@ -46,6 +47,16 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     setIsProcessing(true);
     setFinalBatch([]);
     setCurrentBatchIndex(0);
+    
+    try {
+      addLog('system', 'Verificando banco de dados para evitar duplicações...');
+      const existing = await getBusinesses();
+      const names = existing.map(b => b.name).join(', ');
+      setExistingGuideContext(`LOCAIS JÁ EXISTENTES NO GUIA (NÃO DUPLICAR): [${names}]`);
+    } catch (e) {
+      console.error("Erro ao buscar locais existentes:", e);
+    }
+
     setSteps(INITIAL_STEPS.map(s => ({ ...s, content: '', status: 'pending', feedback: undefined })));
     setLogs([{ role: 'system', msg: `Protocolo ALPHA de Massa iniciado. Objetivo: ${targetPlace} (Lote: ${quantity})`, time: new Date().toLocaleTimeString() }]);
     setCurrentStepIndex(0);
@@ -82,7 +93,7 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
       const result = await runAgentStep(
         step.role, 
-        targetPlace + ` (Gerar ${quantity} locais)`, 
+        targetPlace + ` (Gerar ${quantity} locais) ` + existingGuideContext, 
         previousContext, 
         manualFeedback,
         manualKey
@@ -173,13 +184,19 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       const defaultNH = neighborhoods.find(n => n.cityId === defaultCity?.id) || neighborhoods[0];
 
       for (const place of finalBatch) {
+        // Tenta gerar uma imagem "REAL" baseada nas keywords da IA
+        const keywords = place.imageKeywords || `${place.name}, ${place.category}, brazil`;
+        const encodedKeywords = encodeURIComponent(keywords.replace(/\s/g, ','));
+        // Usamos loremflickr que costuma puxar fotos reais de alta qualidade baseadas em tags
+        const realImageUrl = `https://loremflickr.com/1200/800/${encodedKeywords}?lock=${Math.floor(Math.random() * 1000)}`;
+
         await createAdminPlace({
           ...place,
           cityId: defaultCity?.id,
           neighborhoodId: defaultNH?.id,
           isClaimed: false,
           canBeClaimed: false,
-          coverImage: 'https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f?auto=format&fit=crop&q=80&w=1200'
+          coverImage: realImageUrl
         } as Partial<BusinessProfile>);
       }
 

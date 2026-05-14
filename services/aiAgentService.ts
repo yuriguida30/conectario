@@ -15,44 +15,41 @@ export interface AgentStep {
   name: string;
   content: string;
   status: 'pending' | 'working' | 'completed' | 'error';
-  criticism?: string;
+  feedback?: string;
 }
 
 export const INITIAL_STEPS: AgentStep[] = [
   { role: 'researcher', name: 'Pesquisador de Elite', content: '', status: 'pending' },
   { role: 'analyzer', name: 'Analista de Dados Crítico', content: '', status: 'pending' },
+  { role: 'visualizer', name: 'Analista Visual & Curador', content: '', status: 'pending' }, 
   { role: 'strategist', name: 'Decisor Estratégico', content: '', status: 'pending' },
   { role: 'copywriter', name: 'Copywriter & SEO Expert', content: '', status: 'pending' },
   { role: 'finalizer', name: 'Engenheiro de Dados', content: '', status: 'pending' }
 ];
 
 const SYSTEM_PROMPTS = {
-  researcher: `Você é um Pesquisador de Elite especializado na Região dos Lagos, Rio de Janeiro (focado em Arraial do Cabo e Cabo Frio). 
-Sua missão é encontrar o máximo de informações reais sobre um local específico. 
-Inclua: História, fatos curiosos, coordenadas geográficas aproximadas, endereços prováveis, tipo de público, melhores horários e infraestrutura disponível (banheiros, acessibilidade, etc).
-Seja detalhista e factual.`,
+  researcher: `Você é um Pesquisador de Elite especializado na Região dos Lagos. Sua missão é trazer a verdade nua e crua. 
+Inclua: História real, fatos pouco conhecidos, coordenadas precisas, endereço completo e infraestrutura. 
+Se você receber um feedback do Comandante, revise seus dados e aprofunde ainda mais nos pontos solicitados.`,
   
-  analyzer: `Você é um Analista de Dados Crítico e extremamente exigente. 
-Seu trabalho é revisar o relatório do Pesquisador. 
-Aponte o que falta: falta profundidade histórica? As coordenadas parecem imprecisas? O endereço está vago?
-Dê uma nota de 0 a 10 para a pesquisa e liste exigências de melhoria.`,
+  analyzer: `Você é implacável. Se o Pesquisador foi vago, você DEVE criticar. 
+Procure por inconsistências: a história faz sentido? O local realmente fica no bairro citado? 
+Aponte erros e exija correções.`,
 
-  strategist: `Você é o Decisor Estratégico da marca Lagos GO. 
-Seu objetivo é definir o tom da marca para este local. 
-Qual é o "Gancho" principal? Por que um turista deveria ir lá em vez de outro lugar? 
-Defina a categoria e subcategoria ideal dentro do app Conecta Rio.`,
+  visualizer: `Você é especialista em busca visual. Sua missão é identificar os melhores termos de busca para encontrar imagens REAIS deste local no Google/Unsplash. 
+Sugira 3 URLs de imagens conceituais que representem fielmente o local e descreva como a imagem deve ser (ex: "Foto tirada do mirante, sem filtros excessivos, mostrando a tonalidade real da água"). 
+Foque em REALISMO.`,
 
-  copywriter: `Você é um Copywriter Sênior e Especialista em SEO. 
-Transforme os dados brutos e estratégicos em textos magnéticos, persuasivos e otimizados para busca.
-Escreva um título chamativo e uma descrição que venda a experiência emocional de visitar o local.
-Linguagem: Português do Brasil, tom sofisticado mas acolhedor.`,
+  strategist: `Você define o posicionamento. Baseado nos dados e imagens, qual o valor único desse local? 
+Categorize com precisão cirúrgica para o Lagos GO.`,
 
-  finalizer: `Você é um Engenheiro de Dados encarregado de estruturar a saída final. 
-Você deve converter todas as discussões anteriores em um objeto JSON válido para o banco de dados.
-Siga rigorosamente o esquema de dados fornecido.`
+  copywriter: `Transforme tudo em ouro. Use técnicas de Copywriting de alto nível (AIDA, PAS). 
+Otimize para SEO local. A descrição deve ser irresistível mas honesta.`,
+
+  finalizer: `Consolide tudo. Se houver falhas nas etapas anteriores de acordo com o Comandante, você deve alertar.`
 };
 
-export async function runAgentStep(role: string, input: string, context?: string): Promise<string> {
+export async function runAgentStep(role: string, input: string, context?: string, feedback?: string): Promise<string> {
   const ai = getAI();
   const model = "gemini-3-flash-preview"; 
   
@@ -63,10 +60,12 @@ ${context || 'Nenhum contexto prévio.'}
 Instrução do seu Papel:
 ${(SYSTEM_PROMPTS as any)[role]}
 
-Entrada Atual:
+ENTRADA ATUAL DO USUÁRIO:
 ${input}
 
-Responda agora de acordo com seu papel:
+${feedback ? `\nORDEM DIRETA DO COMANDANTE (REVISÃO): "${feedback}"\nVocê deve reformular sua resposta anterior focando estritamente neste comando.` : ''}
+
+Responda agora com autoridade máxima:
 `;
 
   try {

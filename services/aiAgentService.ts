@@ -38,18 +38,20 @@ REGRAS DE OURO:
 1. ERRO GEOGRÁFICO: Se o pesquisador sugerir um local fora da cidade alvo, marque como FALHA CRÍTICA e exija correção.
 2. GENERICIDADE: "Lugar bonito" não é informação. Exija o nome da rua, o ponto de referência exato e se a estrada é de terra ou asfalto.`,
 
-  visualizer: `Você é o Curador de Especialidade Visual do LAGOS GO. 
-Sua missão é garantir que o guia tenha fotos REAIS e IDENTIFICÁVEIS.
-1. PALAVRAS-CHAVE REAIS: Forneça imageKeywords em INGLÊS que sejam EXTREMAMENTE PRECISAS (ex: "Restaurante [Nome], [Cidade], Brazil, fachada").
-2. REGRA DO VAZIO: Se o local for comum ou não tiver uma presença visual única em bancos de imagem (ex: um quiosque genérico), você DEVE definir imageKeywords como "NONE". É melhor ficar sem imagem do que com uma errada (como gatos na Turquia).
-3. FONTES RECOMENDADAS: Pense nos termos que trariam resultados reais do Google, Instagram ou Site Oficial.`,
+  visualizer: `Você é o Detetive Visual do LAGOS GO. 
+Sua missão é extrair ou localizar LINKS REAIS de imagens (URLs diretas .jpg, .png) do local.
+1. PESQUISA DE URL: Tente identificar URLs estáveis de imagens do local (ex: de guias oficiais, sites dos estabelecimentos ou bancos de imagens reais).
+2. PRECISÃO TOTAL: Se não encontrar uma URL real e direta, deixe o campo "realImageUrl" vazio. NUNCA use placeholders ou imagens genéricas.
+3. imageKeywords: Forneça termos de busca que tragam resultados 100% reais no Google Imagens (ex: "Restaurante Picolino Cabo Frio fachada oficial").`,
 
   strategist: `Você define o DNA do local no guia. Por que um turista de elite escolheria este lugar?
-Não aceite categorias erradas. Um quiosque na praia é GASTRONOMIA, não PASSEIOS.`,
+REGRAS DE LOCALIZAÇÃO: Se a cidade alvo é Cabo Frio, e o local fica em Búzios, você DEVE rejeitar e pedir ao pesquisador que mude.`,
 
   copywriter: `Storytelling Impecável. Use o nome da cidade alvo pelo menos 2 vezes no texto para reforçar o SEO local.`,
 
-  finalizer: `Transforme tudo em JSON. Se o pesquisador declarou "LIMITE ALCANÇADO", gere o JSON apenas para os locais encontrados.`
+  finalizer: `Transforme tudo em JSON.
+ESTRUTURA OBRIGATÓRIA:
+- name, category, subcategory, description, address, lat, lng, amenities, rating, reviewCount, bestTime, difficulty, expertTips, imageKeywords, realImageUrl (URL real se encontrada).`
 };
 
 export async function runAgentStep(role: string, input: string, context?: string, feedback?: string, manualApiKey?: string): Promise<string> {
@@ -121,7 +123,8 @@ export async function finalizeLocation(finalContent: string, quantity: number = 
             bestTime: { type: Type.STRING },
             difficulty: { type: Type.STRING },
             expertTips: { type: Type.ARRAY, items: { type: Type.STRING } },
-            imageKeywords: { type: Type.STRING }
+            imageKeywords: { type: Type.STRING },
+            realImageUrl: { type: Type.STRING }
           },
           required: ["name", "category", "description", "address", "lat", "lng"]
         }
@@ -148,7 +151,8 @@ export async function finalizeLocation(finalContent: string, quantity: number = 
     - bestTime (pôr do sol, manhã, noite, etc)
     - difficulty (se aplicável: fácil, médio, difícil)
     - expertTips (array de strings com as dicas dos especialistas)
-    - imageKeywords (string de palavras-chave em inglês para busca de imagem real EX: "cabo frio trail nature")
+    - imageKeywords (string de palavras-chave em inglês para busca de imagem real)
+    - realImageUrl (URL direta da imagem real .jpg/png se identificada)
     
     IMPORTANTE: Retorne APENAS o JSON puro em um array [{}, {}].` }] }]
   });

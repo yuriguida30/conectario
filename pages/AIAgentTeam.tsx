@@ -195,8 +195,12 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       // Pré-carrega as imagens ou deixa vazio se for NONE
       const enrichedBatch = batchData.map(place => {
         const keywords = (place as any).imageKeywords;
-        let coverImage = '';
-        if (keywords && keywords.toUpperCase() !== 'NONE') {
+        const aiRealUrl = (place as any).realImageUrl;
+        let coverImage = aiRealUrl || '';
+
+        // Se a IA não trouxe URL real mas trouxe keywords sérias, tentamos o flicker como FALLBACK FINAL
+        // mas o usuário quer evitar "gatos", então vamos ser MAIS RIGOROSOS.
+        if (!coverImage && keywords && keywords.toUpperCase() !== 'NONE' && keywords.length > 10) {
           const encodedKeywords = encodeURIComponent(keywords.replace(/\s/g, ','));
           coverImage = `https://loremflickr.com/1200/800/${encodedKeywords}?lock=${Math.floor(Math.random() * 1000)}`;
         }
@@ -692,7 +696,8 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     </div>
                     <button 
                       onClick={() => {
-                        const q = encodeURIComponent(`${finalData?.name} ${cities.find(c => c.id === selectedCityId)?.name} instagram restaurante`);
+                        const cityName = cities.find(c => c.id === selectedCityId)?.name || '';
+                        const q = encodeURIComponent(`${finalData?.name} ${cityName} RJ foto real fachada`);
                         window.open(`https://www.google.com/search?q=${q}&tbm=isch`, '_blank');
                       }}
                       className="bg-ocean-600/20 text-ocean-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-ocean-500/30 hover:bg-ocean-500 hover:text-white transition-all flex items-center gap-2"

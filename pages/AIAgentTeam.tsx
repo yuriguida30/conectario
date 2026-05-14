@@ -21,7 +21,7 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [cities, setCities] = useState<{id: string, name: string}[]>([]);
   const [selectedCityId, setSelectedCityId] = useState('');
-  const [finalBatch, setFinalBatch] = useState<Partial<BusinessProfile & { imageKeywords?: string }>[]>([]);
+  const [finalBatch, setFinalBatch] = useState<Partial<BusinessProfile & { imageKeywords?: string; coverImage?: string }>[]>([]);
   const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
   const [isEditingFinal, setIsEditingFinal] = useState(false);
   const [existingGuideContext, setExistingGuideContext] = useState('');
@@ -60,7 +60,7 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     if (!targetPlace.trim()) return;
     
     const selectedCity = cities.find(c => c.id === selectedCityId);
-    const cityConstraint = selectedCity ? `Foque EXCLUSIVAMENTE em ${selectedCity.name}, RJ.` : '';
+    const cityConstraint = selectedCity ? `FOQUE EXCLUSIVAMENTE NA CIDADE DE ${selectedCity.name}, RJ. NÃO SUGIRA LUGARES DE OUTRAS CIDADES.` : '';
     
     setIsProcessing(true);
     setFinalBatch([]);
@@ -191,8 +191,20 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     try {
       const allContent = steps.map(s => s.content).join('\n\n');
       const batchData = await finalizeLocation(allContent, quantity, manualKey);
-      setFinalBatch(batchData);
-      addLog('finalizer', `Lote de ${batchData.length} locais consolidado. Aguardando revisão de massa do Comandante.`);
+
+      // Pré-carrega as imagens ou deixa vazio se for NONE
+      const enrichedBatch = batchData.map(place => {
+        const keywords = (place as any).imageKeywords;
+        let coverImage = '';
+        if (keywords && keywords.toUpperCase() !== 'NONE') {
+          const encodedKeywords = encodeURIComponent(keywords.replace(/\s/g, ','));
+          coverImage = `https://loremflickr.com/1200/800/${encodedKeywords}?lock=${Math.floor(Math.random() * 1000)}`;
+        }
+        return { ...place, coverImage };
+      });
+
+      setFinalBatch(enrichedBatch);
+      addLog('finalizer', `Lote de ${enrichedBatch.length} locais consolidado. Aguardando revisão de massa do Comandante.`);
     } catch (error: any) {
       const errorStr = JSON.stringify(error);
       if (errorStr.includes('429') || error.message?.includes('429') || error.message?.includes('quota')) {
@@ -219,23 +231,13 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       const defaultNH = neighborhoods.find(n => n.cityId === selectedCityId) || neighborhoods[0];
 
       for (const place of finalBatch) {
-        // Lógica de Imagem Real Hardened
-        let finalImageUrl = 'https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f?auto=format&fit=crop&q=80&w=1200'; // Fallback
-        
-        if (place.imageKeywords && place.imageKeywords.toUpperCase() !== 'NONE') {
-          const encodedKeywords = encodeURIComponent(place.imageKeywords.replace(/\s/g, ','));
-          finalImageUrl = `https://loremflickr.com/1200/800/${encodedKeywords}?lock=${Math.floor(Math.random() * 1000)}`;
-        } else if (place.imageKeywords && place.imageKeywords.toUpperCase() === 'NONE') {
-          finalImageUrl = ''; // Deixa sem imagem se explicitamente não achou
-        }
-
         await createAdminPlace({
           ...place,
           cityId: selectedCityId,
           neighborhoodId: defaultNH?.id,
           isClaimed: false,
           canBeClaimed: false,
-          coverImage: finalImageUrl
+          coverImage: place.coverImage || ''
         } as Partial<BusinessProfile>);
       }
 
@@ -681,20 +683,55 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               </div>
 
               <div className="flex-1 overflow-y-auto p-10 space-y-8">
-                {/* Specialist Insights Header */}
-                <div className="bg-ocean-500/5 border border-ocean-500/10 rounded-3xl p-6 mb-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Sparkles className="text-ocean-400" size={20} />
-                    <h4 className="text-xs font-black uppercase tracking-widest text-ocean-400">Dossiê de Inteligência Local</h4>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                      <span className="text-[9px] font-black uppercase text-slate-500 block mb-1">Visão Fotográfica</span>
-                      <p className="text-[10px] text-slate-400 leading-relaxed italic">{steps.find(s => s.role === 'visualizer')?.content.substring(0, 300) || 'Analisando...'}</p>
+                {/* Visual Management Section */}
+                <div className="bg-slate-950/50 border border-slate-800 rounded-3xl p-8 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Camera className="text-ocean-400" size={24} />
+                      <h4 className="text-sm font-black uppercase tracking-widest text-white">Gestão de Imagem Real</h4>
                     </div>
-                    <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                      <span className="text-[9px] font-black uppercase text-slate-500 block mb-1">Estratégia de Guia</span>
-                      <p className="text-[10px] text-slate-400 leading-relaxed italic">{steps.find(s => s.role === 'strategist')?.content.substring(0, 300) || 'Analisando...'}</p>
+                    <button 
+                      onClick={() => {
+                        const q = encodeURIComponent(`${finalData?.name} ${cities.find(c => c.id === selectedCityId)?.name} instagram restaurante`);
+                        window.open(`https://www.google.com/search?q=${q}&tbm=isch`, '_blank');
+                      }}
+                      className="bg-ocean-600/20 text-ocean-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-ocean-500/30 hover:bg-ocean-500 hover:text-white transition-all flex items-center gap-2"
+                    >
+                      <Search size={14} /> Pesquisar Foto Real no Google
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col xl:flex-row gap-8">
+                    <div className="xl:w-1/2 space-y-2">
+                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Link da Foto (Google/Instragram/Site)</label>
+                       <input 
+                         type="text" 
+                         value={finalData?.coverImage || ''}
+                         onChange={(e) => updateCurrentPlace({ coverImage: e.target.value })}
+                         placeholder="Cole aqui o link da imagem real..."
+                         className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-6 py-4 text-white text-xs focus:border-ocean-500 focus:ring-0"
+                       />
+                       <p className="text-[9px] text-slate-500 ml-4 font-medium italic">Copie o link da imagem do Google e cole acima para 100% de precisão.</p>
+                    </div>
+                    <div className="xl:w-1/2">
+                      <div className="aspect-video w-full bg-black rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center relative">
+                        {finalData?.coverImage ? (
+                          <img 
+                            src={finalData.coverImage} 
+                            alt="Preview" 
+                            className="w-full h-full object-cover"
+                            onError={(e) => (e.currentTarget.style.display = 'none')}
+                          />
+                        ) : (
+                          <div className="text-center p-6">
+                            <Camera size={32} className="text-slate-800 mx-auto mb-2" />
+                            <p className="text-[9px] text-slate-700 font-bold uppercase">Sem Imagem Selecionada</p>
+                          </div>
+                        )}
+                        <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black text-white uppercase border border-white/10">
+                          Preview Visual
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

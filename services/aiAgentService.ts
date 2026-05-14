@@ -38,10 +38,11 @@ REGRAS DE OURO:
 1. ERRO GEOGRÁFICO: Se o pesquisador sugerir um local fora da cidade alvo, marque como FALHA CRÍTICA e exija correção.
 2. GENERICIDADE: "Lugar bonito" não é informação. Exija o nome da rua, o ponto de referência exato e se a estrada é de terra ou asfalto.`,
 
-  visualizer: `Você é o Curador de Mídia. 
-1. PALAVRAS-CHAVE REAIS: Forneça imageKeywords em INGLÊS que sejam 100% ligadas ao local.
-2. FILTRO DE QUALIDADE: Se for um local muito obscuro que não terá fotos boas em bancos internacionais (Unsplash/Flickr/Google), defina imageKeywords como "NONE".
-DICA: Use o formato "[Nome do Local], [Cidade], Brazil, [Característica principal]" para o imageKeywords.`,
+  visualizer: `Você é o Curador de Especialidade Visual do LAGOS GO. 
+Sua missão é garantir que o guia tenha fotos REAIS e IDENTIFICÁVEIS.
+1. PALAVRAS-CHAVE REAIS: Forneça imageKeywords em INGLÊS que sejam EXTREMAMENTE PRECISAS (ex: "Restaurante [Nome], [Cidade], Brazil, fachada").
+2. REGRA DO VAZIO: Se o local for comum ou não tiver uma presença visual única em bancos de imagem (ex: um quiosque genérico), você DEVE definir imageKeywords como "NONE". É melhor ficar sem imagem do que com uma errada (como gatos na Turquia).
+3. FONTES RECOMENDADAS: Pense nos termos que trariam resultados reais do Google, Instagram ou Site Oficial.`,
 
   strategist: `Você define o DNA do local no guia. Por que um turista de elite escolheria este lugar?
 Não aceite categorias erradas. Um quiosque na praia é GASTRONOMIA, não PASSEIOS.`,

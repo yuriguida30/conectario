@@ -192,19 +192,9 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       const allContent = steps.map(s => s.content).join('\n\n');
       const batchData = await finalizeLocation(allContent, quantity, manualKey);
 
-      // Pré-carrega as imagens ou deixa vazio se for NONE
+      // Processa os dados da IA, mas mantém a imagem vazia para busca manual
       const enrichedBatch = batchData.map(place => {
-        const keywords = (place as any).imageKeywords;
-        const aiRealUrl = (place as any).realImageUrl;
-        let coverImage = aiRealUrl || '';
-
-        // Se a IA não trouxe URL real mas trouxe keywords sérias, tentamos o flicker como FALLBACK FINAL
-        // mas o usuário quer evitar "gatos", então vamos ser MAIS RIGOROSOS.
-        if (!coverImage && keywords && keywords.toUpperCase() !== 'NONE' && keywords.length > 10) {
-          const encodedKeywords = encodeURIComponent(keywords.replace(/\s/g, ','));
-          coverImage = `https://loremflickr.com/1200/800/${encodedKeywords}?lock=${Math.floor(Math.random() * 1000)}`;
-        }
-        return { ...place, coverImage };
+        return { ...place, coverImage: '' };
       });
 
       setFinalBatch(enrichedBatch);
@@ -364,12 +354,13 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       step.status === 'completed' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
                       'bg-slate-800 text-slate-500'
                     }`}>
-                      {idx === 0 && <Search size={18} />}
-                      {idx === 1 && <BarChart3 size={18} />}
-                      {idx === 2 && <Camera size={18} />}
-                      {idx === 3 && <Target size={18} />}
-                      {idx === 4 && <PenTool size={18} />}
-                      {idx === 5 && <Database size={18} />}
+                      {step.role === 'researcher' && <Search size={18} />}
+                      {step.role === 'yuri' && <ShieldCheck size={18} />}
+                      {step.role === 'analyzer' && <BarChart3 size={18} />}
+                      {step.role === 'visualizer' && <Camera size={18} />}
+                      {step.role === 'strategist' && <Target size={18} />}
+                      {step.role === 'copywriter' && <PenTool size={18} />}
+                      {step.role === 'finalizer' && <Database size={18} />}
                     </div>
                     <div>
                       <h3 className="font-bold text-xs uppercase tracking-tight text-slate-200">{step.name}</h3>
@@ -638,6 +629,7 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-ocean-500/10 rounded-xl text-ocean-400">
                       {step.role === 'researcher' && <Search size={16} />}
+                      {step.role === 'yuri' && <ShieldCheck size={16} />}
                       {step.role === 'visualizer' && <Camera size={16} />}
                       {step.role === 'copywriter' && <PenTool size={16} />}
                       {step.role === 'strategist' && <Target size={16} />}

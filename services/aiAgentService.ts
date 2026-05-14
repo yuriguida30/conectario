@@ -28,35 +28,46 @@ export const INITIAL_STEPS: AgentStep[] = [
 ];
 
 const SYSTEM_PROMPTS = {
-  researcher: `Você é um Pesquisador de Elite do guia LAGOS GO. Seu trabalho é pesquisar LOCALIZAÇÕES REAIS e VERIFICADAS na Região dos Lagos (Arraial do Cabo, Cabo Frio, Búzios). 
-Se o comando for para múltiplos locais (ex: "5 trilhas"), você deve listar os 5 nomes primeiro e depois detalhar o primeiro.
-IMPORTANTE: Busque detalhes sobre estrutura para cadeirantes, banheiros, se é pet friendly e a dificuldade real (se for trilha).`,
+  researcher: `Você é o Pesquisador-Chefe do LAGOS GO. Sua missão é fornecer informações EXTREMAMENTE DETALHADAS sobre locais na Região dos Lagos.
+Se o comando for para múltiplos locais (ex: "5 trilhas"), você DEVE obrigatoriamente encontrar e listar os 5 nomes.
+Para cada local, você deve detalhar:
+- História e curiosidades locais.
+- Infraestrutura completa (banheiros, acessibilidade, estacionamento, recepção de celular).
+- Dificuldade, tempo de percurso e melhor horário para visita.
+- Fauna e flora locais (se for área natural).
+- Dicas de segurança e o que levar.`,
   
-  analyzer: `Você é o Censor do Lagos GO. Seu papel é garantir que o local PESQUISADO existe e as informações não são genéricas. 
-Exija do pesquisador: "Onde exatamente fica a entrada?", "Qual o valor médio (se houver)?", "Existe sinal de celular no local?". 
-Não aceite relatórios superficiais.`,
+  analyzer: `Você é o Auditor de Qualidade do Lagos GO. Não aceite informações genéricas. 
+Se o pesquisador disser "tem banheiros", pergunte "onde exatamente e qual o estado?".
+Verifique se a localização (lat/lng) é compatível com o endereço.
+Aponte furos na pesquisa e exija detalhes que um turista real precisaria saber.`,
 
-  visualizer: `Você é o Curador Visual. Para cada local, você deve fornecer:
-1. Termos exatos de busca para fotos REAIS (ex: "Trilha do Morro da Guia Cabo Frio vista aérea pôr do sol").
-2. Descrição detalhada da 'Foto Capa' ideal para o guia.
-3. 3 tags visuais (ex: #ÁguaCristalina, #PôrDoSol, #História).`,
+  visualizer: `Você é o Curador de Mídia. Seu papel é orientar o administrador a encontrar as fotos perfeitas.
+Para cada local:
+1. Descreva 3 ângulos de fotos obrigatórios para o guia.
+2. Forneça termos de busca precisos para Google Imagens e Instagram (ex: "Trilha da Ponta do Pai Vitório Búzios vista panoramica").
+3. Identifique elementos visuais chave (cores dominantes, pontos de referência).`,
 
-  strategist: `Você é o Diretor de Produto. Decida a Categoria (Gastronomia, Hospedagem, Passeios, Entretenimento, Comércio, Serviços) e Subcategoria. 
-Defina o "Status de Verificação" e por que esse local merece estar no Lagos GO.`,
+  strategist: `Você é o Diretor de Engajamento. Como esse local se encaixa no ecossistema do Lagos GO?
+Defina a Categoria e Subcategoria.
+Identifique o "Perfil do Público" (Aventureiros, Famílias, Casais, etc).
+Crie 3 "Dicas de Especialista" (Insiders Tips) que só quem conhece bem o local saberia.`,
 
-  copywriter: `Você é o mestre da conversão. Escreva um título curto e impactante e uma descrição de 3 parágrafos:
-1. A experiência (O que sentirá lá).
-2. O prático (O que tem lá).
-3. Chamada (Por que ir agora).
-Use tom amigável, local e sofisticado.`,
+  copywriter: `Você é o mestre da narrativa (Storytelling). Use tom sofisticado, acolhedor e informativo.
+Siga a estrutura:
+1. Título Impactante.
+2. Parágrafo de "Sensação" (A experiência emocional).
+3. Parágrafo de "O que você encontra" (A parte prática).
+4. Parágrafo de "Dica de Ouro LAGOS GO".
+Otimize para SEO Local.`,
 
-  finalizer: `Você é o Engenheiro de Integração. Transforme a conversa em uma lista de objetos JSON. 
-Se foram solicitados N locais, e agora estamos processando um deles, gere o JSON desse local.`
+  finalizer: `Você é o Engenheiro de Dados. Transforme toda a inteligência coletada em um array de objetos JSON robustos.
+Certifique-se de que cada campo (description, address, etc) esteja completo com base nas discussões anteriores.`
 };
 
 export async function runAgentStep(role: string, input: string, context?: string, feedback?: string): Promise<string> {
   const ai = getAI();
-  const model = "gemini-1.5-flash"; 
+  const model = "gemini-3-flash-preview"; 
   
   const prompt = `
 CONTEXTO DO PROJETO:
@@ -74,7 +85,7 @@ ${feedback ? `\nAJUSTE SOLICITADO PELO COMANDANTE: "${feedback}"\n` : ''}
 Contexto da conversa até agora:
 ${context || 'Iniciando operação.'}
 
-Responda com foco em INTEGRALIDADE e DETALHE para o guia:
+Responda com foco em INTEGRALIDADE e DETALHE para o guia. Se o usuário pediu vários locais, você deve processar todos eles consistentemente.
 `;
 
   try {
@@ -91,7 +102,7 @@ Responda com foco em INTEGRALIDADE e DETALHE para o guia:
 
 export async function finalizeLocation(finalContent: string, quantity: number = 1): Promise<Partial<BusinessProfile>[]> {
   const ai = getAI();
-  const model = "gemini-1.5-flash"; 
+  const model = "gemini-3-flash-preview"; 
   
   const response = await ai.models.generateContent({
     model,
@@ -106,13 +117,16 @@ export async function finalizeLocation(finalContent: string, quantity: number = 
     - name (string)
     - category (Gastronomia, Hospedagem, Passeios, Entretenimento, Comércio, Serviços)
     - subcategory (string)
-    - description (string longa e formatada)
+    - description (string longa que une storytellin com guia prático)
     - address (string completa)
     - lat (number)
     - lng (number)
-    - amenities (array de IDs como: wifi, parking, access, pet, bathroom, food)
+    - amenities (array de strings: wifi, parking, access, bathroom, food, pet, shade)
     - rating (4.0 a 5.0)
-    - reviewCount (number entre 10 e 200)
+    - reviewCount (10 a 200)
+    - bestTime (pôr do sol, manhã, noite, etc)
+    - difficulty (se aplicável: fácil, médio, difícil)
+    - expertTips (array de strings com as dicas dos especialistas)
     
     IMPORTANTE: Retorne APENAS o JSON puro em um array [{}, {}].`,
     config: {
@@ -131,7 +145,10 @@ export async function finalizeLocation(finalContent: string, quantity: number = 
             lng: { type: Type.NUMBER },
             amenities: { type: Type.ARRAY, items: { type: Type.STRING } },
             rating: { type: Type.NUMBER },
-            reviewCount: { type: Type.NUMBER }
+            reviewCount: { type: Type.NUMBER },
+            bestTime: { type: Type.STRING },
+            difficulty: { type: Type.STRING },
+            expertTips: { type: Type.ARRAY, items: { type: Type.STRING } }
           },
           required: ["name", "category", "description", "address", "lat", "lng"]
         }

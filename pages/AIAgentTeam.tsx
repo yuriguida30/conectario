@@ -425,16 +425,17 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-3">
                         <span className="bg-white/20 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
-                          Revisão de Lote ({currentBatchIndex + 1} de {finalBatch.length})
+                          Lote de Inteligência ({currentBatchIndex + 1} de {finalBatch.length})
                         </span>
-                        <h4 className="font-black uppercase text-xl tracking-tighter text-white">{finalData?.name}</h4>
+                        <h4 className="font-black uppercase text-xl tracking-tighter text-white">{finalData?.name || 'Local Sem Nome'}</h4>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
                         {finalBatch.map((_, i) => (
                           <button 
                             key={i} 
                             onClick={() => setCurrentBatchIndex(i)}
-                            className={`w-8 h-1.5 rounded-full transition-all ${i === currentBatchIndex ? 'bg-white' : 'bg-white/30'}`}
+                            className={`h-2 rounded-full transition-all ${i === currentBatchIndex ? 'w-8 bg-white' : 'w-2 bg-white/30 hover:bg-white/50'}`}
+                            title={`Revisar Local ${i + 1}`}
                           />
                         ))}
                       </div>
@@ -444,21 +445,21 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
                     <button 
                       onClick={() => setFinalBatch([])}
-                      className="group flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest border border-white/20 transition-all"
+                      className="group flex items-center justify-center gap-2 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest border border-white/10 transition-all"
                     >
-                      <Trash2 size={16} /> Descartar Lote
+                      <Trash2 size={16} /> Abortar Missão
                     </button>
                     <button 
                       onClick={() => setIsEditingFinal(true)}
-                      className="group flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest border border-white/20 transition-all"
+                      className="group flex items-center justify-center gap-2 bg-ocean-500 text-white px-8 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-ocean-500/20 hover:scale-105 transition-all"
                     >
-                      <Edit3 size={16} /> Detalhes & Fotos
+                      <Edit3 size={16} /> Revisar Dados & Fotos
                     </button>
                     <button 
                       onClick={saveToSystem}
                       className="flex-1 xl:flex-none bg-white text-ocean-950 px-10 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-3"
                     >
-                      Publicar Lote Completo <ArrowRight size={18} />
+                      Publicar Tudo <ArrowRight size={18} />
                     </button>
                   </div>
                 </motion.div>
@@ -528,84 +529,115 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               </div>
 
               <div className="flex-1 overflow-y-auto p-10 space-y-8">
-                {/* Visual Intelligence Section */}
-                <div className="bg-ocean-500/5 border border-ocean-500/20 rounded-3xl p-6 mb-8">
+                {/* Specialist Insights Header */}
+                <div className="bg-ocean-500/5 border border-ocean-500/10 rounded-3xl p-6 mb-8">
                   <div className="flex items-center gap-3 mb-4">
-                    <Camera className="text-ocean-400" size={20} />
-                    <h4 className="text-xs font-black uppercase tracking-widest text-ocean-400">Inteligência Visual para Busca de Fotos Reais</h4>
+                    <Sparkles className="text-ocean-400" size={20} />
+                    <h4 className="text-xs font-black uppercase tracking-widest text-ocean-400">Dossiê de Inteligência Local</h4>
                   </div>
-                  <div className="bg-black/20 p-4 rounded-xl font-mono text-[10px] text-slate-400 border border-white/5">
-                    {steps.find(s => s.role === 'visualizer')?.content || 'Analisando evidências visuais...'}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
+                      <span className="text-[9px] font-black uppercase text-slate-500 block mb-1">Visão Fotográfica</span>
+                      <p className="text-[10px] text-slate-400 leading-relaxed italic">{steps.find(s => s.role === 'visualizer')?.content.substring(0, 300) || 'Analisando...'}</p>
+                    </div>
+                    <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
+                      <span className="text-[9px] font-black uppercase text-slate-500 block mb-1">Estratégia de Guia</span>
+                      <p className="text-[10px] text-slate-400 leading-relaxed italic">{steps.find(s => s.role === 'strategist')?.content.substring(0, 300) || 'Analisando...'}</p>
+                    </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4">Nome do Local</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic text-glow-ocean">Nome Oficial do Local</label>
                     <input 
                       type="text" 
                       value={finalData?.name || ''}
                       onChange={(e) => updateCurrentPlace({ name: e.target.value })}
-                      className="w-full bg-black/40 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold focus:border-ocean-500 focus:ring-0"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold focus:border-ocean-500 focus:ring-0 transition-all"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4">Categoria Sugerida</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic text-glow-ocean">Categoria Sugerida</label>
                     <input 
                       type="text" 
                       value={finalData?.category || ''}
                       onChange={(e) => updateCurrentPlace({ category: e.target.value })}
-                      className="w-full bg-black/40 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold focus:border-ocean-500 focus:ring-0"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold focus:border-ocean-500 focus:ring-0 transition-all"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4">Endereço (Inteligência Geográfica)</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic text-glow-ocean">Localização GPS / Endereço</label>
                   <input 
                     type="text" 
                     value={finalData?.address || ''}
                     onChange={(e) => updateCurrentPlace({ address: e.target.value })}
-                    className="w-full bg-black/40 border border-slate-800 rounded-2xl px-6 py-4 text-white font-medium focus:border-ocean-500 focus:ring-0"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-medium focus:border-ocean-500 focus:ring-0 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4">Descrição de Copywriting</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic text-glow-ocean">Descrição Otimizada SEO (Guia)</label>
                   <textarea 
                     value={finalData?.description || ''}
                     onChange={(e) => updateCurrentPlace({ description: e.target.value })}
-                    className="w-full h-48 bg-black/40 border border-slate-800 rounded-3xl px-6 py-5 text-white font-medium leading-relaxed focus:border-ocean-500 focus:ring-0 scrollbar-thin"
+                    className="w-full h-64 bg-slate-950 border border-slate-800 rounded-[2rem] px-8 py-6 text-white font-medium leading-relaxed focus:border-ocean-500 focus:ring-0 scrollbar-thin transition-all"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2">Latitude</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 italic">Latitude</label>
                     <input 
                       type="number" 
                       value={finalData?.lat || 0}
                       onChange={(e) => updateCurrentPlace({ lat: parseFloat(e.target.value) })}
-                      className="w-full bg-black/40 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-xs"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-xs"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2">Longitude</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 italic">Longitude</label>
                     <input 
                       type="number" 
                       value={finalData?.lng || 0}
                       onChange={(e) => updateCurrentPlace({ lng: parseFloat(e.target.value) })}
-                      className="w-full bg-black/40 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-xs"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-xs"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2">Avaliação IA</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 italic">Avaliação IA</label>
                     <input 
                       type="number" 
                       value={finalData?.rating || 0}
+                      step="0.1"
                       onChange={(e) => updateCurrentPlace({ rating: parseFloat(e.target.value) })}
-                      className="w-full bg-black/40 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-xs"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-xs"
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Amenidades & Facilidades</label>
+                    <div className="flex flex-wrap gap-2">
+                       {(finalData as any)?.amenities?.map((amenity: string, i: number) => (
+                         <span key={i} className="bg-ocean-500/10 text-ocean-400 border border-ocean-500/20 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                           {amenity}
+                         </span>
+                       )) || <span className="text-slate-600 italic text-[10px]">Nenhuma amenidade identificada.</span>}
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Dicas de Especialista (Insiders)</label>
+                    <ul className="space-y-2">
+                       {(finalData as any)?.expertTips?.map((tip: string, i: number) => (
+                         <li key={i} className="flex gap-2 text-[10px] text-slate-400 leading-tight">
+                           <span className="text-ocean-500 font-black">•</span> {tip}
+                         </li>
+                       )) || <li className="text-slate-600 italic text-[10px]">Sem dicas adicionais.</li>}
+                    </ul>
                   </div>
                 </div>
               </div>

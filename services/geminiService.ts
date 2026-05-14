@@ -10,7 +10,7 @@ export const generateCouponDescription = async (businessName: string, category: 
   const ai = new GoogleGenAI({ apiKey });
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-1.5-flash',
       contents: `Gere uma chamada vendedora e curta (máximo 15 palavras) para um cupom de ${discount}% na empresa ${businessName}. Categoria: ${category}.`,
     });
     return response.text || `Garanta ${discount}% de desconto na ${businessName}!`;

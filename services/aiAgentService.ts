@@ -56,7 +56,7 @@ Se foram solicitados N locais, e agora estamos processando um deles, gere o JSON
 
 export async function runAgentStep(role: string, input: string, context?: string, feedback?: string): Promise<string> {
   const ai = getAI();
-  const model = "gemini-3-flash-preview"; 
+  const model = "gemini-1.5-flash"; 
   
   const prompt = `
 CONTEXTO DO PROJETO:
@@ -91,7 +91,7 @@ Responda com foco em INTEGRALIDADE e DETALHE para o guia:
 
 export async function finalizeLocation(finalContent: string, quantity: number = 1): Promise<Partial<BusinessProfile>[]> {
   const ai = getAI();
-  const model = "gemini-3-flash-preview"; 
+  const model = "gemini-1.5-flash"; 
   
   const response = await ai.models.generateContent({
     model,

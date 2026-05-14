@@ -3,9 +3,9 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { BusinessProfile } from "../types";
 
 function getAI() {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY_PESQU || process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey || apiKey === 'undefined' || apiKey === 'null') {
-    throw new Error("Chave de API do Gemini não encontrada no ambiente.");
+    throw new Error("Chave de API (GEMINI_API_KEY_PESQU) não encontrada. Por favor, configure-a no menu Settings.");
   }
   return new GoogleGenAI({ apiKey });
 }

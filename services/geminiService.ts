@@ -2,7 +2,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 export const generateCouponDescription = async (businessName: string, category: string, discount: number): Promise<string> => {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY_PESQU || process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey || apiKey === 'undefined') {
     return `Garanta ${discount}% de desconto na ${businessName}!`;
   }

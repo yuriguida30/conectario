@@ -28,25 +28,30 @@ export const INITIAL_STEPS: AgentStep[] = [
 ];
 
 const SYSTEM_PROMPTS = {
-  researcher: `Você é um Pesquisador de Elite especializado na Região dos Lagos. Sua missão é trazer a verdade nua e crua. 
-Inclua: História real, fatos pouco conhecidos, coordenadas precisas, endereço completo e infraestrutura. 
-Se você receber um feedback do Comandante, revise seus dados e aprofunde ainda mais nos pontos solicitados.`,
+  researcher: `Você é um Pesquisador de Elite do guia LAGOS GO. Seu trabalho é pesquisar LOCALIZAÇÕES REAIS e VERIFICADAS na Região dos Lagos (Arraial do Cabo, Cabo Frio, Búzios). 
+Se o comando for para múltiplos locais (ex: "5 trilhas"), você deve listar os 5 nomes primeiro e depois detalhar o primeiro.
+IMPORTANTE: Busque detalhes sobre estrutura para cadeirantes, banheiros, se é pet friendly e a dificuldade real (se for trilha).`,
   
-  analyzer: `Você é implacável. Se o Pesquisador foi vago, você DEVE criticar. 
-Procure por inconsistências: a história faz sentido? O local realmente fica no bairro citado? 
-Aponte erros e exija correções.`,
+  analyzer: `Você é o Censor do Lagos GO. Seu papel é garantir que o local PESQUISADO existe e as informações não são genéricas. 
+Exija do pesquisador: "Onde exatamente fica a entrada?", "Qual o valor médio (se houver)?", "Existe sinal de celular no local?". 
+Não aceite relatórios superficiais.`,
 
-  visualizer: `Você é especialista em busca visual. Sua missão é identificar os melhores termos de busca para encontrar imagens REAIS deste local no Google/Unsplash. 
-Sugira 3 URLs de imagens conceituais que representem fielmente o local e descreva como a imagem deve ser (ex: "Foto tirada do mirante, sem filtros excessivos, mostrando a tonalidade real da água"). 
-Foque em REALISMO.`,
+  visualizer: `Você é o Curador Visual. Para cada local, você deve fornecer:
+1. Termos exatos de busca para fotos REAIS (ex: "Trilha do Morro da Guia Cabo Frio vista aérea pôr do sol").
+2. Descrição detalhada da 'Foto Capa' ideal para o guia.
+3. 3 tags visuais (ex: #ÁguaCristalina, #PôrDoSol, #História).`,
 
-  strategist: `Você define o posicionamento. Baseado nos dados e imagens, qual o valor único desse local? 
-Categorize com precisão cirúrgica para o Lagos GO.`,
+  strategist: `Você é o Diretor de Produto. Decida a Categoria (Gastronomia, Hospedagem, Passeios, Entretenimento, Comércio, Serviços) e Subcategoria. 
+Defina o "Status de Verificação" e por que esse local merece estar no Lagos GO.`,
 
-  copywriter: `Transforme tudo em ouro. Use técnicas de Copywriting de alto nível (AIDA, PAS). 
-Otimize para SEO local. A descrição deve ser irresistível mas honesta.`,
+  copywriter: `Você é o mestre da conversão. Escreva um título curto e impactante e uma descrição de 3 parágrafos:
+1. A experiência (O que sentirá lá).
+2. O prático (O que tem lá).
+3. Chamada (Por que ir agora).
+Use tom amigável, local e sofisticado.`,
 
-  finalizer: `Consolide tudo. Se houver falhas nas etapas anteriores de acordo com o Comandante, você deve alertar.`
+  finalizer: `Você é o Engenheiro de Integração. Transforme a conversa em uma lista de objetos JSON. 
+Se foram solicitados N locais, e agora estamos processando um deles, gere o JSON desse local.`
 };
 
 export async function runAgentStep(role: string, input: string, context?: string, feedback?: string): Promise<string> {
@@ -54,18 +59,22 @@ export async function runAgentStep(role: string, input: string, context?: string
   const model = "gemini-3-flash-preview"; 
   
   const prompt = `
-Contexto Geral Anterior:
-${context || 'Nenhum contexto prévio.'}
+CONTEXTO DO PROJETO:
+Você trabalha para o "LAGOS GO", o maior guia turístico da Região dos Lagos (RJ). 
+Sua missão é criar postagens em massa com ALTA QUALIDADE e VERACIDADE.
 
 Instrução do seu Papel:
 ${(SYSTEM_PROMPTS as any)[role]}
 
-ENTRADA ATUAL DO USUÁRIO:
+COMANDO DO COMANDANTE (USUÁRIO):
 ${input}
 
-${feedback ? `\nORDEM DIRETA DO COMANDANTE (REVISÃO): "${feedback}"\nVocê deve reformular sua resposta anterior focando estritamente neste comando.` : ''}
+${feedback ? `\nAJUSTE SOLICITADO PELO COMANDANTE: "${feedback}"\n` : ''}
 
-Responda agora com autoridade máxima:
+Contexto da conversa até agora:
+${context || 'Iniciando operação.'}
+
+Responda com foco em INTEGRALIDADE e DETALHE para o guia:
 `;
 
   try {
@@ -73,54 +82,67 @@ Responda agora com autoridade máxima:
       model,
       contents: prompt,
     });
-    return response.text || "Erro ao gerar resposta.";
+    return response.text || "Erro no processamento do agente.";
   } catch (error) {
     console.error(`AI Agent Error (${role}):`, error);
     throw error;
   }
 }
 
-export async function finalizeLocation(finalContent: string): Promise<Partial<BusinessProfile>> {
+export async function finalizeLocation(finalContent: string, quantity: number = 1): Promise<Partial<BusinessProfile>[]> {
   const ai = getAI();
   const model = "gemini-3-flash-preview"; 
   
   const response = await ai.models.generateContent({
     model,
-    contents: `Com base em todo o conteúdo abaixo, gere APENAS o JSON para o local.
+    contents: `Com base em todas as pesquisas e discussões anteriores, gere uma LISTA de objetos JSON para os locais identificados.
     
-    Conteúdo:
+    Quantidade de locais esperada: ${quantity}
+    
+    Conteúdo Base:
     ${finalContent}
     
-    REGRAS DO JSON:
-    1. Campos obrigatórios: name, category, description, address, amenities (array de IDs como wifi, parking, access, etc).
-    2. Adicione lat e lng (números).
-    3. rating deve ser entre 4.0 e 5.0.
-    4. canBeClaimed deve ser false (pois são pontos verificados pela equipe).
+    ESTRUTURA DO JSON (ARRAY DE OBJETOS):
+    - name (string)
+    - category (Gastronomia, Hospedagem, Passeios, Entretenimento, Comércio, Serviços)
+    - subcategory (string)
+    - description (string longa e formatada)
+    - address (string completa)
+    - lat (number)
+    - lng (number)
+    - amenities (array de IDs como: wifi, parking, access, pet, bathroom, food)
+    - rating (4.0 a 5.0)
+    - reviewCount (number entre 10 e 200)
     
-    Categorias aceitas: Gastronomia, Hospedagem, Passeios, Entretenimento, Comércio, Serviços.
-    
-    IMPORTANTE: Retorne APENAS o JSON puro.`,
+    IMPORTANTE: Retorne APENAS o JSON puro em um array [{}, {}].`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          name: { type: Type.STRING },
-          category: { type: Type.STRING },
-          subcategory: { type: Type.STRING },
-          description: { type: Type.STRING },
-          address: { type: Type.STRING },
-          lat: { type: Type.NUMBER },
-          lng: { type: Type.NUMBER },
-          amenities: { type: Type.ARRAY, items: { type: Type.STRING } },
-          phone: { type: Type.STRING },
-          rating: { type: Type.NUMBER },
-          reviewCount: { type: Type.NUMBER }
-        },
-        required: ["name", "category", "description", "address", "lat", "lng", "amenities"]
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING },
+            category: { type: Type.STRING },
+            subcategory: { type: Type.STRING },
+            description: { type: Type.STRING },
+            address: { type: Type.STRING },
+            lat: { type: Type.NUMBER },
+            lng: { type: Type.NUMBER },
+            amenities: { type: Type.ARRAY, items: { type: Type.STRING } },
+            rating: { type: Type.NUMBER },
+            reviewCount: { type: Type.NUMBER }
+          },
+          required: ["name", "category", "description", "address", "lat", "lng"]
+        }
       }
     }
   });
 
-  return JSON.parse(response.text || "{}");
+  try {
+    return JSON.parse(response.text || "[]");
+  } catch (e) {
+    console.error("Erro ao converter JSON final da IA:", e);
+    return [];
+  }
 }

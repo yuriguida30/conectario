@@ -29,39 +29,48 @@ export const INITIAL_STEPS: AgentStep[] = [
 
 const SYSTEM_PROMPTS = {
   researcher: `Você é o Pesquisador-Chefe do LAGOS GO. 
-Sua missão é fornecer informações REAIS e VIBRANTES sobre locais na Região dos Lagos.
+Sua missão é fornecer informações REAIS, VIBRANTES e COMPLETAS sobre locais na Região dos Lagos.
 REGRAS DE OURO:
 1. RESPEITE A CIDADE: Se o Comandante pediu [Cidade], você NUNCA deve sugerir nada em outra cidade.
-2. PERSONALIDADE NO DETALHE: Não traga apenas o básico. Descubra a história, o prato principal, o melhor ângulo para foto e a sensação de estar lá.
-3. HORÁRIOS REAIS: Praias, praças e mirantes são "24 horas" ou "Nascer ao Pôr do Sol". Nunca os deixe como fechados.
-4. NÃO INVENTE: Se não encontrar o número de locais reais na cidade, pare e declare: "LIMITE REAL ALCANÇADO".`,
+2. CONTATO TOTAL: É OBRIGATÓRIO buscar o @instagram oficial, o site da empresa e o WhatsApp de contato para cada local.
+3. PERSONALIDADE NO DETALHE: Não traga apenas o básico. Descubra a história, o prato principal (se for restaurante), diferenciais de hospedagem (se hotel) e a "alma" do lugar.
+4. HORÁRIOS REAIS: Você deve detalhar o horário de funcionamento de SEG a DOM. Praias e praças são "24 horas" ou "Ciclo Solar". Hotels são "24 horas".
+5. NÃO INVENTE: Se não encontrar o número de locais reais na cidade, pare e declare: "LIMITE REAL ALCANÇADO".`,
   
   yuri: `Você é o YURI VERIFICADOR, o braço direito do Comandante.
 Sua única função é ser o FILTRO DE ELITE.
 MISSÃO:
-1. CHECAR PERSONALIDADE: A descrição está rica e completa? Se estiver genérica ou curta ("Lugar bom"), REJEITE.
-2. CHECAR HORÁRIOS: Verifique se locais públicos estão com horários de 24h ou ciclo solar. REJEITE se estiverem como "fechado".
-3. CHECAR GEOGRAFIA: Garanta que o local é na cidade alvo.
-VEREDITO: "APROVADO" ou "REJEITADO: [Motivo]".`,
+1. CHECAR QUALIDADE DA CÓPIA: A descrição está longa e persuasiva? Se for um texto de menos de 4 parágrafos ou genérico, REJEITE.
+2. CHECAR CONTATOS: O local tem Instagram ou Site? Se for uma empresa comercial (Hotel/Restaurante) e não houver links, REJEITE e peça para o pesquisador buscar mais.
+3. CHECAR HORÁRIOS: Verifique se locais têm horários condizentes para todos os dias. REJEITE se estiverem genéricos ou marcados como "fechado" indevidamente.
+4. CHECAR GEOGRAFIA: Garanta que o local é na cidade alvo.
+VEREDITO: "APROVADO" ou "REJEITADO: [Motivo detalhado]".`,
 
   analyzer: `Você é o Auditor de Qualidade. 
-Foque no detalhamento técnico: Endereço exato, coordenadas GPS e amenidades reais. 
-Exija que o Pesquisador informe se o acesso é gratuito ou pago.`,
+Foque no detalhamento técnico: Endereço exato (Rua, Número, Bairro), coordenadas GPS e amenidades reais. 
+Verifique se o local oferece Wi-Fi, Estacionamento, Acessibilidade e se é Pet Friendly.`,
 
   visualizer: `Você é o Detetive Visual. 
-Forneça o TERMO DE BUSCA PERFEITO para o Comandante encontrar a foto real.
-Não gere URLs falsas.`,
+Forneça o TERMO DE BUSCA PERFEITO (Google/Instagram) para que o Comandante encontre a foto real.
+Identifique se o local tem perfis sociais ativos.`,
 
-  strategist: `Você define o DNA do local. 
-Crie 3 "Dicas de Especialista" (Insiders Tips) que demonstrem conhecimento profundo da região.`,
+  strategist: `Você define o posicionamento do local. 
+Crie 3 "Dicas de Especialista" (Insiders Tips) que demonstrem conhecimento profundo (ex: "Peça o prato X que não está no menu", "O melhor lugar para foto é atrás da pedra Y").`,
 
-  copywriter: `Você é um Copywriter de Luxo. 
-Sua escrita deve ser magnética, luxuosa e informativa. Use o nome da cidade para SEO e descreva a experiência sensorial do local.`,
+  copywriter: `Você é um Copywriter de SEO de Elite. 
+Sua missão é criar uma descrição MAGNÉTICA e LONGA (mínimo 600 caracteres).
+- Use o nome da cidade e do local repetidamente de forma natural para SEO.
+- Destaque o valor da experiência.
+- Use palavras-chave como "melhor hotel em X", "melhor restaurante em Y", "roteiro imperdível".`,
 
-  finalizer: `Transforme em JSON. 
-REGRAS FINAIS:
-- openingHours: Para locais abertos, use "06:00 - 18:00" ou "24 horas".
-- realImageUrl: Mantenha sempre vazio ("").`
+  finalizer: `Transforme em JSON Puro. 
+REGRAS FINAIS DE FORMATAÇÃO:
+- description: Deve ser o texto longo e otimizado do Copywriter.
+- openingHours: Objeto contendo os horários para cada dia da semana.
+- instagram: Nome de usuário sem o @.
+- website: URL completa.
+- whatsapp: Numero formatado.
+- realImageUrl: Mantenha vazio ("").`
 };
 
 export async function runAgentStep(role: string, input: string, context?: string, feedback?: string, manualApiKey?: string): Promise<string> {
@@ -75,7 +84,7 @@ export async function runAgentStep(role: string, input: string, context?: string
   const prompt = `
 CONTEXTO DO PROJETO:
 Você trabalha para o "LAGOS GO", o maior guia turístico da Região dos Lagos (RJ). 
-Sua missão é criar postagens em massa com ALTA QUALIDADE e VERACIDADE.
+Sua missão é criar postagens com QUALIDADE DE REVISTA, RIQUEZA DE DADOS e OTIMIZAÇÃO SEO.
 
 Instrução do seu Papel:
 ${(SYSTEM_PROMPTS as any)[role]}
@@ -88,7 +97,7 @@ ${feedback ? `\nAJUSTE SOLICITADO PELO COMANDANTE: "${feedback}"\n` : ''}
 Contexto da conversa até agora:
 ${context || 'Iniciando operação.'}
 
-Responda com foco em INTEGRALIDADE e DETALHE para o guia. Se o usuário pediu vários locais, você deve processar todos eles consistentemente.
+Responda com foco em PESQUISA PROFUNDA e COPYWRITING DE ALTO NÍVEL. Não aceite mediocridade.
 `;
 
   try {
@@ -134,7 +143,22 @@ export async function finalizeLocation(finalContent: string, quantity: number = 
             difficulty: { type: Type.STRING },
             expertTips: { type: Type.ARRAY, items: { type: Type.STRING } },
             imageKeywords: { type: Type.STRING },
-            realImageUrl: { type: Type.STRING }
+            realImageUrl: { type: Type.STRING },
+            website: { type: Type.STRING },
+            instagram: { type: Type.STRING },
+            whatsapp: { type: Type.STRING },
+            openingHours: {
+              type: Type.OBJECT,
+              properties: {
+                Segunda: { type: Type.STRING },
+                Terça: { type: Type.STRING },
+                Quarta: { type: Type.STRING },
+                Quinta: { type: Type.STRING },
+                Sexta: { type: Type.STRING },
+                Sábado: { type: Type.STRING },
+                Domingo: { type: Type.STRING }
+              }
+            }
           },
           required: ["name", "category", "description", "address", "lat", "lng"]
         }
@@ -147,22 +171,12 @@ export async function finalizeLocation(finalContent: string, quantity: number = 
     Conteúdo Base:
     ${finalContent}
     
-    ESTRUTURA DO JSON (ARRAY DE OBJETOS):
-    - name (string)
-    - category (Gastronomia, Hospedagem, Passeios, Entretenimento, Comércio, Serviços)
-    - subcategory (string)
-    - description (string longa que une storytellin com guia prático)
-    - address (string completa)
-    - lat (number)
-    - lng (number)
-    - amenities (array de strings: wifi, parking, access, bathroom, food, pet, shade)
-    - rating (4.0 a 5.0)
-    - reviewCount (10 a 200)
-    - bestTime (pôr do sol, manhã, noite, etc)
-    - difficulty (se aplicável: fácil, médio, difícil)
-    - expertTips (array de strings com as dicas dos especialistas)
-    - imageKeywords (string de palavras-chave em inglês para busca de imagem real)
-    - realImageUrl (URL direta da imagem real .jpg/png se identificada)
+    REGRAS DE NEGÓCIO DO JSON:
+    - description: DEVE ser a descrição longa (SEO) criada pelo Copywriter.
+    - instagram: apenas o username (ex: lagosgo).
+    - whatsapp: apenas números ou com formatação (5522...).
+    - openingHours: preencha para todos os 7 dias baseando-se no bom senso ou pesquisa.
+    - category: Uma destas: Gastronomia, Hospedagem, Passeios, Entretenimento, Comércio, Serviços.
     
     IMPORTANTE: Retorne APENAS o JSON puro em um array [{}, {}].` }] }]
   });

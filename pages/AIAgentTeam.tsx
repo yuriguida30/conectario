@@ -887,11 +887,12 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Descrição SEO</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Descrição SEO Exclusiva</label>
                   <textarea 
                     value={finalData?.description || ''}
                     onChange={(e) => updateCurrentPlace({ description: e.target.value })}
-                    className="w-full h-48 bg-slate-950 border border-slate-800 rounded-[2rem] px-8 py-6 text-white font-medium leading-relaxed focus:border-ocean-500 focus:ring-0 scrollbar-thin transition-all"
+                    placeholder="A IA escreverá um texto longo e otimizado aqui..."
+                    className="w-full h-80 bg-slate-950 border border-slate-800 rounded-[2rem] px-8 py-6 text-white font-medium leading-relaxed focus:border-ocean-500 focus:ring-0 scrollbar-thin transition-all"
                   />
                 </div>
 
@@ -973,6 +974,7 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       type="text" 
                       value={finalData?.whatsapp || ''}
                       onChange={(e) => updateCurrentPlace({ whatsapp: e.target.value })}
+                      placeholder="WhatsApp"
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs"
                     />
                   </div>
@@ -984,6 +986,29 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       step="0.1"
                       onChange={(e) => updateCurrentPlace({ rating: parseFloat(e.target.value) })}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 italic">Instagram (Sem @)</label>
+                    <input 
+                      type="text" 
+                      value={finalData?.instagram || ''}
+                      onChange={(e) => updateCurrentPlace({ instagram: e.target.value })}
+                      placeholder="Ex: lagosgo"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 italic">Site Oficial</label>
+                    <input 
+                      type="text" 
+                      value={finalData?.website || ''}
+                      onChange={(e) => updateCurrentPlace({ website: e.target.value })}
+                      placeholder="https://..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs"
                     />
                   </div>
                 </div>

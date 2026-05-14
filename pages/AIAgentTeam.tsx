@@ -353,20 +353,31 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                           {quotaError.msg}
                         </p>
                       </div>
-                      <div className="pt-4 flex flex-col gap-3">
-                        <div className="bg-black/40 p-4 rounded-2xl border border-red-500/20 text-[10px] text-red-300 font-mono text-left">
-                          <span className="text-slate-500 uppercase block mb-1">Passo a Passo:</span>
-                          1. Clique no ícone de Engrenagem (Settings)<br />
-                          2. Procure por: GEMINI_API_KEY_PESQU<br />
-                          3. Insira sua chave (AIzaSy...)<br />
-                          4. Salve e reinicie a operação.
+                      <div className="pt-4 flex flex-col gap-4">
+                        <div className="bg-black/40 p-5 rounded-3xl border border-red-500/20 text-[10px] text-red-300 font-mono text-left space-y-2">
+                          <span className="text-slate-500 uppercase block mb-1 font-black">Instruções para Rotação de Chaves:</span>
+                          <p>1. Acesse o menu <b className="text-white">Settings</b> à esquerda.</p>
+                          <p>2. Localize <b className="text-white">Environment Variables</b>.</p>
+                          <p>3. Atualize <b className="text-white">GEMINI_API_KEY_PESQU</b> com sua nova chave.</p>
+                          <p>4. Clique em <b className="text-white">Save</b> e reinicie a pesquisa.</p>
                         </div>
-                        <button 
-                          onClick={() => setQuotaError(null)}
-                          className="w-full bg-red-500 hover:bg-red-400 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
-                        >
-                          Entendido, Comandante!
-                        </button>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <a 
+                            href="https://aistudio.google.com/app/apikey" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="bg-white/10 hover:bg-white/20 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 border border-white/10"
+                          >
+                            <RefreshCw size={14} /> Obter Nova Chave
+                          </a>
+                          <button 
+                            onClick={() => setQuotaError(null)}
+                            className="bg-red-600 hover:bg-red-500 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-red-600/20"
+                          >
+                            Entendido, Comandante!
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </motion.div>

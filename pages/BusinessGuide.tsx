@@ -117,17 +117,18 @@ export const BusinessGuide: React.FC<BusinessGuideProps> = ({ currentUser, onNav
   useEffect(() => {
     const loadStructuralData = async () => {
         try {
-            const [cats, cts, nbs, cols] = await Promise.all([
+            const [cats, cts, nbs, cols, ams] = await Promise.all([
                 getCategories(),
                 getCities(),
                 getNeighborhoods(),
-                getCollections()
+                getCollections(),
+                getAmenities()
             ]);
             
             setCategories(cats);
             setCities(cts);
             setNeighborhoods(nbs);
-            setAmenities(getAmenities());
+            setAmenities(ams);
             setCollections(cols.filter(c => c.active).sort((a, b) => a.order - b.order));
         } catch (e) {
             console.error("Failed to load structural data", e);

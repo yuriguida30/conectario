@@ -8,9 +8,12 @@ import {
   RefreshCw, MessageSquare, Edit3, Trash2, Save, Camera, Plus, Minus
 } from 'lucide-react';
 import { AgentStep, INITIAL_STEPS, runAgentStep, finalizeLocation } from '../services/aiAgentService';
-import { createAdminPlace, getCities, getNeighborhoods, getCategories, getBusinesses } from '../services/dataService';
+import { 
+  createAdminPlace, getCities, getNeighborhoods, getCategories, 
+  getBusinesses, getAmenities, ensureSubcategory, saveAmenity 
+} from '../services/dataService';
 import { useNotification } from '../components/NotificationSystem';
-import { BusinessProfile } from '../types';
+import { BusinessProfile, AppCategory, AppAmenity } from '../types';
 
 export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const { notify } = useNotification();
@@ -21,6 +24,8 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [cities, setCities] = useState<{id: string, name: string}[]>([]);
   const [selectedCityId, setSelectedCityId] = useState('');
+  const [categories, setCategories] = useState<AppCategory[]>([]);
+  const [amenitiesList, setAmenitiesList] = useState<AppAmenity[]>([]);
   const [finalBatch, setFinalBatch] = useState<Partial<BusinessProfile & { imageKeywords?: string; coverImage?: string }>[]>([]);
   const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
   const [isEditingFinal, setIsEditingFinal] = useState(false);
@@ -30,6 +35,8 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const finalData = finalBatch[currentBatchIndex];
   const [logs, setLogs] = useState<{role: string, msg: string, time: string}[]>([]);
   const [activeFeedback, setActiveFeedback] = useState<{index: number, text: string} | null>(null);
+  const [newAmenityInput, setNewAmenityInput] = useState('');
+  const [newSubcategoryInput, setNewSubcategoryInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,16 +51,22 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   };
 
   useEffect(() => {
-    const loadCities = async () => {
+    const loadInitialData = async () => {
       try {
-        const data = await getCities();
-        setCities(data);
-        if (data.length > 0) setSelectedCityId(data[0].id);
+        const [citiesData, catsData, amsData] = await Promise.all([
+          getCities(),
+          getCategories(),
+          getAmenities()
+        ]);
+        setCities(citiesData);
+        setCategories(catsData);
+        setAmenitiesList(amsData);
+        if (citiesData.length > 0) setSelectedCityId(citiesData[0].id);
       } catch (e) {
-        console.error("Erro ao carregar cidades:", e);
+        console.error("Erro ao carregar dados iniciais:", e);
       }
     };
-    loadCities();
+    loadInitialData();
   }, []);
 
   const handleStart = async () => {
@@ -224,20 +237,34 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       const neighborhoods = await getNeighborhoods();
       const defaultNH = neighborhoods.find(n => n.cityId === selectedCityId) || neighborhoods[0];
 
+      addLog('system', `Persistindo lote de ${finalBatch.length} locais...`);
+
       for (const place of finalBatch) {
+        // Enforce subcategory existence
+        if (place.category && place.subcategory) {
+          await ensureSubcategory(place.category, place.subcategory);
+        }
+
+        // Enforce amenities existence in the global list if new ones were added manually
+        // (already handled by saveAmenity in the UI if used, but reinforcing here if needed)
+
         await createAdminPlace({
           ...place,
           cityId: selectedCityId,
           neighborhoodId: defaultNH?.id,
           isClaimed: false,
           canBeClaimed: false,
-          coverImage: place.coverImage || ''
+          coverImage: place.coverImage || '',
+          status: 'approved',
+          active: true,
+          updatedAt: new Date().toISOString()
         } as Partial<BusinessProfile>);
       }
 
       notify('success', `${finalBatch.length} locais publicados com sucesso.`);
       onBack();
     } catch (error) {
+      console.error("Erro ao salvar lote:", error);
       notify('error', 'Erro durante a persistência do lote.');
     }
   };
@@ -680,7 +707,7 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
               <div className="flex-1 overflow-y-auto p-10 space-y-8">
                 {/* Visual Management Section */}
-                <div className="bg-slate-950/50 border border-slate-800 rounded-3xl p-8 space-y-6">
+                <div className="bg-slate-950/50 border border-slate-800 rounded-3xl p-8 space-y-6 shadow-xl shadow-black/20">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <Camera className="text-ocean-400" size={24} />
@@ -694,21 +721,31 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       }}
                       className="bg-ocean-600/20 text-ocean-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-ocean-500/30 hover:bg-ocean-500 hover:text-white transition-all flex items-center gap-2"
                     >
-                      <Search size={14} /> Pesquisar Foto Real no Google
+                      <Search size={14} /> Pesquisar no Google
                     </button>
                   </div>
 
                   <div className="flex flex-col xl:flex-row gap-8">
-                    <div className="xl:w-1/2 space-y-2">
-                       <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Link da Foto (Google/Instragram/Site)</label>
-                       <input 
-                         type="text" 
-                         value={finalData?.coverImage || ''}
-                         onChange={(e) => updateCurrentPlace({ coverImage: e.target.value })}
-                         placeholder="Cole aqui o link da imagem real..."
-                         className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-6 py-4 text-white text-xs focus:border-ocean-500 focus:ring-0"
-                       />
-                       <p className="text-[9px] text-slate-500 ml-4 font-medium italic">Copie o link da imagem do Google e cole acima para 100% de precisão.</p>
+                    <div className="xl:w-1/2 space-y-4">
+                       <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Link da Foto (Capa)</label>
+                        <input 
+                          type="text" 
+                          value={finalData?.coverImage || ''}
+                          onChange={(e) => updateCurrentPlace({ coverImage: e.target.value })}
+                          placeholder="Cole aqui o link da imagem real..."
+                          className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-6 py-4 text-white text-xs focus:border-ocean-500 focus:ring-0"
+                        />
+                       </div>
+                       <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Galeria (Links separados por vírgula)</label>
+                        <textarea 
+                          value={finalData?.gallery?.join(', ') || ''}
+                          onChange={(e) => updateCurrentPlace({ gallery: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
+                          placeholder="Link 1, Link 2..."
+                          className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-6 py-3 text-white text-xs h-20 focus:border-ocean-500 focus:ring-0"
+                        />
+                       </div>
                     </div>
                     <div className="xl:w-1/2">
                       <div className="aspect-video w-full bg-black rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center relative">
@@ -722,12 +759,9 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                         ) : (
                           <div className="text-center p-6">
                             <Camera size={32} className="text-slate-800 mx-auto mb-2" />
-                            <p className="text-[9px] text-slate-700 font-bold uppercase">Sem Imagem Selecionada</p>
+                            <p className="text-[9px] text-slate-700 font-bold uppercase">Sem Capa</p>
                           </div>
                         )}
-                        <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-black text-white uppercase border border-white/10">
-                          Preview Visual
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -735,27 +769,74 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic text-glow-ocean">Nome Oficial do Local</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Nome Oficial</label>
                     <input 
                       type="text" 
                       value={finalData?.name || ''}
                       onChange={(e) => updateCurrentPlace({ name: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold focus:border-ocean-500 focus:ring-0 transition-all"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold focus:border-ocean-500 focus:ring-0 transition-all font-mono"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic text-glow-ocean">Categoria Sugerida</label>
-                    <input 
-                      type="text" 
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic text-glow-ocean">Categoria</label>
+                    <select 
                       value={finalData?.category || ''}
-                      onChange={(e) => updateCurrentPlace({ category: e.target.value })}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold focus:border-ocean-500 focus:ring-0 transition-all"
-                    />
+                      onChange={(e) => updateCurrentPlace({ category: e.target.value, subcategory: '' })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-6 py-4 text-white font-bold focus:border-ocean-500 focus:ring-0 transition-all cursor-pointer"
+                    >
+                      <option value="">Selecione...</option>
+                      {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                    </select>
                   </div>
                 </div>
 
+                {/* Subcategories */}
+                <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Target className="text-ocean-400" size={20} />
+                      <h4 className="text-xs font-black uppercase tracking-widest text-white">Subcategoria (Tags de Busca)</h4>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.find(c => c.name === finalData?.category)?.subcategories.map(sub => (
+                      <button 
+                        key={sub.id}
+                        onClick={() => updateCurrentPlace({ subcategory: sub.name })}
+                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                          finalData?.subcategory === sub.name ? 'bg-ocean-500 text-white shadow-lg shadow-ocean-500/20' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                        }`}
+                      >
+                        {sub.name}
+                      </button>
+                    ))}
+                    <div className="ml-auto flex gap-2">
+                      <input 
+                        type="text" 
+                        placeholder="Nova subcategoria..."
+                        value={newSubcategoryInput}
+                        onChange={(e) => setNewSubcategoryInput(e.target.value)}
+                        className="bg-black/40 border border-slate-800 rounded-xl px-4 py-2 text-[10px] text-white focus:border-ocean-500 focus:ring-0 w-40"
+                      />
+                      <button 
+                        onClick={async () => {
+                          if (!newSubcategoryInput) return;
+                          updateCurrentPlace({ subcategory: newSubcategoryInput });
+                          setNewSubcategoryInput('');
+                        }}
+                        className="bg-ocean-600/20 text-ocean-400 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-ocean-600 hover:text-white transition-all"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  {finalData?.subcategory && !categories.find(c => c.name === finalData?.category)?.subcategories.some(s => s.name === finalData?.subcategory) && (
+                    <p className="text-[9px] text-amber-500 font-bold uppercase italic">* Esta subcategoria será criada e salva no sistema.</p>
+                  )}
+                </div>
+
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic text-glow-ocean">Localização GPS / Endereço</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Localização / Endereço</label>
                   <input 
                     type="text" 
                     value={finalData?.address || ''}
@@ -764,13 +845,89 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   />
                 </div>
 
+                {/* Opening Hours */}
+                <div className="bg-slate-950/30 p-8 rounded-[2.5rem] border border-slate-800 space-y-6">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Horário de Funcionamento</h4>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].map(day => (
+                      <div key={day} className="space-y-1">
+                        <label className="text-[9px] font-bold text-slate-600 uppercase ml-2">{day}</label>
+                        <input 
+                          type="text" 
+                          value={finalData?.openingHours?.[day] || ''}
+                          onChange={(e) => {
+                            const hours = { ...(finalData?.openingHours || {}) };
+                            hours[day] = e.target.value;
+                            updateCurrentPlace({ openingHours: hours });
+                          }}
+                          placeholder="Ex: 08:00 - 18:00 ou 24 horas"
+                          className="w-full bg-black/40 border border-slate-800 rounded-xl px-4 py-2 text-[10px] text-white focus:border-ocean-500 focus:ring-0 font-mono"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic text-glow-ocean">Descrição Otimizada SEO (Guia)</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Descrição SEO</label>
                   <textarea 
                     value={finalData?.description || ''}
                     onChange={(e) => updateCurrentPlace({ description: e.target.value })}
-                    className="w-full h-64 bg-slate-950 border border-slate-800 rounded-[2rem] px-8 py-6 text-white font-medium leading-relaxed focus:border-ocean-500 focus:ring-0 scrollbar-thin transition-all"
+                    className="w-full h-48 bg-slate-950 border border-slate-800 rounded-[2rem] px-8 py-6 text-white font-medium leading-relaxed focus:border-ocean-500 focus:ring-0 scrollbar-thin transition-all"
                   />
+                </div>
+
+                {/* Amenities */}
+                <div className="bg-slate-900/40 p-8 rounded-[2.5rem] border border-slate-800 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Amenidades & Facilidades</label>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {amenitiesList.map(am => {
+                      const isSelected = finalData?.amenities?.includes(am.label);
+                       return (
+                         <button 
+                           key={am.id}
+                           onClick={() => {
+                             const current = finalData?.amenities || [];
+                             const next = isSelected ? current.filter(a => a !== am.label) : [...current, am.label];
+                             updateCurrentPlace({ amenities: next });
+                           }}
+                           className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                             isSelected ? 'bg-ocean-500 text-white' : 'bg-slate-800 text-slate-500 hover:bg-slate-700'
+                           }`}
+                         >
+                           {am.label}
+                         </button>
+                       );
+                    })}
+                    <div className="ml-auto flex gap-2">
+                       <input 
+                         type="text" 
+                         placeholder="Criar comodidade..."
+                         value={newAmenityInput}
+                         onChange={(e) => setNewAmenityInput(e.target.value)}
+                         className="bg-black/40 border border-slate-800 rounded-xl px-4 py-2 text-[10px] text-white focus:border-ocean-500 focus:ring-0 w-40"
+                       />
+                       <button 
+                         onClick={async () => {
+                           if (!newAmenityInput) return;
+                           const current = finalData?.amenities || [];
+                           if (!current.includes(newAmenityInput)) {
+                             updateCurrentPlace({ amenities: [...current, newAmenityInput] });
+                             // Persist new amenity globally
+                             await saveAmenity(newAmenityInput);
+                             const newList = await getAmenities();
+                             setAmenitiesList(newList);
+                           }
+                           setNewAmenityInput('');
+                         }}
+                         className="bg-ocean-600/20 text-ocean-400 px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-ocean-600 hover:text-white transition-all"
+                       >
+                         <Plus size={14} />
+                       </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -793,7 +950,16 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 italic">Avaliação IA</label>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 italic">WhatsApp</label>
+                    <input 
+                      type="text" 
+                      value={finalData?.whatsapp || ''}
+                      onChange={(e) => updateCurrentPlace({ whatsapp: e.target.value })}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 italic">Nota IA</label>
                     <input 
                       type="number" 
                       value={finalData?.rating || 0}
@@ -801,29 +967,6 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       onChange={(e) => updateCurrentPlace({ rating: parseFloat(e.target.value) })}
                       className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white font-mono text-xs"
                     />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Amenidades & Facilidades</label>
-                    <div className="flex flex-wrap gap-2">
-                       {(finalData as any)?.amenities?.map((amenity: string, i: number) => (
-                         <span key={i} className="bg-ocean-500/10 text-ocean-400 border border-ocean-500/20 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest">
-                           {amenity}
-                         </span>
-                       )) || <span className="text-slate-600 italic text-[10px]">Nenhuma amenidade identificada.</span>}
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-4 italic">Dicas de Especialista (Insiders)</label>
-                    <ul className="space-y-2">
-                       {(finalData as any)?.expertTips?.map((tip: string, i: number) => (
-                         <li key={i} className="flex gap-2 text-[10px] text-slate-400 leading-tight">
-                           <span className="text-ocean-500 font-black">•</span> {tip}
-                         </li>
-                       )) || <li className="text-slate-600 italic text-[10px]">Sem dicas adicionais.</li>}
-                    </ul>
                   </div>
                 </div>
               </div>

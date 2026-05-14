@@ -31,7 +31,7 @@ import { auth, db } from './firebase';
 import { 
     Coupon, User, UserRole, BusinessProfile, BlogPost, SavingsRecord, 
     CompanyRequest, AppCategory, Subcategory, DEFAULT_CATEGORIES, 
-    DEFAULT_AMENITIES, AppConfig, Collection, PricingPlan, HomeHighlight, City, Neighborhood, Review, PaymentSettings
+    DEFAULT_AMENITIES, AppConfig, Collection, PricingPlan, HomeHighlight, City, Neighborhood, Review, PaymentSettings, AppAmenity
 } from '../types';
 
 export interface AppGlobalSettings {
@@ -820,15 +820,45 @@ export const saveDicasCategory = async (category: AppCategory) => {
 };
 
 export const saveSubcategory = async (categoryId: string, subcategoryName: string) => {
-    const cat = _categories.find(c => c.id === categoryId);
-    if (cat) {
-        const newSubcategory: Subcategory = {
-            id: subcategoryName.toLowerCase().replace(/\s+/g, '-'),
-            name: subcategoryName
-        };
-        const updatedCat = { ...cat, subcategories: [...(cat.subcategories || []), newSubcategory] };
-        await setDoc(doc(db, 'app_categories_guia', categoryId), cleanObject(updatedCat), { merge: true });
+    let cat = _categories.find(c => c.id === categoryId);
+    if (!cat) {
+        // If category not in cache, fetch it
+        const docSnap = await getDoc(doc(db, 'app_categories_guia', categoryId));
+        if (docSnap.exists()) {
+            cat = { id: docSnap.id, ...docSnap.data() } as AppCategory;
+        }
     }
+
+    if (cat) {
+        const subId = subcategoryName.toLowerCase().replace(/\s+/g, '-').replace(/ç/g, 'c').replace(/ã/g, 'a').replace(/é/g, 'e').replace(/í/g, 'i').replace(/ó/g, 'o').replace(/ú/g, 'u');
+        const existing = (cat.subcategories || []).find(s => s.id === subId || s.name.toLowerCase() === subcategoryName.toLowerCase());
+        
+        if (!existing) {
+            const newSubcategory: Subcategory = {
+                id: subId,
+                name: subcategoryName
+            };
+            const updatedCat = { ...cat, subcategories: [...(cat.subcategories || []), newSubcategory] };
+            await setDoc(doc(db, 'app_categories_guia', categoryId), cleanObject(updatedCat), { merge: true });
+            
+            // Update cache
+            const idx = _categories.findIndex(c => c.id === categoryId);
+            if (idx >= 0) _categories[idx] = updatedCat;
+            else _categories.push(updatedCat);
+            
+            notifyListeners();
+        }
+    }
+};
+
+export const ensureSubcategory = async (categoryName: string, subcategoryName: string) => {
+    if (!categoryName || !subcategoryName) return;
+    
+    // Find category ID by name
+    const cat = _categories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
+    if (!cat) return; // For now only existing categories
+
+    await saveSubcategory(cat.id, subcategoryName);
 };
 
 export const saveDicasSubcategory = async (categoryId: string, subcategoryName: string) => {
@@ -933,7 +963,37 @@ export const getLocations = () => {
         active: true
     }));
 };
-export const getAmenities = () => DEFAULT_AMENITIES;
+let _amenities: AppAmenity[] = DEFAULT_AMENITIES;
+
+export const getAmenities = async () => {
+    try {
+        const snap = await getDocs(collection(db, 'app_amenities'));
+        if (!snap.empty) {
+            _amenities = snap.docs.map(d => ({ id: d.id, ...d.data() } as AppAmenity));
+        } else {
+            // Seed defaults
+            for (const am of DEFAULT_AMENITIES) {
+                await setDoc(doc(db, 'app_amenities', am.id), am);
+            }
+            _amenities = DEFAULT_AMENITIES;
+        }
+    } catch (e) {
+        console.warn("Using default amenities:", e);
+    }
+    return _amenities;
+};
+
+export const saveAmenity = async (label: string) => {
+    const id = label.toLowerCase().replace(/\s+/g, '-').replace(/ç/g, 'c').replace(/ã/g, 'a');
+    const existing = _amenities.find(a => a.id === id || a.label.toLowerCase() === label.toLowerCase());
+    if (!existing) {
+        const newAm = { id, label };
+        await setDoc(doc(db, 'app_amenities', id), newAm);
+        _amenities.push(newAm);
+        notifyListeners();
+    }
+    return id;
+};
 let _posts: BlogPost[] = [];
 
 export const getBlogPostById = async (id: string) => {

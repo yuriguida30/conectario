@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNotification } from '../components/NotificationSystem';
-import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood, AppCategory } from '../types';
-import { getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, saveBusiness, getBusinessStats, getCategories, saveCategory, getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, getAllUsers, toggleBusinessStatus, deleteBusiness, setManualPassword, resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, saveCollection, deleteCollection, getPendingReviews, approveReview, rejectReview, updateUser, getPaymentSettings, savePaymentSettings, getRedemptionsByBusiness, validateRedemption } from '../services/dataService';
+import { User, Coupon, BusinessProfile, DEFAULT_AMENITIES, MenuSection, MenuItem, CompanyRequest, UserRole, PricingPlan, HomeHighlight, City, Neighborhood, AppCategory, AppAmenity } from '../types';
+import { 
+  getCoupons, saveCoupon, deleteCoupon, getBusinesses, getAllBusinesses, 
+  saveBusiness, getBusinessStats, getCategories, saveCategory, 
+  getCompanyRequests, approveCompanyRequest, rejectCompanyRequest, 
+  getAllUsers, toggleBusinessStatus, deleteBusiness, setManualPassword, 
+  resetUserPassword, createAdminPlace, updateClaimableStatus, getPricingPlans, 
+  savePricingPlan, deletePricingPlan, getAllHomeHighlights, saveHomeHighlight, 
+  deleteHomeHighlight, getCities, getNeighborhoods, saveCity, saveNeighborhood, 
+  deleteCity, deleteNeighborhood, updateBusinessPlan, getCollections, 
+  saveCollection, deleteCollection, getPendingReviews, approveReview, 
+  rejectReview, updateUser, getPaymentSettings, savePaymentSettings, 
+  getRedemptionsByBusiness, validateRedemption, getAmenities, saveAmenity 
+} from '../services/dataService';
 import { seedTouristSpots } from '../services/seedService';
 import { 
   Plus, Ticket, Store, Loader2, Star, Eye, 
@@ -35,6 +47,7 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  const [amenitiesList, setAmenitiesList] = useState<AppAmenity[]>([]);
   const [newSubcategory, setNewSubcategory] = useState<{ [key: string]: string }>({});
   const [requests, setRequests] = useState<CompanyRequest[]>([]);
   const [plans, setPlans] = useState<PricingPlan[]>([]);
@@ -141,14 +154,16 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
     const s = await getBusinessStats(biz ? biz.id : currentUser.id);
     setStats(s);
     
-    const [cats, cts, nbs] = await Promise.all([
+    const [cats, cts, nbs, ams] = await Promise.all([
         getCategories(),
         getCities(),
-        getNeighborhoods()
+        getNeighborhoods(),
+        getAmenities()
     ]);
     setCategories(cats);
     setCities(cts);
     setNeighborhoods(nbs);
+    setAmenitiesList(ams);
     
     if (currentUser.role === UserRole.SUPER_ADMIN) {
         const [allRequests, allPlans, allHighlights, allCollections, paySettings] = await Promise.all([
@@ -1307,15 +1322,15 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                 <Check size={18} className="text-ocean-600" /> Comodidades & Diferenciais
                               </h3>
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                  {DEFAULT_AMENITIES.map(am => {
-                                      const isSelected = (editBusiness.amenities || []).includes(am.id);
+                                  {amenitiesList.map(am => {
+                                      const isSelected = (editBusiness.amenities || []).includes(am.label);
                                       return (
                                           <button 
                                             key={am.id}
                                             type="button"
                                             onClick={() => {
                                                 const current = [...(editBusiness.amenities || [])];
-                                                const next = isSelected ? current.filter(x => x !== am.id) : [...current, am.id];
+                                                const next = isSelected ? current.filter(x => x !== am.label) : [...current, am.label];
                                                 setEditBusiness({...editBusiness, amenities: next});
                                             }}
                                             className={`flex items-center gap-3 p-4 rounded-2xl border transition-all text-left ${isSelected ? 'bg-ocean-600 border-ocean-600 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100'}`}
@@ -1325,6 +1340,28 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                           </button>
                                       );
                                   })}
+                                  <div className="flex gap-2 items-center p-2 bg-slate-50 border border-slate-100 rounded-2xl col-span-full">
+                                      <input 
+                                          className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none"
+                                          placeholder="Nova comodidade (Enter para adicionar)..."
+                                          onKeyDown={async (e) => {
+                                              if (e.key === 'Enter') {
+                                                  e.preventDefault();
+                                                  const val = e.currentTarget.value.trim();
+                                                  if (val) {
+                                                      await saveAmenity(val);
+                                                      const newList = await getAmenities();
+                                                      setAmenitiesList(newList);
+                                                      const current = [...(editBusiness.amenities || [])];
+                                                      if (!current.includes(val)) {
+                                                          setEditBusiness({...editBusiness, amenities: [...current, val]});
+                                                      }
+                                                      e.currentTarget.value = '';
+                                                  }
+                                              }
+                                          }}
+                                      />
+                                  </div>
                               </div>
                           </div>
 

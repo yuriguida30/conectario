@@ -74,7 +74,7 @@ export async function runAgentStep(role: string, input: string, context?: string
     throw new Error("Chave de API não configurada.");
   }
   const ai = new GoogleGenAI({ apiKey });
-  const model = "gemini-1.5-flash"; 
+  const model = "gemini-3-flash-preview"; 
   
   const prompt = `
 CONTEXTO DO PROJETO:
@@ -113,7 +113,7 @@ export async function finalizeLocation(finalContent: string, quantity: number = 
     throw new Error("Chave de API não configurada.");
   }
   const ai = new GoogleGenAI({ apiKey });
-  const model = "gemini-1.5-flash"; 
+  const model = "gemini-3-flash-preview"; 
   
   const response = await ai.models.generateContent({
     model,

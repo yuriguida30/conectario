@@ -120,12 +120,26 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
     } catch (error: any) {
       const errorStr = JSON.stringify(error);
-      if (errorStr.includes('429') || error.message?.includes('429') || error.message?.includes('quota')) {
+      const isQuota = errorStr.includes('429') || error.message?.includes('429') || error.message?.includes('quota');
+      const isNotFound = errorStr.includes('404') || error.message?.includes('404');
+
+      if (isQuota) {
         setQuotaError({
           title: "OPERAÇÃO INTERROMPIDA: LIMITE DE QUOTA",
-          msg: "O Agente de Elite esgotou as consultas gratuitas. O Google limita a inteligência para evitar sobrecarga. SOLUÇÃO: Insira sua chave GEMINI_API_KEY_PESQU nas configurações para ter poder ilimitado."
+          msg: "O Agente de Elite esgotou as consultas gratuitas. O Google limita a inteligência para evitar sobrecarga. SOLUÇÃO: Insira uma nova chave GEMINI_API_KEY_PESQU para continuar o trabalho."
+        });
+      } else if (isNotFound) {
+        setQuotaError({
+          title: "SISTEMA FORA DE ALCANCE (404)",
+          msg: "O modelo de inteligência solicitado não foi encontrado ou está temporariamente indisponível. Isso pode ser instabilidade no Google ou uma configuração de modelo antiga."
+        });
+      } else {
+        setQuotaError({
+          title: "FALHA TÉCNICA NA OPERAÇÃO",
+          msg: "Houve um erro inesperado na comunicação com o cérebro da IA. Verifique sua conexão e se a chave de API inserida é válida."
         });
       }
+
       setSteps(prev => {
         const newSteps = [...prev];
         newSteps[index].status = 'error';
@@ -162,10 +176,16 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       setFinalBatch(batchData);
       addLog('finalizer', `Lote de ${batchData.length} locais consolidado. Aguardando revisão de massa do Comandante.`);
     } catch (error: any) {
-      if (JSON.stringify(error).includes('429') || error.message?.includes('429') || error.message?.includes('quota')) {
+      const errorStr = JSON.stringify(error);
+      if (errorStr.includes('429') || error.message?.includes('429') || error.message?.includes('quota')) {
         setQuotaError({
           title: "LIMITE DE INTELIGÊNCIA ALCANÇADO (QUOTA 429)",
-          msg: "O sistema de pesquisa atingiu o limite de requisições gratuitas. Isso acontece para proteger os servidores. Para resolver, você deve usar sua própria chave de API (GEMINI_API_KEY_PESQU) no menu Settings."
+          msg: "O sistema de pesquisa atingiu o limite de requisições gratuitas. Isso acontece para proteger os servidores. Para resolver, insira uma nova chave de API (GEMINI_API_KEY_PESQU) abaixo."
+        });
+      } else {
+        setQuotaError({
+          title: "ERRO NA CONSOLIDAÇÃO DE DADOS",
+          msg: "O Agente Engenheiro de Dados não conseguiu estruturar o lote final. Isso pode ser causado por um erro na chave de API ou por dados inconsistentes fornecidos pelos agentes anteriores."
         });
       }
       notify('error', 'Falha na consolidação do Lote JSON.');

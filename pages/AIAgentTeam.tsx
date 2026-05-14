@@ -22,6 +22,7 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [finalBatch, setFinalBatch] = useState<Partial<BusinessProfile>[]>([]);
   const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
   const [isEditingFinal, setIsEditingFinal] = useState(false);
+  const [manualKey, setManualKey] = useState(localStorage.getItem('lagos_go_api_key') || '');
   const [quotaError, setQuotaError] = useState<{title: string, msg: string} | null>(null);
   const finalData = finalBatch[currentBatchIndex];
   const [logs, setLogs] = useState<{role: string, msg: string, time: string}[]>([]);
@@ -79,7 +80,13 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         .map(s => `${s.name}: ${s.content}`)
         .join('\n\n');
 
-      const result = await runAgentStep(step.role, targetPlace + ` (Gerar ${quantity} locais)`, previousContext, manualFeedback);
+      const result = await runAgentStep(
+        step.role, 
+        targetPlace + ` (Gerar ${quantity} locais)`, 
+        previousContext, 
+        manualFeedback,
+        manualKey
+      );
       
       setSteps(prev => {
         const newSteps = [...prev];
@@ -118,17 +125,29 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     }
   };
 
+  const handleManualKeySave = (val: string) => {
+    setManualKey(val);
+    localStorage.setItem('lagos_go_api_key', val);
+  };
+
   const handleFeedback = async () => {
     if (!activeFeedback || !activeFeedback.text.trim()) return;
     setIsProcessing(true);
     await processStep(activeFeedback.index, activeFeedback.text);
   };
 
+  const handleRetryWithNewKey = () => {
+    setQuotaError(null);
+    if (currentStepIndex >= 0) {
+      processStep(currentStepIndex);
+    }
+  };
+
   const finishProcess = async () => {
     addLog('system', `Sincronizando ${quantity} locais e estruturando saída de massa...`);
     try {
       const allContent = steps.map(s => s.content).join('\n\n');
-      const batchData = await finalizeLocation(allContent, quantity);
+      const batchData = await finalizeLocation(allContent, quantity, manualKey);
       setFinalBatch(batchData);
       addLog('finalizer', `Lote de ${batchData.length} locais consolidado. Aguardando revisão de massa do Comandante.`);
     } catch (error: any) {
@@ -354,28 +373,34 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                         </p>
                       </div>
                       <div className="pt-4 flex flex-col gap-4">
-                        <div className="bg-black/40 p-5 rounded-3xl border border-red-500/20 text-[10px] text-red-300 font-mono text-left space-y-2">
-                          <span className="text-slate-500 uppercase block mb-1 font-black">Instruções para Rotação de Chaves:</span>
-                          <p>1. Acesse o menu <b className="text-white">Settings</b> à esquerda.</p>
-                          <p>2. Localize <b className="text-white">Environment Variables</b>.</p>
-                          <p>3. Atualize <b className="text-white">GEMINI_API_KEY_PESQU</b> com sua nova chave.</p>
-                          <p>4. Clique em <b className="text-white">Save</b> e reinicie a pesquisa.</p>
+                        <div className="bg-black/40 p-5 rounded-3xl border border-red-500/20 text-[10px] text-red-300 font-mono text-left space-y-4">
+                          <span className="text-slate-500 uppercase block font-black">Slot de Rotação de Chave:</span>
+                          <div className="space-y-2">
+                            <label className="text-[9px] text-white/50">Cole aqui uma nova chave Gemini (API_KEY):</label>
+                            <input 
+                              type="password"
+                              value={manualKey}
+                              onChange={(e) => handleManualKeySave(e.target.value)}
+                              placeholder="AIzaSy..."
+                              className="w-full bg-black/60 border border-red-500/30 rounded-xl px-4 py-3 text-white text-xs font-mono focus:border-red-500 focus:ring-0"
+                            />
+                          </div>
+                          <p className="text-[8px] text-slate-500">Essa chave será salva apenas neste navegador para suas pesquisas de massa.</p>
                         </div>
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <a 
-                            href="https://aistudio.google.com/app/apikey" 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="bg-white/10 hover:bg-white/20 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2 border border-white/10"
-                          >
-                            <RefreshCw size={14} /> Obter Nova Chave
-                          </a>
                           <button 
                             onClick={() => setQuotaError(null)}
-                            className="bg-red-600 hover:bg-red-500 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-red-600/20"
+                            className="bg-white/10 hover:bg-white/20 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border border-white/10"
                           >
-                            Entendido, Comandante!
+                            Fechar
+                          </button>
+                          <button 
+                            onClick={handleRetryWithNewKey}
+                            disabled={!manualKey}
+                            className="bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
+                          >
+                            <RefreshCw size={14} className={isProcessing ? 'animate-spin' : ''} /> Injetar Chave e Retentar
                           </button>
                         </div>
                       </div>
@@ -551,7 +576,7 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   {step.feedback && <MessageSquare size={14} className="text-amber-500 animate-pulse" />}
                 </div>
                 <div className="text-xs text-slate-400 line-clamp-5 leading-relaxed font-medium italic">
-                  "{step.content.substring(0, 400)}..."
+                  &quot;{step.content.substring(0, 400)}...&quot;
                 </div>
               </motion.div>
             ))}

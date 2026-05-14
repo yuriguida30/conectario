@@ -65,8 +65,12 @@ Otimize para SEO Local.`,
 Certifique-se de que cada campo (description, address, etc) esteja completo com base nas discussões anteriores.`
 };
 
-export async function runAgentStep(role: string, input: string, context?: string, feedback?: string): Promise<string> {
-  const ai = getAI();
+export async function runAgentStep(role: string, input: string, context?: string, feedback?: string, manualApiKey?: string): Promise<string> {
+  const apiKey = manualApiKey || process.env.GEMINI_API_KEY_PESQU || process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (!apiKey || apiKey === 'undefined' || apiKey === 'null') {
+    throw new Error("Chave de API não configurada.");
+  }
+  const ai = new GoogleGenAI({ apiKey });
   const model = "gemini-3-flash-preview"; 
   
   const prompt = `
@@ -100,8 +104,12 @@ Responda com foco em INTEGRALIDADE e DETALHE para o guia. Se o usuário pediu v�
   }
 }
 
-export async function finalizeLocation(finalContent: string, quantity: number = 1): Promise<Partial<BusinessProfile>[]> {
-  const ai = getAI();
+export async function finalizeLocation(finalContent: string, quantity: number = 1, manualApiKey?: string): Promise<Partial<BusinessProfile>[]> {
+  const apiKey = manualApiKey || process.env.GEMINI_API_KEY_PESQU || process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (!apiKey || apiKey === 'undefined' || apiKey === 'null') {
+    throw new Error("Chave de API não configurada.");
+  }
+  const ai = new GoogleGenAI({ apiKey });
   const model = "gemini-3-flash-preview"; 
   
   const response = await ai.models.generateContent({

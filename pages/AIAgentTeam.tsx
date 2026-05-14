@@ -745,6 +745,24 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                           placeholder="Link 1, Link 2..."
                           className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-6 py-3 text-white text-xs h-20 focus:border-ocean-500 focus:ring-0"
                         />
+                        {/* Gallery Preview Grid */}
+                        {finalData?.gallery && finalData.gallery.length > 0 && (
+                          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 mt-2 px-2">
+                            {finalData.gallery.map((url, i) => (
+                              <div key={i} className="aspect-square rounded-lg bg-slate-800 border border-slate-700 overflow-hidden relative group">
+                                <img src={url} className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                  <button onClick={() => {
+                                    const next = finalData.gallery!.filter((_, idx) => idx !== i);
+                                    updateCurrentPlace({ gallery: next });
+                                  }} className="bg-red-500 p-1 rounded-full text-white">
+                                    <Trash2 size={10} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                        </div>
                     </div>
                     <div className="xl:w-1/2">

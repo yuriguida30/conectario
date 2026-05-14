@@ -19,6 +19,8 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [steps, setSteps] = useState<AgentStep[]>(INITIAL_STEPS);
   const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [cities, setCities] = useState<{id: string, name: string}[]>([]);
+  const [selectedCityId, setSelectedCityId] = useState('');
   const [finalBatch, setFinalBatch] = useState<Partial<BusinessProfile & { imageKeywords?: string }>[]>([]);
   const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
   const [isEditingFinal, setIsEditingFinal] = useState(false);
@@ -41,24 +43,40 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     setLogs(prev => [...prev, { role, msg, time }]);
   };
 
-  const startChain = async () => {
+  useEffect(() => {
+    const loadCities = async () => {
+      try {
+        const data = await getCities();
+        setCities(data);
+        if (data.length > 0) setSelectedCityId(data[0].id);
+      } catch (e) {
+        console.error("Erro ao carregar cidades:", e);
+      }
+    };
+    loadCities();
+  }, []);
+
+  const handleStart = async () => {
     if (!targetPlace.trim()) return;
+    
+    const selectedCity = cities.find(c => c.id === selectedCityId);
+    const cityConstraint = selectedCity ? `Foque EXCLUSIVAMENTE em ${selectedCity.name}, RJ.` : '';
     
     setIsProcessing(true);
     setFinalBatch([]);
     setCurrentBatchIndex(0);
     
     try {
-      addLog('system', 'Verificando banco de dados para evitar duplicações...');
+      addLog('system', `Sincronizando inteligência local em ${selectedCity?.name || 'Região'}...`);
       const existing = await getBusinesses();
       const names = existing.map(b => b.name).join(', ');
-      setExistingGuideContext(`LOCAIS JÁ EXISTENTES NO GUIA (NÃO DUPLICAR): [${names}]`);
+      setExistingGuideContext(`${cityConstraint} LOCAIS JÁ EXISTENTES: [${names}]`);
     } catch (e) {
       console.error("Erro ao buscar locais existentes:", e);
     }
 
     setSteps(INITIAL_STEPS.map(s => ({ ...s, content: '', status: 'pending', feedback: undefined })));
-    setLogs([{ role: 'system', msg: `Protocolo ALPHA de Massa iniciado. Objetivo: ${targetPlace} (Lote: ${quantity})`, time: new Date().toLocaleTimeString() }]);
+    setLogs([{ role: 'system', msg: `Protocolo ALPHA iniciado em ${selectedCity?.name || 'Lagos'}. (Lote: ${quantity})`, time: new Date().toLocaleTimeString() }]);
     setCurrentStepIndex(0);
   };
 
@@ -197,30 +215,31 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const saveToSystem = async () => {
     if (finalBatch.length === 0) return;
     try {
-      const cities = await getCities();
       const neighborhoods = await getNeighborhoods();
-      
-      const defaultCity = cities.find(c => c.name.toLowerCase().includes('arraial')) || cities[0];
-      const defaultNH = neighborhoods.find(n => n.cityId === defaultCity?.id) || neighborhoods[0];
+      const defaultNH = neighborhoods.find(n => n.cityId === selectedCityId) || neighborhoods[0];
 
       for (const place of finalBatch) {
-        // Tenta gerar uma imagem "REAL" baseada nas keywords da IA
-        const keywords = place.imageKeywords || `${place.name}, ${place.category}, brazil`;
-        const encodedKeywords = encodeURIComponent(keywords.replace(/\s/g, ','));
-        // Usamos loremflickr que costuma puxar fotos reais de alta qualidade baseadas em tags
-        const realImageUrl = `https://loremflickr.com/1200/800/${encodedKeywords}?lock=${Math.floor(Math.random() * 1000)}`;
+        // Lógica de Imagem Real Hardened
+        let finalImageUrl = 'https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c7f?auto=format&fit=crop&q=80&w=1200'; // Fallback
+        
+        if (place.imageKeywords && place.imageKeywords.toUpperCase() !== 'NONE') {
+          const encodedKeywords = encodeURIComponent(place.imageKeywords.replace(/\s/g, ','));
+          finalImageUrl = `https://loremflickr.com/1200/800/${encodedKeywords}?lock=${Math.floor(Math.random() * 1000)}`;
+        } else if (place.imageKeywords && place.imageKeywords.toUpperCase() === 'NONE') {
+          finalImageUrl = ''; // Deixa sem imagem se explicitamente não achou
+        }
 
         await createAdminPlace({
           ...place,
-          cityId: defaultCity?.id,
+          cityId: selectedCityId,
           neighborhoodId: defaultNH?.id,
           isClaimed: false,
           canBeClaimed: false,
-          coverImage: realImageUrl
+          coverImage: finalImageUrl
         } as Partial<BusinessProfile>);
       }
 
-      notify('success', `${finalBatch.length} locais publicados com sucesso no Lagos GO.`);
+      notify('success', `${finalBatch.length} locais publicados com sucesso.`);
       onBack();
     } catch (error) {
       notify('error', 'Erro durante a persistência do lote.');
@@ -255,7 +274,17 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <div className="flex flex-col md:flex-row items-center gap-4 w-full xl:w-auto">
           {/* QUANTITY PICKER */}
           <div className="flex items-center gap-3 bg-slate-900/50 border border-slate-800 p-2 rounded-2xl">
-            <span className="text-[10px] font-bold text-slate-500 uppercase ml-3">Quantidade:</span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase ml-3">Cidade:</span>
+            <select 
+              value={selectedCityId}
+              onChange={(e) => setSelectedCityId(e.target.value)}
+              disabled={isProcessing}
+              className="bg-transparent border-none focus:ring-0 text-[10px] font-black text-ocean-400 uppercase cursor-pointer pr-8"
+            >
+              {cities.map(c => <option key={c.id} value={c.id} className="bg-slate-900">{c.name}</option>)}
+            </select>
+            <div className="w-[1px] h-4 bg-slate-800 mx-2" />
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Quantidade:</span>
             <div className="flex items-center gap-1">
               <button 
                 onClick={() => setQuantity(q => Math.max(1, q - 1))}
@@ -285,7 +314,7 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               className="bg-transparent border-none focus:ring-0 px-6 py-3 w-full font-medium placeholder:text-slate-600 italic"
             />
             <button 
-              onClick={startChain}
+              onClick={handleStart}
               disabled={isProcessing || !targetPlace}
               className="bg-ocean-600 hover:bg-ocean-500 disabled:opacity-50 text-white px-8 py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 flex items-center gap-3 shadow-lg shadow-ocean-600/20 whitespace-nowrap"
             >

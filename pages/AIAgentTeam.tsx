@@ -22,6 +22,7 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [finalBatch, setFinalBatch] = useState<Partial<BusinessProfile>[]>([]);
   const [currentBatchIndex, setCurrentBatchIndex] = useState(0);
   const [isEditingFinal, setIsEditingFinal] = useState(false);
+  const [quotaError, setQuotaError] = useState<{title: string, msg: string} | null>(null);
   const finalData = finalBatch[currentBatchIndex];
   const [logs, setLogs] = useState<{role: string, msg: string, time: string}[]>([]);
   const [activeFeedback, setActiveFeedback] = useState<{index: number, text: string} | null>(null);
@@ -99,14 +100,21 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         setActiveFeedback(null);
       }
 
-    } catch (error) {
+    } catch (error: any) {
+      const errorStr = JSON.stringify(error);
+      if (errorStr.includes('429') || error.message?.includes('429') || error.message?.includes('quota')) {
+        setQuotaError({
+          title: "OPERAÇÃO INTERROMPIDA: LIMITE DE QUOTA",
+          msg: "O Agente de Elite esgotou as consultas gratuitas. O Google limita a inteligência para evitar sobrecarga. SOLUÇÃO: Insira sua chave GEMINI_API_KEY_PESQU nas configurações para ter poder ilimitado."
+        });
+      }
       setSteps(prev => {
         const newSteps = [...prev];
         newSteps[index].status = 'error';
         return newSteps;
       });
       setIsProcessing(false);
-      addLog('system', `FALHA CRÍTICA: O Agente ${step.name} foi interrompido.`);
+      addLog('system', `FALHA CRÍTICA: O Agente ${step.name} foi interrompido por limite de quota.`);
     }
   };
 
@@ -123,7 +131,13 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       const batchData = await finalizeLocation(allContent, quantity);
       setFinalBatch(batchData);
       addLog('finalizer', `Lote de ${batchData.length} locais consolidado. Aguardando revisão de massa do Comandante.`);
-    } catch (error) {
+    } catch (error: any) {
+      if (JSON.stringify(error).includes('429') || error.message?.includes('429') || error.message?.includes('quota')) {
+        setQuotaError({
+          title: "LIMITE DE INTELIGÊNCIA ALCANÇADO (QUOTA 429)",
+          msg: "O sistema de pesquisa atingiu o limite de requisições gratuitas. Isso acontece para proteger os servidores. Para resolver, você deve usar sua própria chave de API (GEMINI_API_KEY_PESQU) no menu Settings."
+        });
+      }
       notify('error', 'Falha na consolidação do Lote JSON.');
     } finally {
       setIsProcessing(false);
@@ -322,6 +336,42 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             {/* LOG FLOW */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto p-10 font-mono text-xs space-y-8 scrollbar-thin scrollbar-thumb-slate-800 selection:bg-ocean-600/30">
               <AnimatePresence>
+                {quotaError && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="absolute inset-0 z-[60] flex items-center justify-center p-8 bg-slate-950/40 backdrop-blur-md"
+                  >
+                    <div className="bg-red-950/90 border-2 border-red-500/50 p-12 rounded-[3.5rem] max-w-xl text-center space-y-6 shadow-[0_0_100px_rgba(239,68,68,0.2)]">
+                      <div className="mx-auto w-20 h-20 bg-red-500 rounded-3xl flex items-center justify-center text-white shadow-lg shadow-red-500/40">
+                        <AlertCircle size={48} />
+                      </div>
+                      <div className="space-y-4">
+                        <h3 className="text-2xl font-black uppercase tracking-tighter text-red-100">{quotaError.title}</h3>
+                        <p className="text-red-200/70 text-sm leading-relaxed italic">
+                          {quotaError.msg}
+                        </p>
+                      </div>
+                      <div className="pt-4 flex flex-col gap-3">
+                        <div className="bg-black/40 p-4 rounded-2xl border border-red-500/20 text-[10px] text-red-300 font-mono text-left">
+                          <span className="text-slate-500 uppercase block mb-1">Passo a Passo:</span>
+                          1. Clique no ícone de Engrenagem (Settings)<br />
+                          2. Procure por: GEMINI_API_KEY_PESQU<br />
+                          3. Insira sua chave (AIzaSy...)<br />
+                          4. Salve e reinicie a operação.
+                        </div>
+                        <button 
+                          onClick={() => setQuotaError(null)}
+                          className="w-full bg-red-500 hover:bg-red-400 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all"
+                        >
+                          Entendido, Comandante!
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
                 {logs.length === 0 && (
                   <div className="h-full flex flex-col items-center justify-center text-slate-800/50 space-y-6">
                     <div className="relative">

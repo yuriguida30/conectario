@@ -620,6 +620,20 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   
                   <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
                     <button 
+                      onClick={() => {
+                        const newBatch = finalBatch.filter((_, idx) => idx !== currentBatchIndex);
+                        setFinalBatch(newBatch);
+                        if (newBatch.length === 0) {
+                          setIsEditingFinal(false);
+                        } else {
+                          setCurrentBatchIndex(prev => Math.max(0, prev - 1));
+                        }
+                      }}
+                      className="group flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest border border-red-500/20 transition-all"
+                    >
+                      <Trash2 size={16} /> Descartar Este
+                    </button>
+                    <button 
                       onClick={() => setFinalBatch([])}
                       className="group flex items-center justify-center gap-2 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest border border-white/10 transition-all"
                     >
@@ -903,13 +917,13 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {amenitiesList.map(am => {
-                      const isSelected = finalData?.amenities?.includes(am.label);
+                      const isSelected = finalData?.amenities?.includes(am.id);
                        return (
                          <button 
                            key={am.id}
                            onClick={() => {
                              const current = finalData?.amenities || [];
-                             const next = isSelected ? current.filter(a => a !== am.label) : [...current, am.label];
+                             const next = isSelected ? current.filter(a => a !== am.id) : [...current, am.id];
                              updateCurrentPlace({ amenities: next });
                            }}
                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
@@ -932,10 +946,10 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                          onClick={async () => {
                            if (!newAmenityInput) return;
                            const current = finalData?.amenities || [];
-                           if (!current.includes(newAmenityInput)) {
-                             updateCurrentPlace({ amenities: [...current, newAmenityInput] });
+                           const newId = await saveAmenity(newAmenityInput);
+                           if (!current.includes(newId)) {
+                             updateCurrentPlace({ amenities: [...current, newId] });
                              // Persist new amenity globally
-                             await saveAmenity(newAmenityInput);
                              const newList = await getAmenities();
                              setAmenitiesList(newList);
                            }

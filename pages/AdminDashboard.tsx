@@ -1323,14 +1323,14 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                               </h3>
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                   {amenitiesList.map(am => {
-                                      const isSelected = (editBusiness.amenities || []).includes(am.label);
+                                      const isSelected = (editBusiness.amenities || []).includes(am.id);
                                       return (
                                           <button 
                                             key={am.id}
                                             type="button"
                                             onClick={() => {
                                                 const current = [...(editBusiness.amenities || [])];
-                                                const next = isSelected ? current.filter(x => x !== am.label) : [...current, am.label];
+                                                const next = isSelected ? current.filter(x => x !== am.id) : [...current, am.id];
                                                 setEditBusiness({...editBusiness, amenities: next});
                                             }}
                                             className={`flex items-center gap-3 p-4 rounded-2xl border transition-all text-left ${isSelected ? 'bg-ocean-600 border-ocean-600 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100'}`}
@@ -1349,12 +1349,12 @@ export const AdminDashboard: React.FC<{ currentUser: User; onNavigate: (page: st
                                                   e.preventDefault();
                                                   const val = e.currentTarget.value.trim();
                                                   if (val) {
-                                                      await saveAmenity(val);
+                                                      const newId = await saveAmenity(val);
                                                       const newList = await getAmenities();
                                                       setAmenitiesList(newList);
                                                       const current = [...(editBusiness.amenities || [])];
-                                                      if (!current.includes(val)) {
-                                                          setEditBusiness({...editBusiness, amenities: [...current, val]});
+                                                      if (!current.includes(newId)) {
+                                                          setEditBusiness({...editBusiness, amenities: [...current, newId]});
                                                       }
                                                       e.currentTarget.value = '';
                                                   }

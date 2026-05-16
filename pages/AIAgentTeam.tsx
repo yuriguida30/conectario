@@ -992,23 +992,29 @@ export const AIAgentTeam: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 italic">Instagram (Sem @)</label>
+                    <div className="flex justify-between items-center ml-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 italic">Instagram (Sem @)</label>
+                      {!finalData?.instagram && <span className="text-[8px] text-amber-500 font-bold uppercase animate-pulse">Pendente</span>}
+                    </div>
                     <input 
                       type="text" 
                       value={finalData?.instagram || ''}
                       onChange={(e) => updateCurrentPlace({ instagram: e.target.value })}
                       placeholder="Ex: lagosgo"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs"
+                      className={`w-full bg-slate-950 border rounded-xl px-4 py-3 text-white text-xs transition-all ${!finalData?.instagram ? 'border-amber-500/30 bg-amber-500/5' : 'border-slate-800'}`}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-2 italic">Site Oficial</label>
+                    <div className="flex justify-between items-center ml-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 italic">Site Oficial</label>
+                      {!finalData?.website && <span className="text-[8px] text-amber-500 font-bold uppercase animate-pulse">Pendente</span>}
+                    </div>
                     <input 
                       type="text" 
                       value={finalData?.website || ''}
                       onChange={(e) => updateCurrentPlace({ website: e.target.value })}
                       placeholder="https://..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-xs"
+                      className={`w-full bg-slate-950 border rounded-xl px-4 py-3 text-white text-xs transition-all ${!finalData?.website ? 'border-amber-500/30 bg-amber-500/5' : 'border-slate-800'}`}
                     />
                   </div>
                 </div>
